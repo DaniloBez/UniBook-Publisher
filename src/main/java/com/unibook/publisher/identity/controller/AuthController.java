@@ -16,7 +16,7 @@ import java.net.URI;
 
 @RestController
 @RequestMapping("/api/v1/auth")
-class AuthController {
+public class AuthController {
     private final UserService userService;
 
     public AuthController(UserService userService) {

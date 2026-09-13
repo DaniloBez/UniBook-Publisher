@@ -6,6 +6,7 @@ import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.identity.entity.UserProfile;
 import com.unibook.publisher.identity.entity.request.LoginRequest;
 import com.unibook.publisher.identity.entity.request.RegisterRequest;
+import com.unibook.publisher.identity.entity.request.StaffRequest;
 import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
@@ -68,6 +69,7 @@ public class UserService {
                 .orElseThrow(() -> new ResourceNotFoundException("Користувача з таким id не знайдено"));
 
         return new UserResponse(
+                user.id(),
                 profile.displayName(),
                 user.role(),
                 profile.bio(),
@@ -92,6 +94,36 @@ public class UserService {
         ).orElseThrow(() -> new ResourceNotFoundException("Користувача з таким id не знайдено"));
 
         return new UserResponse(
+                user.id(),
+                profile.displayName(),
+                user.role(),
+                profile.bio(),
+                profile.avatarUrl(),
+                profile.preferredLocale()
+        );
+    }
+
+    public UserResponse createStaff(StaffRequest request) {
+        if (userRepository.existsByEmail(request.email()))
+            throw new IllegalArgumentException("Користувач з такою поштою вже існує");
+
+        User user = userRepository.save(new User(
+                null,
+                request.email(),
+                passwordEncoder.encode(request.password()),
+                request.role()
+        ));
+
+        UserProfile profile = userProfileRepository.save(new UserProfile(
+                user.id(),
+                request.displayName(),
+                request.bio(),
+                request.avatarUrl(),
+                request.preferredLocale()
+        ));
+
+        return new UserResponse(
+                user.id(),
                 profile.displayName(),
                 user.role(),
                 profile.bio(),
