@@ -1,11 +1,10 @@
 package com.unibook.publisher.identity.repository;
 
+import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.identity.entity.User;
 import org.springframework.stereotype.Repository;
 
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
@@ -45,5 +44,15 @@ public class UserRepository {
 
     public void delete(UUID id) {
         users.remove(id);
+    }
+
+    public List<User> findAll() {
+        return new ArrayList<>(users.values());
+    }
+
+    public List<User> findByRole(UserRole role) {
+        return users.values().stream()
+                .filter(u -> u.role() == role)
+                .toList();
     }
 }

@@ -1,5 +1,6 @@
 package com.unibook.publisher.identity.controller;
 
+import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.exception.ForbiddenActionException;
 import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
 import com.unibook.publisher.identity.entity.response.UserResponse;
@@ -8,6 +9,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -34,5 +36,16 @@ public class UserController {
             throw new ForbiddenActionException("Користувач має право редагувати тільки свій профіль");
 
         return ResponseEntity.ok(userService.updateUserProfile(userId, request));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<UserResponse>> getUsers(
+            @RequestHeader("X-User-Role") UserRole callerRole,
+            @RequestParam(required = false) UserRole role
+    ) {
+        if (callerRole != UserRole.ADMIN && callerRole != UserRole.CHIEF_EDITOR)
+            throw new ForbiddenActionException("Переглядати список користувачів можуть лише головний редактор або адміністратор");
+
+        return ResponseEntity.ok(userService.getUsers(role));
     }
 }

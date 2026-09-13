@@ -16,6 +16,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -130,5 +131,25 @@ public class UserService {
                 profile.avatarUrl(),
                 profile.preferredLocale()
         );
+    }
+
+    public List<UserResponse> getUsers(UserRole role) {
+        List<User> userList = (role == null)
+                ? userRepository.findAll()
+                : userRepository.findByRole(role);
+
+        return userList.stream()
+                .map(user -> {
+                    UserProfile profile = userProfileRepository.get(user.id()).orElse(null);
+                    return new UserResponse(
+                            user.id(),
+                            profile != null ? profile.displayName() : null,
+                            user.role(),
+                            profile != null ? profile.bio() : null,
+                            profile != null ? profile.avatarUrl() : null,
+                            profile != null ? profile.preferredLocale() : null
+                    );
+                })
+                .toList();
     }
 }
