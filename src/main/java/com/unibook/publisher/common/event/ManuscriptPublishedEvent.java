@@ -2,5 +2,9 @@ package com.unibook.publisher.common.event;
 
 import java.util.UUID;
 
-public record ManuscriptPublishedEvent(UUID manuscriptId, Long authorId) {
+public record ManuscriptPublishedEvent(
+        UUID manuscriptId,
+        String manuscriptTitle,
+        UUID authorId
+) {
 }
