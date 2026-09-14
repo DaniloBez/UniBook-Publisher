@@ -54,4 +54,6 @@ dependencyManagement {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	jvmArgs '-XX:+EnableDynamicAgentLoading'
+	// в jdk 21+ треба надавати підтвердження, щоб mockito міг мокати класи, інакше буде попередження
 }
