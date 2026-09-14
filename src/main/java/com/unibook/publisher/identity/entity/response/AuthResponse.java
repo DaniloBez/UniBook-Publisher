@@ -8,7 +8,9 @@ import java.util.UUID;
 public record AuthResponse(
         @JsonProperty("user_id")
         UUID userId,
+
         UserRole role,
+
         String token
 ) {
 }

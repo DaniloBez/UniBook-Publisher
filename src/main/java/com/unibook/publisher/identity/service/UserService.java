@@ -69,14 +69,7 @@ public class UserService {
         UserProfile profile = userProfileRepository.get(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Користувача з таким id не знайдено"));
 
-        return new UserResponse(
-                user.id(),
-                profile.displayName(),
-                user.role(),
-                profile.bio(),
-                profile.avatarUrl(),
-                profile.preferredLocale()
-        );
+        return UserResponse.from(user, profile);
     }
 
     public UserResponse updateUserProfile(UUID userId, UserProfileUpdateRequest request) {
@@ -94,14 +87,7 @@ public class UserService {
                         )
         ).orElseThrow(() -> new ResourceNotFoundException("Користувача з таким id не знайдено"));
 
-        return new UserResponse(
-                user.id(),
-                profile.displayName(),
-                user.role(),
-                profile.bio(),
-                profile.avatarUrl(),
-                profile.preferredLocale()
-        );
+        return UserResponse.from(user, profile);
     }
 
     public UserResponse createStaff(StaffRequest request) {
@@ -123,14 +109,7 @@ public class UserService {
                 request.preferredLocale()
         ));
 
-        return new UserResponse(
-                user.id(),
-                profile.displayName(),
-                user.role(),
-                profile.bio(),
-                profile.avatarUrl(),
-                profile.preferredLocale()
-        );
+        return UserResponse.from(user, profile);
     }
 
     public List<UserResponse> getUsers(UserRole role) {
@@ -139,17 +118,7 @@ public class UserService {
                 : userRepository.findByRole(role);
 
         return userList.stream()
-                .map(user -> {
-                    UserProfile profile = userProfileRepository.get(user.id()).orElse(null);
-                    return new UserResponse(
-                            user.id(),
-                            profile != null ? profile.displayName() : null,
-                            user.role(),
-                            profile != null ? profile.bio() : null,
-                            profile != null ? profile.avatarUrl() : null,
-                            profile != null ? profile.preferredLocale() : null
-                    );
-                })
+                .map(user -> UserResponse.from(user, userProfileRepository.get(user.id()).orElse(null)))
                 .toList();
     }
 }
