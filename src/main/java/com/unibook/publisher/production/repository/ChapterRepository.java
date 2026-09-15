@@ -1,9 +1,9 @@
 package com.unibook.publisher.production.repository;
 
 import com.unibook.publisher.production.entity.Chapter;
-import com.unibook.publisher.production.entity.Manuscript;
 import org.springframework.stereotype.Repository;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -22,9 +22,10 @@ public class ChapterRepository {
         return Optional.ofNullable(chapters.get(chapterId));
     }
 
-    public List<Chapter> findByManuscriptId(Manuscript manuscript) {
+    public List<Chapter> findByManuscriptId(UUID manuscriptId) {
         return chapters.values().stream()
-                .filter(chapter -> chapter.manuscriptId().equals(manuscript.manuscriptId()))
+                .filter(chapter -> chapter.manuscriptId().equals(manuscriptId))
+                .sorted(Comparator.comparingInt(Chapter::chapterIndex))
                 .toList();
     }
 

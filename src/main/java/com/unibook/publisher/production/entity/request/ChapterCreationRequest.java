@@ -7,7 +7,6 @@ public record ChapterCreationRequest(
         @NotBlank
         String chapterTitle,
 
-        @NotBlank
         @Min(value = 1)
         int chapterIndex
 ) {}

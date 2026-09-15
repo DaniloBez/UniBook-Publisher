@@ -5,17 +5,16 @@ import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPostponedEvent;
 import com.unibook.publisher.common.event.ManuscriptRejectedEvent;
 import com.unibook.publisher.common.event.ManuscriptSubmittedEvent;
+import com.unibook.publisher.common.exception.InvalidStateTransitionException;
 import com.unibook.publisher.common.exception.ResourceNotFoundException;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.ManuscriptStatus;
-import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptPostponementRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptRejectionRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptSubmissionRequest;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
-import com.unibook.publisher.production.repository.TeamAssignmentRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -41,24 +40,26 @@ public class ManuscriptService {
         return ManuscriptResponse.from(manuscript);
     }
 
-    public List<ManuscriptResponse> getAllManuscripts() {
-        return manuscriptRepository.findAll().stream()
-                .map(ManuscriptResponse::from)
-                .toList();
+    public List<ManuscriptResponse> getManuscripts(ManuscriptStatus status) {
+        List<Manuscript> manuscripts = (status == null) ? manuscriptRepository.findAll() : manuscriptRepository.findByStatus(status);
+        return manuscripts.stream().map(ManuscriptResponse::from).toList();
     }
 
-    public ManuscriptResponse approveManuscript(UUID id, ManuscriptApprovalRequest request) {
+    public ManuscriptResponse approveManuscript(UUID id, UUID chiefEditorId, ManuscriptApprovalRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Рукопис за ID: " + id +" не знайдено"));
+        if(manuscript.status() != ManuscriptStatus.SUBMITTED &&  manuscript.status() != ManuscriptStatus.POSTPONED) {
+            throw new InvalidStateTransitionException("Рукопис можна схвалити лише у статусі SUBMITTED або POSTPONED. Поточний статус: " + manuscript.status());
+        }
 
-        teamAssignmentService.assignUser(id, request.editorId(), UserRole.EDITOR);
+        teamAssignmentService.assign(id, request.editorId(), UserRole.EDITOR);
 
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.IN_PROGRESS);
         manuscriptRepository.save(updated);
         publisher.publishEvent(new ManuscriptApprovedEvent(
                 updated.manuscriptId(),
                 updated.title(),
-                request.editorId(),
+                chiefEditorId,
                 updated.authorId()));
         return ManuscriptResponse.from(updated);
     }
@@ -66,6 +67,10 @@ public class ManuscriptService {
     public ManuscriptResponse rejectManuscript(UUID id, UUID chiefEditorId, ManuscriptRejectionRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Рукопис за ID: " + id +" не знайдено"));
+        if(manuscript.status() != ManuscriptStatus.SUBMITTED) {
+            throw new InvalidStateTransitionException("Рукопис можна відхилити лише у статусі SUBMITTED. Поточний статус: " + manuscript.status());
+        }
+
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.REJECTED);
         manuscriptRepository.save(updated);
         publisher.publishEvent(new ManuscriptRejectedEvent(
@@ -81,6 +86,10 @@ public class ManuscriptService {
     public ManuscriptResponse postponeManuscript(UUID id, UUID chiefEditorId, ManuscriptPostponementRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Рукопис за ID: " + id +" не знайдено"));
+        if(manuscript.status() != ManuscriptStatus.SUBMITTED) {
+            throw new InvalidStateTransitionException("Рукопис можна відкласти лише у статусі SUBMITTED. Поточний статус: " + manuscript.status());
+        }
+
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.POSTPONED);
         manuscriptRepository.save(updated);
         publisher.publishEvent(new ManuscriptPostponedEvent(

@@ -1,5 +1,6 @@
 package com.unibook.publisher.production.controller;
 
+import com.unibook.publisher.production.entity.ManuscriptStatus;
 import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptPostponementRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptRejectionRequest;
@@ -29,17 +30,20 @@ public class ManuscriptController {
     }
 
     @GetMapping
-    public ResponseEntity<List<ManuscriptResponse>> getAllManuscripts() {
-        List<ManuscriptResponse> manuscripts = manuscriptService.getAllManuscripts();
+    public ResponseEntity<List<ManuscriptResponse>> getManuscripts(
+            @RequestParam(required = false) ManuscriptStatus status
+    ) {
+        List<ManuscriptResponse> manuscripts = manuscriptService.getManuscripts(status);
         return ResponseEntity.ok(manuscripts);
     }
 
     @PostMapping("/{id}/approve")
     public ResponseEntity<ManuscriptResponse> approveManuscript(
             @PathVariable UUID id,
+            @RequestHeader("X-User-Id") UUID chiefEditorId,
             @Valid @RequestBody ManuscriptApprovalRequest request
             ) {
-        ManuscriptResponse response = manuscriptService.approveManuscript(id, request);
+        ManuscriptResponse response = manuscriptService.approveManuscript(id, chiefEditorId, request);
         return ResponseEntity.ok(response);
     }
 

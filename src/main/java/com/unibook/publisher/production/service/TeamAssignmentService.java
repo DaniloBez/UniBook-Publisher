@@ -21,7 +21,7 @@ public class TeamAssignmentService {
         this.manuscriptRepository = manuscriptRepository;
     }
 
-    public TeamAssignmentResponse assignUser (UUID manuscriptId, UUID userId, UserRole role) {
+    public TeamAssignmentResponse assign(UUID manuscriptId, UUID userId, UserRole role) {
         if(manuscriptRepository.findById(manuscriptId).isEmpty()) {
             throw new ResourceNotFoundException("Рукопис з ID " + manuscriptId + " не знайдено");
         }
