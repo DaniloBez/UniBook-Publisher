@@ -1,5 +1,6 @@
 package com.unibook.publisher.production.service;
 
+import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPostponedEvent;
 import com.unibook.publisher.common.event.ManuscriptRejectedEvent;
@@ -7,12 +8,14 @@ import com.unibook.publisher.common.event.ManuscriptSubmittedEvent;
 import com.unibook.publisher.common.exception.ResourceNotFoundException;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptPostponementRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptRejectionRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptSubmissionRequest;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
+import com.unibook.publisher.production.repository.TeamAssignmentRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -23,10 +26,12 @@ import java.util.UUID;
 @Service
 public class ManuscriptService {
     private final ManuscriptRepository manuscriptRepository;
+    private final TeamAssignmentService teamAssignmentService;
     private final ApplicationEventPublisher publisher;
 
-    public ManuscriptService(ManuscriptRepository manuscriptRepository, ApplicationEventPublisher publisher) {
+    public ManuscriptService(ManuscriptRepository manuscriptRepository, TeamAssignmentService teamAssignmentService, ApplicationEventPublisher publisher) {
         this.manuscriptRepository = manuscriptRepository;
+        this.teamAssignmentService = teamAssignmentService;
         this.publisher = publisher;
     }
 
@@ -45,6 +50,9 @@ public class ManuscriptService {
     public ManuscriptResponse approveManuscript(UUID id, ManuscriptApprovalRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Рукопис за ID: " + id +" не знайдено"));
+
+        teamAssignmentService.assignUser(id, request.editorId(), UserRole.EDITOR);
+
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.IN_PROGRESS);
         manuscriptRepository.save(updated);
         publisher.publishEvent(new ManuscriptApprovedEvent(
