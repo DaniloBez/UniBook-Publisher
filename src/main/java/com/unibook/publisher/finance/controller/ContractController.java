@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/contracts")
+@RequestMapping("/api/v1/contracts")
 public class ContractController {
     private final ContractService contractService;
 
