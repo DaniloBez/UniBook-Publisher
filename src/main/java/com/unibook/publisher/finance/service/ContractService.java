@@ -116,6 +116,10 @@ public class ContractService {
         if (contract.status() != ContractStatus.DRAFT)
             throw new InvalidStateTransitionException("Підтвердження можливе тільки для контракту в статусі DRAFT");
 
+        if (contract.authorConfirmedAt() != null) { //silent idempotency
+            return ContractResponse.from(contract);
+        }
+
         Contract updated = contractRepository.save(contract.confirmedByAuthor(Instant.now()));
 
         eventPublisher.publishEvent(new ContractConfirmedEvent(
