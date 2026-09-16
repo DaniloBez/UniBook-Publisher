@@ -18,6 +18,13 @@ public class TeamAssignmentRepository {
         return assignment;
     }
 
+    public boolean isUserAssignedToManuscript(UUID manuscriptId, UUID userId, UserRole role) {
+        return assignments.values().stream()
+                .anyMatch(a -> a.manuscriptId().equals(manuscriptId)
+                        && a.userId().equals(userId)
+                        && a.role() == role);
+    }
+
     public Optional<TeamAssignment> findByManuscriptIdAndRole(UUID manuscriptId, UserRole role) {
         return assignments.values().stream()
                 .filter(a -> a.manuscriptId().equals(manuscriptId) && a.role() == role)

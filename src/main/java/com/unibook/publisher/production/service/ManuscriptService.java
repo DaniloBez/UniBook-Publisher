@@ -1,10 +1,7 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
-import com.unibook.publisher.common.event.ManuscriptPostponedEvent;
-import com.unibook.publisher.common.event.ManuscriptRejectedEvent;
-import com.unibook.publisher.common.event.ManuscriptSubmittedEvent;
+import com.unibook.publisher.common.event.*;
 import com.unibook.publisher.common.exception.InvalidStateTransitionException;
 import com.unibook.publisher.common.exception.ResourceNotFoundException;
 import com.unibook.publisher.production.entity.Manuscript;
@@ -53,22 +50,31 @@ public class ManuscriptService {
         }
 
         teamAssignmentService.assign(id, request.editorId(), UserRole.EDITOR);
-
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.IN_PROGRESS);
         manuscriptRepository.save(updated);
+
         publisher.publishEvent(new ManuscriptApprovedEvent(
                 updated.manuscriptId(),
                 updated.title(),
                 chiefEditorId,
                 updated.authorId()));
+
+        publisher.publishEvent(new WorkerAssignedEvent(
+                updated.manuscriptId(),
+                updated.title(),
+                chiefEditorId,
+                request.editorId(),
+                UserRole.EDITOR,
+                updated.authorId()));
+
         return ManuscriptResponse.from(updated);
     }
 
     public ManuscriptResponse rejectManuscript(UUID id, UUID chiefEditorId, ManuscriptRejectionRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Рукопис за ID: " + id +" не знайдено"));
-        if(manuscript.status() != ManuscriptStatus.SUBMITTED) {
-            throw new InvalidStateTransitionException("Рукопис можна відхилити лише у статусі SUBMITTED. Поточний статус: " + manuscript.status());
+        if(manuscript.status() != ManuscriptStatus.SUBMITTED && manuscript.status() != ManuscriptStatus.POSTPONED) {
+            throw new InvalidStateTransitionException("Рукопис можна відхилити лише у статусі SUBMITTED або POSTPONED. Поточний статус: " + manuscript.status());
         }
 
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.REJECTED);
