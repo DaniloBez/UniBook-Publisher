@@ -22,6 +22,8 @@ public class FinanceAuditLogRepository {
                 log.changedByUserId(),
                 log.oldRoyaltyPercent(),
                 log.newRoyaltyPercent(),
+                log.oldAdvancePayment(),
+                log.newAdvancePayment(),
                 log.changeReason(),
                 log.timestamp() != null ? log.timestamp() : Instant.now()
         );

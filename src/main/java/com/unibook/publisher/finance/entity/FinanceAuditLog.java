@@ -10,6 +10,8 @@ public record FinanceAuditLog(
         UUID changedByUserId,
         BigDecimal oldRoyaltyPercent,
         BigDecimal newRoyaltyPercent,
+        BigDecimal oldAdvancePayment,
+        BigDecimal newAdvancePayment,
         String changeReason,
         Instant timestamp
 ) {

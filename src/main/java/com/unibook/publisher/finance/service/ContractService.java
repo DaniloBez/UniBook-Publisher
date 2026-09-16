@@ -88,6 +88,8 @@ public class ContractService {
                 callerId,
                 contract.royaltyPercent(),
                 request.newRoyaltyPercent(),
+                contract.advancePayment(),
+                request.newAdvance(),
                 request.reason(),
                 Instant.now()
         );
