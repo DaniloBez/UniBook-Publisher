@@ -1,5 +1,6 @@
 package com.unibook.publisher.production.repository;
 
+import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import org.springframework.stereotype.Repository;
 
@@ -14,5 +15,12 @@ public class TeamAssignmentRepository {
     public TeamAssignment save (TeamAssignment assignment) {
         assignments.put(assignment.teamId(), assignment);
         return assignment;
+    }
+
+    public boolean isUserAssignedToManuscript(UUID manuscriptId, UUID userId, UserRole role) {
+        return assignments.values().stream()
+                .anyMatch(a -> a.manuscriptId().equals(manuscriptId)
+                        && a.userId().equals(userId)
+                        && a.role() == role);
     }
 }

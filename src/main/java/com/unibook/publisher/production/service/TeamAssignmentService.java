@@ -6,6 +6,7 @@ import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.response.TeamAssignmentResponse;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import com.unibook.publisher.production.repository.TeamAssignmentRepository;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -32,7 +33,6 @@ public class TeamAssignmentService {
                 role,
                 Instant.now()
         );
-        teamAssignmentRepository.save(assignment);
         return TeamAssignmentResponse.from(teamAssignmentRepository.save(assignment));
     }
 }

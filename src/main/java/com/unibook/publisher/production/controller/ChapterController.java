@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/aps/v1")
+@RequestMapping("/api/v1")
 public class ChapterController {
     private final ChapterService chapterService;
 
