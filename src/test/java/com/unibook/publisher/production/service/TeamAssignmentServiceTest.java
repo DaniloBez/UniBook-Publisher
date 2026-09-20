@@ -1,9 +1,9 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.exception.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.response.TeamAssignmentResponse;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
@@ -68,7 +68,7 @@ public class TeamAssignmentServiceTest {
     void assign_ResourceNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> teamAssignmentService.assign(manuscriptId, UUID.randomUUID(), UserRole.EDITOR));
+        assertThrows(ManuscriptNotFoundException.class, () -> teamAssignmentService.assign(manuscriptId, UUID.randomUUID(), UserRole.EDITOR));
         verify(teamAssignmentRepository, never()).save(any());
     }
 }

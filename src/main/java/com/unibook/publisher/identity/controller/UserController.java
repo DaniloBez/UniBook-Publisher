@@ -1,7 +1,7 @@
 package com.unibook.publisher.identity.controller;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.exception.ForbiddenActionException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.service.UserService;

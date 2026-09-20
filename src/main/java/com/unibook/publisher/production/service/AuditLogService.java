@@ -1,7 +1,7 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.production.entity.ManuscriptAuditLog;
-import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.response.AuditLogResponse;
 import com.unibook.publisher.production.repository.ManuscriptAuditLogRepository;
 import org.springframework.stereotype.Service;

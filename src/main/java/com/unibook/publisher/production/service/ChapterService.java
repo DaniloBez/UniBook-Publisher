@@ -2,12 +2,13 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.RevisionAddedEvent;
-import com.unibook.publisher.common.exception.ForbiddenActionException;
-import com.unibook.publisher.common.exception.InvalidStateTransitionException;
-import com.unibook.publisher.common.exception.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.Revision;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
 import com.unibook.publisher.production.entity.request.RevisionUploadRequest;
@@ -42,12 +43,18 @@ public class ChapterService {
 
     public ChapterResponse createChapter(UUID manuscriptId, UUID authorId, ChapterCreationRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
-                .orElseThrow(() -> new ResourceNotFoundException("Рукопис за ID: " + manuscriptId + " не знайдено"));
+                .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
         if(!manuscript.authorId().equals(authorId)) {
             throw new ForbiddenActionException("Автор не має прав на додавання розділів до цього рукопису");
         }
         if(manuscript.status() != ManuscriptStatus.IN_PROGRESS) {
-            throw new InvalidStateTransitionException("Створення розділів доступне лише у статусі IN_PROGRESS");
+            throw new InvalidStateTransitionException(
+                    "Manuscript",
+                    manuscriptId,
+                    manuscript.status(),
+                    ManuscriptStatus.IN_PROGRESS,
+                    manuscript.status().allowedTransitions()
+            );
         }
         Chapter chapter = new Chapter(
                 UUID.randomUUID(),
@@ -61,7 +68,7 @@ public class ChapterService {
 
     public List<ChapterResponse> getChaptersByManuscriptId(UUID manuscriptId) {
         if(manuscriptRepository.findById(manuscriptId).isEmpty()) {
-            throw new ResourceNotFoundException("Рукопис за ID: " + manuscriptId + " не знайдено");
+            throw new ManuscriptNotFoundException(manuscriptId);
         }
         return chapterRepository.findByManuscriptId(manuscriptId).stream()
                 .map(ChapterResponse::from)
@@ -70,11 +77,17 @@ public class ChapterService {
 
     public RevisionResponse uploadRevision(UUID chapterId, UUID userId, RevisionUploadRequest request) {
         Chapter chapter = chapterRepository.findById(chapterId)
-                .orElseThrow(() -> new ResourceNotFoundException("Розділ за ID: " + chapterId + " не знайдено"));
+                .orElseThrow(() -> new ChapterNotFoundException(chapterId));
         Manuscript manuscript = manuscriptRepository.findById(chapter.manuscriptId())
-                .orElseThrow(() -> new ResourceNotFoundException("Рукопис за ID: " + chapter.manuscriptId() + " не знайдено"));
+                .orElseThrow(() -> new ManuscriptNotFoundException(chapter.manuscriptId()));
         if(manuscript.status() != ManuscriptStatus.IN_PROGRESS) {
-            throw new InvalidStateTransitionException("Завантаження ревізій доступне лише у статусі IN_PROGRESS");
+            throw new InvalidStateTransitionException(
+                    "Manuscript",
+                    manuscript.manuscriptId(),
+                    manuscript.status(),
+                    ManuscriptStatus.IN_PROGRESS,
+                    manuscript.status().allowedTransitions()
+            );
         }
 
         boolean isAuthor = manuscript.authorId().equals(userId);
@@ -111,7 +124,7 @@ public class ChapterService {
 
     public List<RevisionResponse> getRevisionsByChapterId(UUID chapterId) {
         if(chapterRepository.findById(chapterId).isEmpty()) {
-            throw new ResourceNotFoundException("Розділ за ID: " + chapterId + " не знайдено");
+            throw new ChapterNotFoundException(chapterId);
         }
         return revisionRepository.findAllByChapterId(chapterId).stream()
                 .map(RevisionResponse::from)

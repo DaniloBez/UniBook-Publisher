@@ -2,12 +2,14 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.RevisionAddedEvent;
-import com.unibook.publisher.common.exception.ForbiddenActionException;
-import com.unibook.publisher.common.exception.InvalidStateTransitionException;
-import com.unibook.publisher.common.exception.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.Revision;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
 import com.unibook.publisher.production.entity.request.RevisionUploadRequest;

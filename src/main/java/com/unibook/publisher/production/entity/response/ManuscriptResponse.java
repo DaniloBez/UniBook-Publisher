@@ -1,7 +1,7 @@
 package com.unibook.publisher.production.entity.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.Manuscript;
 
 import java.time.Instant;

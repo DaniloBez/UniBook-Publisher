@@ -1,15 +1,15 @@
 package com.unibook.publisher.finance.service;
 
+import com.unibook.publisher.common.enums.ContractStatus;
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.ContractConfirmedEvent;
 import com.unibook.publisher.common.event.ContractRoyaltyUpdatedEvent;
 import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
-import com.unibook.publisher.common.exception.ForbiddenActionException;
-import com.unibook.publisher.common.exception.InvalidStateTransitionException;
-import com.unibook.publisher.common.exception.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ContractNotFoundException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.finance.entity.Contract;
-import com.unibook.publisher.common.enums.ContractStatus;
 import com.unibook.publisher.finance.entity.FinanceAuditLog;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
@@ -58,14 +58,14 @@ public class ContractService {
 
     public void activateContractForPublishedManuscript(ManuscriptPublishedEvent event) {
         Contract contract = contractRepository.findByManuscriptId(event.manuscriptId())
-                .orElseThrow(() -> new ResourceNotFoundException("Контракт для цього рукопису не знайдено"));
+                .orElseThrow(() -> new ContractNotFoundException(event.manuscriptId()));
 
         contractRepository.save(contract.activated());
     }
 
     public ContractResponse getContractByManuscriptId(UUID manuscriptId, UUID callerId, UserRole callerRole) {
         Contract contract = contractRepository.findByManuscriptId(manuscriptId)
-                .orElseThrow(() -> new ResourceNotFoundException("Контракт для цього рукопису не знайдено"));
+                .orElseThrow(() -> new ContractNotFoundException(manuscriptId));
 
         checkViewAccess(contract, callerId, callerRole);
 
@@ -78,8 +78,15 @@ public class ContractService {
 
         Contract contract = getContractOrThrow(contractId);
 
-        if (contract.status() != ContractStatus.DRAFT)
-            throw new InvalidStateTransitionException("В активному контракті змінювати умови заборонено");
+        if (contract.status() != ContractStatus.DRAFT) {
+            throw new InvalidStateTransitionException(
+                    "Contract",
+                    contractId,
+                    contract.status(),
+                    ContractStatus.DRAFT,
+                    contract.status().allowedTransitions()
+            );
+        }
 
         //REM no transactions for now; anyway, no actual db for now as well \(ツ)/
         FinanceAuditLog auditLog = new FinanceAuditLog(
@@ -115,8 +122,15 @@ public class ContractService {
         if (!contract.authorId().equals(callerId))
             throw new ForbiddenActionException("Підтверджувати контракт може тільки автор рукопису");
 
-        if (contract.status() != ContractStatus.DRAFT)
-            throw new InvalidStateTransitionException("Підтвердження можливе тільки для контракту в статусі DRAFT");
+        if (contract.status() != ContractStatus.DRAFT) {
+            throw new InvalidStateTransitionException(
+                    "Contract",
+                    contractId,
+                    contract.status(),
+                    ContractStatus.DRAFT,
+                    contract.status().allowedTransitions()
+            );
+        }
 
         if (contract.authorConfirmedAt() != null) { //silent idempotency
             return ContractResponse.from(contract);
@@ -157,7 +171,7 @@ public class ContractService {
 
     private Contract getContractOrThrow(UUID contractId) {
         return contractRepository.findById(contractId)
-                .orElseThrow(() -> new ResourceNotFoundException("Контракт з таким id не знайдено"));
+                .orElseThrow(() -> new ContractNotFoundException(contractId));
     }
 
     private void checkViewAccess(Contract contract, UUID callerId, UserRole callerRole) {

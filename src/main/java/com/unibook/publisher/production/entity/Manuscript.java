@@ -1,5 +1,7 @@
 package com.unibook.publisher.production.entity;
 
+import com.unibook.publisher.production.enums.ManuscriptStatus;
+
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;

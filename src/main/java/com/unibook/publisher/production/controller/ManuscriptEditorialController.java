@@ -1,7 +1,7 @@
 package com.unibook.publisher.production.controller;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.exception.ForbiddenActionException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.production.entity.request.AssignDesignerRequest;
 import com.unibook.publisher.production.entity.response.AuditLogResponse;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;

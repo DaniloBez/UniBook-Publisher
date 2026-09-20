@@ -1,7 +1,9 @@
 package com.unibook.publisher.identity.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.exception.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.conflict.EmailAlreadyExistsException;
+import com.unibook.publisher.common.exception.notfound.UserNotFoundException;
+import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
 import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.identity.entity.UserProfile;
 import com.unibook.publisher.identity.entity.request.LoginRequest;
@@ -32,7 +34,7 @@ public class UserService {
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.email()))
-            throw new IllegalArgumentException("Користувач з такою поштою вже існує");
+            throw new EmailAlreadyExistsException(request.email());
 
         User user = userRepository.save(new User(
                 null,
@@ -54,27 +56,27 @@ public class UserService {
 
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.getByEmail(request.email())
-                .orElseThrow(() -> new IllegalArgumentException("Неправильна пошта або пароль"));
+                .orElseThrow(InvalidCredentialsException::new);
 
         if (!passwordEncoder.matches(request.password(), user.hashedPassword()))
-            throw new IllegalArgumentException("Неправильна пошта або пароль");
+            throw new InvalidCredentialsException();
 
         return new AuthResponse(user.id(), user.role(), "jwt-token-for-" + user.id());
     }
 
     public UserResponse getUserProfile(UUID userId) {
         User user = userRepository.get(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Користувача з таким id не знайдено"));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         UserProfile profile = userProfileRepository.get(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Користувача з таким id не знайдено"));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         return UserResponse.from(user, profile);
     }
 
     public UserResponse updateUserProfile(UUID userId, UserProfileUpdateRequest request) {
         User user = userRepository.get(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Користувача з таким id не знайдено"));
+                .orElseThrow(() -> new UserNotFoundException(userId));
 
         UserProfile profile = userProfileRepository.update(
                 userId,
@@ -84,15 +86,15 @@ public class UserService {
                         request.bio(),
                         request.avatarUrl(),
                         request.preferredLocale()
-                        )
-        ).orElseThrow(() -> new ResourceNotFoundException("Користувача з таким id не знайдено"));
+                )
+        ).orElseThrow(() -> new UserNotFoundException(userId));
 
         return UserResponse.from(user, profile);
     }
 
     public UserResponse createStaff(StaffRequest request) {
         if (userRepository.existsByEmail(request.email()))
-            throw new IllegalArgumentException("Користувач з такою поштою вже існує");
+            throw new EmailAlreadyExistsException(request.email());
 
         User user = userRepository.save(new User(
                 null,

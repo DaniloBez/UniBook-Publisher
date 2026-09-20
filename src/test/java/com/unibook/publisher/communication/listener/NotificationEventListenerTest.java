@@ -277,8 +277,8 @@ class NotificationEventListenerTest {
     class ThreadEventsTests {
 
         @Test
-        @DisplayName("onThreadOpened: сповіщення про створення нової гілки обговорення")
-        void onThreadOpened_Success() {
+        @DisplayName("onThreadOpened: сповіщення про створення нової гілки обговорення (розділ)")
+        void onThreadOpened_Chapter_Success() {
             UUID chapterId = UUID.randomUUID();
             UUID threadId = UUID.randomUUID();
             UUID initiatorId = editorId;
@@ -302,7 +302,67 @@ class NotificationEventListenerTest {
                     eq(initiatorId),
                     eq(manuscriptId),
                     eq("Нове обговорення"),
-                    contains(manuscriptTitle),
+                    contains("Відкрито обговорення розділу в книзі '" + manuscriptTitle),
+                    eq(NotificationType.REVIEW_FEEDBACK)
+            );
+        }
+
+        @Test
+        @DisplayName("onThreadOpened: сповіщення про створення обговорення обкладинки (COVER)")
+        void onThreadOpened_Cover_Success() {
+            UUID threadId = UUID.randomUUID();
+            UUID initiatorId = editorId;
+            UUID recipientId = authorId;
+
+            ThreadOpenedEvent event = new ThreadOpenedEvent(
+                    manuscriptId,
+                    manuscriptTitle,
+                    ThreadType.COVER,
+                    null,
+                    threadId,
+                    initiatorId,
+                    recipientId,
+                    "Колірна гама"
+            );
+
+            listener.onThreadOpened(event);
+
+            verify(notificationService).send(
+                    eq(recipientId),
+                    eq(initiatorId),
+                    eq(manuscriptId),
+                    eq("Нове обговорення"),
+                    contains("Дизайнер або автор створив обговорення обкладинки для '" + manuscriptTitle),
+                    eq(NotificationType.REVIEW_FEEDBACK)
+            );
+        }
+
+        @Test
+        @DisplayName("onThreadOpened: сповіщення про створення загального обговорення (GENERAL)")
+        void onThreadOpened_General_Success() {
+            UUID threadId = UUID.randomUUID();
+            UUID initiatorId = authorId;
+            UUID recipientId = editorId;
+
+            ThreadOpenedEvent event = new ThreadOpenedEvent(
+                    manuscriptId,
+                    manuscriptTitle,
+                    ThreadType.GENERAL,
+                    null,
+                    threadId,
+                    initiatorId,
+                    recipientId,
+                    "Загальне питання"
+            );
+
+            listener.onThreadOpened(event);
+
+            verify(notificationService).send(
+                    eq(recipientId),
+                    eq(initiatorId),
+                    eq(manuscriptId),
+                    eq("Нове обговорення"),
+                    contains("Нове загальне обговорення щодо книги '" + manuscriptTitle),
                     eq(NotificationType.REVIEW_FEEDBACK)
             );
         }

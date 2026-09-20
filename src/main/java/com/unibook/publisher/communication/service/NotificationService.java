@@ -1,7 +1,7 @@
 package com.unibook.publisher.communication.service;
 
-import com.unibook.publisher.common.exception.ForbiddenActionException;
-import com.unibook.publisher.common.exception.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.notfound.NotificationNotFoundException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.communication.entity.Notification;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
@@ -56,7 +56,7 @@ public class NotificationService {
 
     public NotificationResponse markAsRead(UUID notificationId, UUID userId) {
         Notification notification = notificationRepository.findById(notificationId)
-                .orElseThrow(() -> new ResourceNotFoundException("Сповіщення не знайдено"));
+                .orElseThrow(() -> new NotificationNotFoundException(notificationId));
 
         if (!notification.recipientId().equals(userId))
             throw new ForbiddenActionException("Можна відмічати тільки свої повідомлення");

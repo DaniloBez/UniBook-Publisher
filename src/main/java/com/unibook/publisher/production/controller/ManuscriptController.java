@@ -1,6 +1,6 @@
 package com.unibook.publisher.production.controller;
 
-import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptPostponementRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptRejectionRequest;

@@ -1,7 +1,7 @@
 package com.unibook.publisher.production.repository;
 
 import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;

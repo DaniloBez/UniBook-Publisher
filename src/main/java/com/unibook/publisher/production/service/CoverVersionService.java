@@ -2,12 +2,12 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.CoverVersionAddedEvent;
-import com.unibook.publisher.common.exception.ForbiddenActionException;
-import com.unibook.publisher.common.exception.InvalidStateTransitionException;
-import com.unibook.publisher.common.exception.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.production.entity.CoverVersion;
 import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.request.CoverVersionRequest;
 import com.unibook.publisher.production.entity.response.CoverVersionResponse;
@@ -42,7 +42,7 @@ public class CoverVersionService {
 
     public CoverVersionResponse uploadCoverVersion(UUID manuscriptId, UUID designerId, CoverVersionRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
-                .orElseThrow(() -> new ResourceNotFoundException("Рукопис за ID: " + manuscriptId + " не знайдено"));
+                .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
 
         TeamAssignment designerAssignment = teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)
                 .orElseThrow(() -> new ForbiddenActionException("Дизайнера не призначено на цей рукопис"));
@@ -50,7 +50,13 @@ public class CoverVersionService {
             throw new ForbiddenActionException("Завантажувати обкладинку може лише призначений дизайнер");
         }
         if (manuscript.status() != ManuscriptStatus.IN_DESIGN) {
-            throw new InvalidStateTransitionException("Завантаження обкладинки можливе лише у статусі IN_DESIGN. Поточний статус: " + manuscript.status());
+            throw new InvalidStateTransitionException(
+                    "Manuscript",
+                    manuscriptId,
+                    manuscript.status(),
+                    ManuscriptStatus.IN_DESIGN,
+                    manuscript.status().allowedTransitions()
+            );
         }
 
         int versionNumber = coverVersionRepository.findLatestByManuscriptId(manuscriptId)
@@ -79,7 +85,7 @@ public class CoverVersionService {
 
     public List<CoverVersionResponse> getCoverVersions(UUID manuscriptId) {
         if (manuscriptRepository.findById(manuscriptId).isEmpty()) {
-            throw new ResourceNotFoundException("Рукопис за ID: " + manuscriptId + " не знайдено");
+            throw new ManuscriptNotFoundException(manuscriptId);
         }
         return coverVersionRepository.findByManuscriptId(manuscriptId).stream()
                 .map(CoverVersionResponse::from)

@@ -1,5 +1,11 @@
 package com.unibook.publisher.common.exception;
 
+import com.unibook.publisher.common.exception.business.BusinessRuleViolationException;
+import com.unibook.publisher.common.exception.conflict.DuplicateResourceException;
+import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
+import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -18,6 +24,7 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException exception) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(
@@ -70,7 +77,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ProblemDetail handleNotFound(ResourceNotFoundException exception) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
-
         detail.setTitle("Ресурс не знайдено");
         detail.setProperty("timestamp", Instant.now());
         return detail;
@@ -78,9 +84,39 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(InvalidStateTransitionException.class)
     public ProblemDetail handleInvalidState(InvalidStateTransitionException exception) {
-        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
-
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
         detail.setTitle("Недопустимий перехід між станами");
+        if (exception.getEntityName() != null)
+            detail.setProperty("entityName", exception.getEntityName());
+
+        if (exception.getEntityId() != null)
+            detail.setProperty("entityId", exception.getEntityId());
+
+        if (exception.getCurrentStatus() != null)
+            detail.setProperty("currentStatus", exception.getCurrentStatus());
+
+        if (exception.getTargetStatus() != null)
+            detail.setProperty("targetStatus", exception.getTargetStatus());
+
+        if (exception.getAllowedTransitions() != null && !exception.getAllowedTransitions().isEmpty())
+            detail.setProperty("allowedTransitions", exception.getAllowedTransitions());
+
+        detail.setProperty("timestamp", Instant.now());
+        return detail;
+    }
+
+    @ExceptionHandler(BusinessRuleViolationException.class)
+    public ProblemDetail handleBusinessRuleViolation(BusinessRuleViolationException exception) {
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
+        detail.setTitle("Порушення бізнес-правила");
+        detail.setProperty("timestamp", Instant.now());
+        return detail;
+    }
+
+    @ExceptionHandler(DuplicateResourceException.class)
+    public ProblemDetail handleDuplicateResource(DuplicateResourceException exception) {
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        detail.setTitle("Конфлікт даних");
         detail.setProperty("timestamp", Instant.now());
         return detail;
     }
@@ -88,8 +124,23 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ForbiddenActionException.class)
     public ProblemDetail handleForbidden(ForbiddenActionException ex) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
-
         problem.setTitle("Заборонена дія");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(InvalidCredentialsException.class)
+    public ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+        problem.setTitle("Помилка автентифікації");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(DomainException.class)
+    public ProblemDetail handleDomainException(DomainException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        problem.setTitle("Доменна помилка");
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }
@@ -97,7 +148,6 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(IllegalArgumentException.class)
     public ProblemDetail handleIllegalArgumentException(IllegalArgumentException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
-
         problem.setTitle(exception.getMessage());
         problem.setProperty("timestamp", Instant.now());
         return problem;
