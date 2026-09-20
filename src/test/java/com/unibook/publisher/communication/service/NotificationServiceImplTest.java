@@ -25,13 +25,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationServiceTest {
+class NotificationServiceImplTest {
 
     @Mock
     private NotificationRepository notificationRepository;
 
     @InjectMocks
-    private NotificationService notificationService;
+    private NotificationServiceImpl notificationService;
 
     @Nested
     @DisplayName("Відправка сповіщень")
@@ -83,6 +83,8 @@ class NotificationServiceTest {
 
             NotificationResponse response = notificationService.send(
                     recipientId, 
+                    null,
+                    null,
                     "Системне сповіщення",
                     "Все окей, це просто тест",
                     NotificationType.SYSTEM

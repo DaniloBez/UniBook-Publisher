@@ -34,7 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class UserServiceTest {
+public class UserServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
@@ -42,7 +42,7 @@ public class UserServiceTest {
     private UserProfileRepository userProfileRepository;
 
     @InjectMocks
-    private UserService userService;
+    private UserServiceImpl userService;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
