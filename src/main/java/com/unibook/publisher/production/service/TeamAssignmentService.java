@@ -2,6 +2,7 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.response.TeamAssignmentResponse;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
@@ -15,10 +16,12 @@ import java.util.UUID;
 public class TeamAssignmentService {
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final ManuscriptRepository manuscriptRepository;
+    private final AppLogger logger;
 
-    public TeamAssignmentService(TeamAssignmentRepository teamAssignmentRepository, ManuscriptRepository manuscriptRepository) {
+    public TeamAssignmentService(TeamAssignmentRepository teamAssignmentRepository, ManuscriptRepository manuscriptRepository, AppLogger logger) {
         this.teamAssignmentRepository = teamAssignmentRepository;
         this.manuscriptRepository = manuscriptRepository;
+        this.logger = logger;
     }
 
     public TeamAssignmentResponse assign(UUID manuscriptId, UUID userId, UserRole role) {
@@ -32,6 +35,15 @@ public class TeamAssignmentService {
                 role,
                 Instant.now()
         );
+
+        logger.info(
+            "Created team assignment {}: user {} assigned as {} to manuscript {}",
+            assignment.teamId(),
+            userId,
+            role,
+            manuscriptId
+        );
+
         return TeamAssignmentResponse.from(teamAssignmentRepository.save(assignment));
     }
 }

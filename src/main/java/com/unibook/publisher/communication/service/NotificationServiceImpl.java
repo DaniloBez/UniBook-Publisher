@@ -2,6 +2,7 @@ package com.unibook.publisher.communication.service;
 
 import com.unibook.publisher.common.exception.notfound.NotificationNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.communication.entity.Notification;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
@@ -15,9 +16,11 @@ import java.util.UUID;
 @Service
 public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
+    private final AppLogger logger;
 
-    public NotificationServiceImpl(NotificationRepository notificationRepository) {
+    public NotificationServiceImpl(NotificationRepository notificationRepository, AppLogger logger) {
         this.notificationRepository = notificationRepository;
+        this.logger = logger;
     }
 
     @Override
@@ -41,6 +44,14 @@ public class NotificationServiceImpl implements NotificationService {
                 Instant.now()
         );
         Notification saved = notificationRepository.save(notification);
+
+        logger.info(
+            "Created notification {} for recipient {} from sender {}",
+            saved.id(),
+            recipientId,
+            senderId
+        );
+
         return NotificationResponse.from(saved);
     }
 
@@ -61,6 +72,13 @@ public class NotificationServiceImpl implements NotificationService {
             throw new ForbiddenActionException("Можна відмічати тільки свої повідомлення");
 
         Notification updated = notificationRepository.save(notification.markAsRead());
+
+        logger.info(
+            "Updated notification {}: marked as read by user {}",
+            notificationId,
+            userId
+        );
+
         return NotificationResponse.from(updated);
     }
 }

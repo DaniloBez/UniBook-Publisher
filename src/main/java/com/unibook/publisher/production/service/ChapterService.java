@@ -6,6 +6,7 @@ import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
@@ -32,13 +33,15 @@ public class ChapterService {
     private final RevisionRepository revisionRepository;
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final ApplicationEventPublisher publisher;
+    private final AppLogger logger;
 
-    public ChapterService(ChapterRepository chapterRepository, ManuscriptRepository manuscriptRepository, RevisionRepository revisionRepository, TeamAssignmentRepository teamAssignmentRepository, ApplicationEventPublisher publisher) {
+    public ChapterService(ChapterRepository chapterRepository, ManuscriptRepository manuscriptRepository, RevisionRepository revisionRepository, TeamAssignmentRepository teamAssignmentRepository, ApplicationEventPublisher publisher, AppLogger logger) {
         this.chapterRepository = chapterRepository;
         this.manuscriptRepository = manuscriptRepository;
         this.revisionRepository = revisionRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
         this.publisher = publisher;
+        this.logger = logger;
     }
 
     public ChapterResponse createChapter(UUID manuscriptId, UUID authorId, ChapterCreationRequest request) {
@@ -63,6 +66,15 @@ public class ChapterService {
                 request.chapterIndex()
         );
         Chapter saved = chapterRepository.save(chapter);
+
+        logger.info(
+            "Created chapter {} '{}' for manuscript {} by user {}",
+            saved.chapterId(),
+            saved.chapterTitle(),
+            manuscriptId,
+            authorId
+        );
+
         return ChapterResponse.from(saved);
     }
 
@@ -110,6 +122,15 @@ public class ChapterService {
                 Instant.now()
         );
         Revision saved = revisionRepository.save(revision);
+
+        logger.info(
+            "Created revision {} version {} for chapter {} by user {}",
+            saved.revisionId(),
+            saved.versionNumber(),
+            chapterId,
+            userId
+        );
+
         publisher.publishEvent(new RevisionAddedEvent(
                 manuscript.manuscriptId(),
                 manuscript.title(),

@@ -9,6 +9,7 @@ import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
 import com.unibook.publisher.common.exception.notfound.ContractNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.finance.entity.Contract;
 import com.unibook.publisher.finance.entity.FinanceAuditLog;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
@@ -30,15 +31,18 @@ public class ContractService {
     private final ContractRepository contractRepository;
     private final FinanceAuditLogRepository financeAuditLogRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final AppLogger logger;
 
     public ContractService(
             ContractRepository contractRepository,
             FinanceAuditLogRepository financeAuditLogRepository,
-            ApplicationEventPublisher eventPublisher
+            ApplicationEventPublisher eventPublisher,
+            AppLogger logger
     ) {
         this.contractRepository = contractRepository;
         this.financeAuditLogRepository = financeAuditLogRepository;
         this.eventPublisher = eventPublisher;
+        this.logger = logger;
     }
 
     public void createContractForApprovedManuscript(ManuscriptApprovedEvent event) {
@@ -54,6 +58,12 @@ public class ContractService {
                 Instant.now()
         );
         contractRepository.save(contract);
+
+        logger.info(
+            "Created contract for manuscript {} by author {}",
+            event.manuscriptId(),
+            event.authorId()
+        );
     }
 
     public void activateContractForPublishedManuscript(ManuscriptPublishedEvent event) {
@@ -61,6 +71,13 @@ public class ContractService {
                 .orElseThrow(() -> new ContractNotFoundException(event.manuscriptId()));
 
         contractRepository.save(contract.activated());
+
+        logger.info(
+            "Updated contract {} status: {} -> {}",
+            contract.id(),
+            contract.status(),
+            contract.status()
+        );
     }
 
     public ContractResponse getContractByManuscriptId(UUID manuscriptId, UUID callerId, UserRole callerRole) {
@@ -105,6 +122,16 @@ public class ContractService {
                 contract.withUpdatedRoyalty(request.newRoyaltyPercent(), request.newAdvance())
         );
 
+        logger.info(
+            "Updated contract {} royalty: {} -> {}, advance: {} -> {}, by user {}",
+            contractId,
+            contract.royaltyPercent(),
+            updated.royaltyPercent(),
+            contract.advancePayment(),
+            updated.advancePayment(),
+            callerId
+        );
+
         eventPublisher.publishEvent(new ContractRoyaltyUpdatedEvent(
                 updated.id(),
                 updated.manuscriptId(),
@@ -137,6 +164,12 @@ public class ContractService {
         }
 
         Contract updated = contractRepository.save(contract.confirmedByAuthor(Instant.now()));
+
+        logger.info(
+            "Updated contract {}: author {} confirmed contract",
+            contractId,
+            callerId
+        );
 
         eventPublisher.publishEvent(new ContractConfirmedEvent(
                 updated.id(),

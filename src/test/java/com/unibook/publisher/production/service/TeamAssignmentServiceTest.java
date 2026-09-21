@@ -2,6 +2,7 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
@@ -32,6 +33,9 @@ public class TeamAssignmentServiceTest {
 
     @Mock
     private ManuscriptRepository manuscriptRepository;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private TeamAssignmentService teamAssignmentService;

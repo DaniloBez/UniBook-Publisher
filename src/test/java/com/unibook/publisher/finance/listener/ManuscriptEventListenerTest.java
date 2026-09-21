@@ -2,6 +2,7 @@ package com.unibook.publisher.finance.listener;
 
 import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.finance.service.ContractService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,9 @@ class ManuscriptEventListenerTest {
 
     @Mock
     private ContractService contractService;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private ManuscriptEventListener listener;

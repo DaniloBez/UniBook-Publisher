@@ -1,21 +1,27 @@
 package com.unibook.publisher.communication.listener;
 
+
 import com.unibook.publisher.common.event.*;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.service.NotificationService;
-import org.springframework.context.event.EventListener;
+import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 @Component
 public class NotificationEventListener {
     private final NotificationService notificationService;
+    private final AppLogger logger;
 
-    public NotificationEventListener(NotificationService notificationService) {
+    public NotificationEventListener(NotificationService notificationService, AppLogger logger) {
         this.notificationService = notificationService;
+        this.logger = logger;
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptSubmitted(ManuscriptSubmittedEvent event) {
+        logger.info("Received event ManuscriptSubmittedEvent: manuscriptId={}, authorId={}", event.manuscriptId(), event.authorId());
+
         notificationService.send(
                 event.authorId(),
                 null,
@@ -26,8 +32,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptApproved(ManuscriptApprovedEvent event) {
+        logger.info("Received event ManuscriptApprovedEvent: manuscriptId={}, authorId={}, editorId={}", event.manuscriptId(), event.authorId(), event.editorId());
+
         notificationService.send(
                 event.authorId(),
                 event.editorId(),
@@ -38,8 +46,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptRejected(ManuscriptRejectedEvent event) {
+        logger.info("Received event ManuscriptRejectedEvent: manuscriptId={}, authorId={}, editorId={}",event.manuscriptId(), event.authorId(), event.editorId());
+
         notificationService.send(
                 event.authorId(),
                 event.editorId(),
@@ -50,8 +60,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptPostponed(ManuscriptPostponedEvent event) {
+        logger.info("Received event ManuscriptPostponedEvent: manuscriptId={}, authorId={}, editorId={}", event.manuscriptId(), event.authorId(), event.editorId());
+
         notificationService.send(
                 event.authorId(),
                 event.editorId(),
@@ -62,8 +74,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onTextFinalized(TextFinalizedEvent event) {
+        logger.info("Received event TextFinalizedEvent: manuscriptId={}, authorId={}, editorId={}", event.manuscriptId(), event.authorId(), event.editorId());
+
         notificationService.send(
                 event.authorId(),
                 event.editorId(),
@@ -74,8 +88,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptPublished(ManuscriptPublishedEvent event) {
+        logger.info("Received event ManuscriptPublishedEvent: manuscriptId={}, authorId={}", event.manuscriptId(), event.authorId());
+
         notificationService.send(
                 event.authorId(),
                 null,
@@ -86,8 +102,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onContractConfirmed(ContractConfirmedEvent event) {
+        logger.info("Received event ContractConfirmedEvent: contractId={}, manuscriptId={}, authorId={}", event.contractId(), event.manuscriptId(), event.authorId());
+
         notificationService.send(
                 event.authorId(),
                 null,
@@ -98,8 +116,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onContractRoyaltyUpdated(ContractRoyaltyUpdatedEvent event) {
+        logger.info("Received event ContractRoyaltyUpdatedEvent: contractId={}, manuscriptId={}, authorId={}, newRoyaltyPercent={}", event.contractId(), event.manuscriptId(), event.authorId(), event.newRoyaltyPercent());
+
         notificationService.send(
                 event.authorId(),
                 null,
@@ -110,8 +130,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onWorkerAssigned(WorkerAssignedEvent event) {
+        logger.info("Received event WorkerAssignedEvent: manuscriptId={}, assignedById={}, workerId={}, workerRole={}, authorId={}", event.manuscriptId(), event.assignedById(), event.workerId(), event.workerRole(), event.authorId());
+
         notificationService.send(
                 event.workerId(),
                 event.assignedById(),
@@ -131,8 +153,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onCoverVersionAdded(CoverVersionAddedEvent event) {
+        logger.info("Received event CoverVersionAddedEvent: manuscriptId={}, coverVersionId={}, designerId={}, authorId={}", event.manuscriptId(), event.coverVersionId(), event.designerId(), event.authorId());
+
         notificationService.send(
                 event.authorId(),
                 event.designerId(),
@@ -143,8 +167,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onRevisionAdded(RevisionAddedEvent event) {
+        logger.info("Received event RevisionAddedEvent: manuscriptId={}, chapterId={}, revisionId={}, uploaderId={}, recipientId={}", event.manuscriptId(), event.chapterId(), event.revisionId(), event.uploaderId(), event.recipientId());
+
         notificationService.send(
                 event.recipientId(),
                 event.uploaderId(),
@@ -155,8 +181,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onThreadOpened(ThreadOpenedEvent event) {
+        logger.info("Received event ThreadOpenedEvent: manuscriptId={}, threadId={}, threadType={}, initiatorId={}, recipientId={}", event.manuscriptId(), event.threadId(), event.threadType(), event.initiatorId(), event.recipientId());
+
         String message = switch (event.threadType()) {
             case CHAPTER -> "Відкрито обговорення розділу в книзі '" + event.manuscriptTitle();
             case COVER -> "Дизайнер або автор створив обговорення обкладинки для '" + event.manuscriptTitle();
@@ -175,8 +203,10 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onThreadMessageAdded(ThreadMessageAddedEvent event) {
+        logger.info("Received event ThreadMessageAddedEvent: manuscriptId={}, threadId={}, senderId={}, recipientUserId={}", event.manuscriptId(), event.threadId(), event.senderId(), event.recipientUserId());
+
         notificationService.send(
                 event.recipientUserId(),
                 event.senderId(),
