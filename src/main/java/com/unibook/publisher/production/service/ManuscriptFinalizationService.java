@@ -9,6 +9,7 @@ import com.unibook.publisher.common.exception.business.UnresolvedThreadsExceptio
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
@@ -39,6 +40,7 @@ public class ManuscriptFinalizationService {
     private final CoverVersionRepository coverVersionRepository;
     private final AuditLogService auditLogService;
     private final ApplicationEventPublisher publisher;
+    private final AppLogger logger;
 
     public ManuscriptFinalizationService(
             ManuscriptRepository manuscriptRepository,
@@ -48,7 +50,8 @@ public class ManuscriptFinalizationService {
             TeamAssignmentService teamAssignmentService,
             CoverVersionRepository coverVersionRepository,
             AuditLogService auditLogService,
-            ApplicationEventPublisher publisher
+            ApplicationEventPublisher publisher,
+            AppLogger logger
     ) {
         this.manuscriptRepository = manuscriptRepository;
         this.chapterRepository = chapterRepository;
@@ -58,6 +61,7 @@ public class ManuscriptFinalizationService {
         this.coverVersionRepository = coverVersionRepository;
         this.auditLogService = auditLogService;
         this.publisher = publisher;
+        this.logger = logger;
     }
 
     public ManuscriptResponse finalizeText(UUID manuscriptId, UUID editorId) {
@@ -92,6 +96,15 @@ public class ManuscriptFinalizationService {
 
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.TEXT_APPROVED);
         manuscriptRepository.save(updated);
+
+        logger.info(
+            "Updated manuscript {} status: {} -> {} by editor {}",
+            manuscriptId,
+            manuscript.status(),
+            updated.status(),
+            editorId
+        );
+
         auditLogService.record(manuscriptId, editorId, manuscript.status(), updated.status());
 
         publisher.publishEvent(new TextFinalizedEvent(manuscriptId, updated.title(), editorId, updated.authorId()));
@@ -115,6 +128,16 @@ public class ManuscriptFinalizationService {
 
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.IN_DESIGN);
         manuscriptRepository.save(updated);
+
+        logger.info(
+            "Updated manuscript {} status: {} -> {} and assigned designer {} by chief editor {}",
+            manuscriptId,
+            manuscript.status(),
+            updated.status(),
+            request.designerId(),
+            chiefEditorId
+        );
+
         auditLogService.record(manuscriptId, chiefEditorId, manuscript.status(), updated.status());
 
         publisher.publishEvent(new WorkerAssignedEvent(
@@ -143,6 +166,14 @@ public class ManuscriptFinalizationService {
 
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.PUBLISHED);
         manuscriptRepository.save(updated);
+
+        logger.info(
+            "Updated manuscript {} status: {} -> PUBLISHED by chief editor {}",
+            manuscriptId,
+            manuscript.status(),
+            chiefEditorId
+        );
+
         auditLogService.record(manuscriptId, chiefEditorId, manuscript.status(), updated.status());
 
         publisher.publishEvent(new ManuscriptPublishedEvent(manuscriptId, updated.title(), updated.authorId()));

@@ -5,6 +5,7 @@ import com.unibook.publisher.common.event.CoverVersionAddedEvent;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.CoverVersion;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
@@ -27,17 +28,20 @@ public class CoverVersionService {
     private final ManuscriptRepository manuscriptRepository;
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final ApplicationEventPublisher publisher;
+    private final AppLogger logger;
 
     public CoverVersionService(
             CoverVersionRepository coverVersionRepository,
             ManuscriptRepository manuscriptRepository,
             TeamAssignmentRepository teamAssignmentRepository,
-            ApplicationEventPublisher publisher
+            ApplicationEventPublisher publisher,
+            AppLogger logger
     ) {
         this.coverVersionRepository = coverVersionRepository;
         this.manuscriptRepository = manuscriptRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
         this.publisher = publisher;
+        this.logger = logger;
     }
 
     public CoverVersionResponse uploadCoverVersion(UUID manuscriptId, UUID designerId, CoverVersionRequest request) {
@@ -71,6 +75,14 @@ public class CoverVersionService {
                 versionNumber,
                 Instant.now()
         ));
+
+        logger.info(
+                "Created cover version {} version {} for manuscript {} by designer {}",
+                saved.id(),
+                saved.versionNumber(),
+                manuscriptId,
+                designerId
+        );
 
         publisher.publishEvent(new CoverVersionAddedEvent(
                 manuscript.manuscriptId(),

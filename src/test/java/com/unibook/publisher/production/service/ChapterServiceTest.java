@@ -7,6 +7,7 @@ import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundExcepti
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
@@ -52,6 +53,9 @@ public class ChapterServiceTest {
 
     @Mock
     private ApplicationEventPublisher publisher;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private ChapterService chapterService;

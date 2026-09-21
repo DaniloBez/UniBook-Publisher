@@ -2,6 +2,7 @@ package com.unibook.publisher.communication.service;
 
 import com.unibook.publisher.common.exception.notfound.NotificationNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.communication.entity.Notification;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
@@ -29,6 +30,9 @@ class NotificationServiceImplTest {
 
     @Mock
     private NotificationRepository notificationRepository;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private NotificationServiceImpl notificationService;

@@ -4,6 +4,7 @@ import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.*;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
@@ -24,11 +25,13 @@ public class ManuscriptService {
     private final ManuscriptRepository manuscriptRepository;
     private final TeamAssignmentService teamAssignmentService;
     private final ApplicationEventPublisher publisher;
+    private final AppLogger logger;
 
-    public ManuscriptService(ManuscriptRepository manuscriptRepository, TeamAssignmentService teamAssignmentService, ApplicationEventPublisher publisher) {
+    public ManuscriptService(ManuscriptRepository manuscriptRepository, TeamAssignmentService teamAssignmentService, ApplicationEventPublisher publisher, AppLogger logger) {
         this.manuscriptRepository = manuscriptRepository;
         this.teamAssignmentService = teamAssignmentService;
         this.publisher = publisher;
+        this.logger = logger;
     }
 
     public ManuscriptResponse getManuscriptById(UUID id) {
@@ -58,6 +61,14 @@ public class ManuscriptService {
         teamAssignmentService.assign(id, request.editorId(), UserRole.EDITOR);
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.IN_PROGRESS);
         manuscriptRepository.save(updated);
+
+        logger.info(
+                "Updated manuscript {} status {} -> {} by chief editor {}",
+                id,
+                manuscript.status(),
+                updated.status(),
+                chiefEditorId
+        );
 
         publisher.publishEvent(new ManuscriptApprovedEvent(
                 updated.manuscriptId(),
@@ -91,6 +102,14 @@ public class ManuscriptService {
 
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.REJECTED);
         manuscriptRepository.save(updated);
+
+        logger.info(
+                "Updated manuscript {} status {} -> REJECTED by chief editor {}",
+                id,
+                manuscript.status(),
+                chiefEditorId
+        );
+
         publisher.publishEvent(new ManuscriptRejectedEvent(
                 updated.manuscriptId(),
                 updated.title(),
@@ -116,6 +135,14 @@ public class ManuscriptService {
 
         Manuscript updated = manuscript.withStatus(ManuscriptStatus.POSTPONED);
         manuscriptRepository.save(updated);
+
+        logger.info(
+                "Updated manuscript {} status {} -> POSTPONED by chief editor {}",
+                id,
+                manuscript.status(),
+                chiefEditorId
+        );
+
         publisher.publishEvent(new ManuscriptPostponedEvent(
                 updated.manuscriptId(),
                 updated.title(),
@@ -138,6 +165,12 @@ public class ManuscriptService {
                 Instant.now()
         );
         Manuscript saved = manuscriptRepository.save(manuscript);
+        logger.info(
+                "Created manuscript {} '{}' by author {}",
+                saved.manuscriptId(),
+                saved.title(),
+                saved.authorId()
+        );
         publisher.publishEvent(new ManuscriptSubmittedEvent(saved.manuscriptId(), saved.title(), saved.authorId()));
         return ManuscriptResponse.from(saved);
     }

@@ -10,6 +10,7 @@ import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundExcepti
 import com.unibook.publisher.common.exception.notfound.ThreadNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.FeedbackThread;
 import com.unibook.publisher.production.entity.Manuscript;
@@ -43,6 +44,7 @@ public class FeedbackThreadService {
     private final ManuscriptRepository manuscriptRepository;
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final ApplicationEventPublisher publisher;
+    private final AppLogger logger;
 
     public FeedbackThreadService(
             FeedbackThreadRepository threadRepository,
@@ -50,7 +52,8 @@ public class FeedbackThreadService {
             ChapterRepository chapterRepository,
             ManuscriptRepository manuscriptRepository,
             TeamAssignmentRepository teamAssignmentRepository,
-            ApplicationEventPublisher publisher
+            ApplicationEventPublisher publisher,
+            AppLogger logger
     ) {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
@@ -58,6 +61,7 @@ public class FeedbackThreadService {
         this.manuscriptRepository = manuscriptRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
         this.publisher = publisher;
+        this.logger = logger;
     }
 
     public ThreadResponse openThread(UUID chapterId, UUID initiatorId, OpenThreadRequest request) {
@@ -83,13 +87,27 @@ public class FeedbackThreadService {
         );
         threadRepository.save(thread);
 
-        messageRepository.save(new ThreadMessage(
+        logger.info(
+                "Created feedback thread {} for chapter {} by user {}",
+                thread.id(),
+                chapterId,
+                initiatorId
+        );
+
+        ThreadMessage message = messageRepository.save(new ThreadMessage(
                 UUID.randomUUID(),
                 thread.id(),
                 initiatorId,
                 request.initialMessage(),
                 Instant.now()
         ));
+
+        logger.info(
+                "Created thread message {} in thread {} by user {}",
+                message.id(),
+                thread.id(),
+                initiatorId
+        );
 
         publisher.publishEvent(new ThreadOpenedEvent(
                 manuscript.manuscriptId(),
@@ -178,6 +196,14 @@ public class FeedbackThreadService {
                 thread.isSuggestion(), thread.suggestedText(), SuggestionStatus.ACCEPTED, thread.createdAt()
         );
         threadRepository.save(updated);
+
+        logger.info(
+                "Updated suggestion status for thread {}: {} -> ACCEPTED by user {}",
+                threadId,
+                thread.suggestionStatus(),
+                userId
+        );
+
         return ThreadResponse.from(updated);
     }
 
@@ -207,6 +233,14 @@ public class FeedbackThreadService {
                 thread.isSuggestion(), thread.suggestedText(), SuggestionStatus.REJECTED, thread.createdAt()
         );
         threadRepository.save(updated);
+
+        logger.info(
+                "Updated suggestion status for thread {}: {} -> REJECTED by user {}",
+                threadId,
+                thread.suggestionStatus(),
+                userId
+        );
+
         return ThreadResponse.from(updated);
     }
 
@@ -235,6 +269,14 @@ public class FeedbackThreadService {
                 thread.isSuggestion(), thread.suggestedText(), thread.suggestionStatus(), thread.createdAt()
         );
         threadRepository.save(updated);
+
+        logger.info(
+                "Updated thread {} status: {} -> RESOLVED by user {}",
+                threadId,
+                thread.status(),
+                userId
+        );
+
         return ThreadResponse.from(updated);
     }
 

@@ -3,6 +3,7 @@ package com.unibook.publisher.production.service;
 import com.unibook.publisher.common.event.ThreadOpenedEvent;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.FeedbackThread;
 import com.unibook.publisher.production.entity.Manuscript;
@@ -53,6 +54,9 @@ public class FeedbackThreadServiceTest {
 
     @Mock
     private ApplicationEventPublisher publisher;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private FeedbackThreadService threadService;

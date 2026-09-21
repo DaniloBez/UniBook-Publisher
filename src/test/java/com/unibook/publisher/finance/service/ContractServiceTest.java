@@ -8,6 +8,7 @@ import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.finance.entity.Contract;
 import com.unibook.publisher.common.enums.ContractStatus;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
@@ -47,6 +48,9 @@ class ContractServiceTest {
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private ContractService contractService;

@@ -5,6 +5,7 @@ import com.unibook.publisher.common.event.TextFinalizedEvent;
 import com.unibook.publisher.common.exception.business.MissingCoverException;
 import com.unibook.publisher.common.exception.business.UnresolvedThreadsException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.FeedbackThread;
 import com.unibook.publisher.production.entity.Manuscript;
@@ -60,6 +61,9 @@ public class ManuscriptFinalizationServiceTest {
 
     @Mock
     private ApplicationEventPublisher publisher;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private ManuscriptFinalizationService finalizationService;

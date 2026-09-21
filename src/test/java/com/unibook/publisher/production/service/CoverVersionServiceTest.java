@@ -4,6 +4,7 @@ import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.CoverVersionAddedEvent;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.CoverVersion;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
@@ -44,6 +45,9 @@ public class CoverVersionServiceTest {
 
     @Mock
     private ApplicationEventPublisher publisher;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private CoverVersionService coverVersionService;

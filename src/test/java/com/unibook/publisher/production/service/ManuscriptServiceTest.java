@@ -5,6 +5,7 @@ import com.unibook.publisher.common.event.*;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
@@ -40,6 +41,9 @@ public class ManuscriptServiceTest {
 
     @Mock
     private TeamAssignmentService teamAssignmentService;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private ManuscriptService manuscriptService;
