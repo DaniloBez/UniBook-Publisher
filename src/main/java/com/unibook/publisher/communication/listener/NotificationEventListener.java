@@ -3,7 +3,7 @@ package com.unibook.publisher.communication.listener;
 import com.unibook.publisher.common.event.*;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.service.NotificationService;
-import org.springframework.context.event.EventListener;
+import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -14,7 +14,7 @@ public class NotificationEventListener {
         this.notificationService = notificationService;
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptSubmitted(ManuscriptSubmittedEvent event) {
         notificationService.send(
                 event.authorId(),
@@ -26,7 +26,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptApproved(ManuscriptApprovedEvent event) {
         notificationService.send(
                 event.authorId(),
@@ -38,7 +38,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptRejected(ManuscriptRejectedEvent event) {
         notificationService.send(
                 event.authorId(),
@@ -50,7 +50,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptPostponed(ManuscriptPostponedEvent event) {
         notificationService.send(
                 event.authorId(),
@@ -62,7 +62,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onTextFinalized(TextFinalizedEvent event) {
         notificationService.send(
                 event.authorId(),
@@ -74,7 +74,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onManuscriptPublished(ManuscriptPublishedEvent event) {
         notificationService.send(
                 event.authorId(),
@@ -86,7 +86,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onContractConfirmed(ContractConfirmedEvent event) {
         notificationService.send(
                 event.authorId(),
@@ -98,7 +98,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onContractRoyaltyUpdated(ContractRoyaltyUpdatedEvent event) {
         notificationService.send(
                 event.authorId(),
@@ -110,7 +110,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onWorkerAssigned(WorkerAssignedEvent event) {
         notificationService.send(
                 event.workerId(),
@@ -131,7 +131,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onCoverVersionAdded(CoverVersionAddedEvent event) {
         notificationService.send(
                 event.authorId(),
@@ -143,7 +143,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onRevisionAdded(RevisionAddedEvent event) {
         notificationService.send(
                 event.recipientId(),
@@ -155,7 +155,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onThreadOpened(ThreadOpenedEvent event) {
         String message = switch (event.threadType()) {
             case CHAPTER -> "Відкрито обговорення розділу в книзі '" + event.manuscriptTitle();
@@ -175,7 +175,7 @@ public class NotificationEventListener {
         );
     }
 
-    @EventListener
+    @ApplicationModuleListener
     public void onThreadMessageAdded(ThreadMessageAddedEvent event) {
         notificationService.send(
                 event.recipientUserId(),
