@@ -1,7 +1,7 @@
 package com.unibook.publisher.communication.service;
 
-import com.unibook.publisher.common.exception.ForbiddenActionException;
-import com.unibook.publisher.common.exception.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.notfound.NotificationNotFoundException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.communication.entity.Notification;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
@@ -25,13 +25,13 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class NotificationServiceTest {
+class NotificationServiceImplTest {
 
     @Mock
     private NotificationRepository notificationRepository;
 
     @InjectMocks
-    private NotificationService notificationService;
+    private NotificationServiceImpl notificationService;
 
     @Nested
     @DisplayName("Відправка сповіщень")
@@ -83,6 +83,8 @@ class NotificationServiceTest {
 
             NotificationResponse response = notificationService.send(
                     recipientId, 
+                    null,
+                    null,
                     "Системне сповіщення",
                     "Все окей, це просто тест",
                     NotificationType.SYSTEM
@@ -167,6 +169,36 @@ class NotificationServiceTest {
             assertThat(result.getFirst().title()).isEqualTo("Заголовок1");
             assertThat(result.getFirst().isRead()).isFalse();
         }
+
+        @Test
+        @DisplayName("Повертає всі сповіщення, коли параметр unreadOnly передано як null")
+        void getUserNotifications_WhenUnreadOnlyIsNull_ReturnsAll() {
+            UUID userId = UUID.randomUUID();
+            Notification unread = new Notification(
+                    UUID.randomUUID(), userId, null, null, "Заголовок1", "Текст1", NotificationType.SYSTEM, false, Instant.now()
+            );
+            Notification read = new Notification(
+                    UUID.randomUUID(), userId, null, null, "Заголовок2", "Текст2", NotificationType.SYSTEM, true, Instant.now()
+            );
+
+            when(notificationRepository.findByRecipientId(userId)).thenReturn(List.of(unread, read));
+
+            List<NotificationResponse> result = notificationService.getUserNotifications(userId, null);
+
+            assertThat(result).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("Повертає порожній список, якщо у користувача немає сповіщень")
+        void getUserNotifications_EmptyList_ReturnsEmpty() {
+            UUID userId = UUID.randomUUID();
+            when(notificationRepository.findByRecipientId(userId)).thenReturn(List.of());
+
+            List<NotificationResponse> result = notificationService.getUserNotifications(userId, false);
+
+            assertThat(result).isNotNull();
+            assertThat(result).isEmpty();
+        }
     }
 
     @Nested
@@ -201,6 +233,33 @@ class NotificationServiceTest {
         }
 
         @Test
+        @DisplayName("Ідемпотентність: повторна позначка вже прочитаного сповіщення не викликає помилки")
+        void markAsRead_AlreadyRead_ReturnsIdempotently() {
+            UUID notificationId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+            Notification alreadyRead = new Notification(
+                    notificationId,
+                    userId,
+                    null,
+                    null,
+                    "Заголовок",
+                    "Сповіщення",
+                    NotificationType.SYSTEM,
+                    true,
+                    Instant.now()
+            );
+
+            when(notificationRepository.findById(notificationId)).thenReturn(Optional.of(alreadyRead));
+            when(notificationRepository.save(any(Notification.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+
+            NotificationResponse response = notificationService.markAsRead(notificationId, userId);
+
+            assertThat(response.isRead()).isTrue();
+            verify(notificationRepository).save(any(Notification.class));
+        }
+
+        @Test
         @DisplayName("Викидає ResourceNotFoundException, якщо сповіщення відсутнє")
         void markAsRead_NotFound_ThrowsException() {
             UUID notificationId = UUID.randomUUID();
@@ -209,7 +268,7 @@ class NotificationServiceTest {
             when(notificationRepository.findById(notificationId)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> notificationService.markAsRead(notificationId, userId))
-                    .isInstanceOf(ResourceNotFoundException.class)
+                    .isInstanceOf(NotificationNotFoundException.class)
                     .hasMessageContaining("не знайдено");
 
             verify(notificationRepository, never()).save(any());

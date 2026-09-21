@@ -2,57 +2,22 @@ package com.unibook.publisher.identity.repository;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.identity.entity.User;
-import org.springframework.stereotype.Repository;
 
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
-@Repository
-public class UserRepository {
-    private final Map<UUID, User> users = new ConcurrentHashMap<>();
+public interface UserRepository {
 
-    public Optional<User> get(UUID id) {
-        return Optional.ofNullable(users.get(id));
-    }
+    Optional<User> get(UUID id);
 
-    public Optional<User> getByEmail(String email) {
-        return users.values().stream()
-                .filter(u -> u.email().equalsIgnoreCase(email))
-                .findFirst();
-    }
+    Optional<User> getByEmail(String email);
 
-    public boolean existsByEmail(String email) {
-        return users.values().stream()
-                .anyMatch(u -> u.email().equalsIgnoreCase(email));
-    }
+    boolean existsByEmail(String email);
 
-    public User save(User user) {
-        UUID id = UUID.randomUUID();
-        User newUser = new User(id, user.email(), user.hashedPassword(), user.role());
-        users.put(id, newUser);
-        return newUser;
-    }
+    User save(User user);
 
-    public Optional<User> update(UUID id, User updatedUser) {
-        if (!users.containsKey(id)) {
-            return Optional.empty();
-        }
-        User toSave = new User(id, updatedUser.email(), updatedUser.hashedPassword(), updatedUser.role());
-        users.put(id, toSave);
-        return Optional.of(toSave);
-    }
+    List<User> findAll();
 
-    public void delete(UUID id) {
-        users.remove(id);
-    }
-
-    public List<User> findAll() {
-        return new ArrayList<>(users.values());
-    }
-
-    public List<User> findByRole(UserRole role) {
-        return users.values().stream()
-                .filter(u -> u.role() == role)
-                .toList();
-    }
+    List<User> findByRole(UserRole role);
 }

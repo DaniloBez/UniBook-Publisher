@@ -2,11 +2,13 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.TextFinalizedEvent;
-import com.unibook.publisher.common.exception.InvalidStateTransitionException;
+import com.unibook.publisher.common.exception.business.MissingCoverException;
+import com.unibook.publisher.common.exception.business.UnresolvedThreadsException;
+import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.FeedbackThread;
 import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.entity.ManuscriptStatus;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.enums.ThreadStatus;
@@ -103,7 +105,7 @@ public class ManuscriptFinalizationServiceTest {
         when(chapterRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of(chapter));
         when(threadRepository.findByChapterId(chapterId)).thenReturn(List.of(openThread));
 
-        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
+        assertThrows(UnresolvedThreadsException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -117,7 +119,7 @@ public class ManuscriptFinalizationServiceTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(coverVersionRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of());
 
-        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.publish(manuscriptId, chiefEditorId));
+        assertThrows(MissingCoverException.class, () -> finalizationService.publish(manuscriptId, chiefEditorId));
         verify(manuscriptRepository, never()).save(any());
     }
 }

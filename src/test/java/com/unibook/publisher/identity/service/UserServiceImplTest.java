@@ -1,7 +1,9 @@
 package com.unibook.publisher.identity.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.exception.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.conflict.EmailAlreadyExistsException;
+import com.unibook.publisher.common.exception.notfound.UserNotFoundException;
+import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
 import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.identity.entity.UserProfile;
 import com.unibook.publisher.identity.entity.request.LoginRequest;
@@ -32,7 +34,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class UserServiceTest {
+public class UserServiceImplTest {
     @Mock
     private UserRepository userRepository;
 
@@ -40,7 +42,7 @@ public class UserServiceTest {
     private UserProfileRepository userProfileRepository;
 
     @InjectMocks
-    private UserService userService;
+    private UserServiceImpl userService;
 
     private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -84,7 +86,7 @@ public class UserServiceTest {
             when(userRepository.existsByEmail(request.email())).thenReturn(true);
 
             assertThatThrownBy(() -> userService.register(request))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(EmailAlreadyExistsException.class)
                     .hasMessageContaining("вже існує");
 
             verify(userRepository, never()).save(any());
@@ -121,7 +123,7 @@ public class UserServiceTest {
             when(userRepository.getByEmail(request.email())).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> userService.login(request))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidCredentialsException.class)
                     .hasMessageContaining("Неправильна пошта або пароль");
         }
 
@@ -135,7 +137,7 @@ public class UserServiceTest {
             when(userRepository.getByEmail(request.email())).thenReturn(Optional.of(user));
 
             assertThatThrownBy(() -> userService.login(request))
-                    .isInstanceOf(IllegalArgumentException.class)
+                    .isInstanceOf(InvalidCredentialsException.class)
                     .hasMessageContaining("Неправильна пошта або пароль");
         }
     }
@@ -169,7 +171,20 @@ public class UserServiceTest {
             when(userRepository.get(userId)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> userService.getUserProfile(userId))
-                    .isInstanceOf(ResourceNotFoundException.class);
+                    .isInstanceOf(UserNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Помилка отримання профілю, якщо профіль користувача відсутній")
+        void getUserProfile_ProfileNotFound_ThrowsException() {
+            UUID userId = UUID.randomUUID();
+            User user = new User(userId, "user@gmail.com", "hash", UserRole.AUTHOR);
+
+            when(userRepository.get(userId)).thenReturn(Optional.of(user));
+            when(userProfileRepository.get(userId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.getUserProfile(userId))
+                    .isInstanceOf(UserNotFoundException.class);
         }
 
         @Test
@@ -187,6 +202,34 @@ public class UserServiceTest {
 
             assertThat(response.displayName()).isEqualTo("New Name");
             assertThat(response.preferredLocale()).isEqualTo("en-US");
+        }
+
+        @Test
+        @DisplayName("Помилка оновлення профілю, якщо користувача не знайдено")
+        void updateUserProfile_UserNotFound_ThrowsException() {
+            UUID userId = UUID.randomUUID();
+            UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest("New Name", null, null, "en-US");
+
+            when(userRepository.get(userId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.updateUserProfile(userId, updateRequest))
+                    .isInstanceOf(UserNotFoundException.class);
+
+            verify(userProfileRepository, never()).update(any(), any());
+        }
+
+        @Test
+        @DisplayName("Помилка оновлення профілю, якщо запис профілю не знайдено для оновлення")
+        void updateUserProfile_ProfileNotFound_ThrowsException() {
+            UUID userId = UUID.randomUUID();
+            User user = new User(userId, "user@gmail.com", "hash", UserRole.AUTHOR);
+            UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest("New Name", null, null, "en-US");
+
+            when(userRepository.get(userId)).thenReturn(Optional.of(user));
+            when(userProfileRepository.update(eq(userId), any(UserProfile.class))).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.updateUserProfile(userId, updateRequest))
+                    .isInstanceOf(UserNotFoundException.class);
         }
     }
 
@@ -218,6 +261,23 @@ public class UserServiceTest {
         }
 
         @Test
+        @DisplayName("Помилка створення співробітника, якщо пошта вже зайнята")
+        void createStaff_EmailAlreadyExists_ThrowsException() {
+            StaffRequest request = new StaffRequest(
+                    "editor@unibook.com", "securePass", UserRole.EDITOR, "Editor John", "Head of Editing", null, "uk-UA"
+            );
+
+            when(userRepository.existsByEmail(request.email())).thenReturn(true);
+
+            assertThatThrownBy(() -> userService.createStaff(request))
+                    .isInstanceOf(EmailAlreadyExistsException.class)
+                    .hasMessageContaining("вже існує");
+
+            verify(userRepository, never()).save(any());
+            verify(userProfileRepository, never()).save(any());
+        }
+
+        @Test
         @DisplayName("Отримання користувачів за заданою роллю")
         void getUsers_FilteredByRole() {
             UUID id = UUID.randomUUID();
@@ -233,6 +293,17 @@ public class UserServiceTest {
             assertThat(result.getFirst().role()).isEqualTo(UserRole.EDITOR);
             assertThat(result.getFirst().displayName()).isEqualTo("Editor John");
             verify(userRepository, never()).findAll();
+        }
+
+        @Test
+        @DisplayName("Повертає порожній список, якщо за роллю не знайдено жодного користувача")
+        void getUsers_EmptyResult_ReturnsEmptyList() {
+            when(userRepository.findByRole(UserRole.ADMIN)).thenReturn(List.of());
+
+            List<UserResponse> result = userService.getUsers(UserRole.ADMIN);
+
+            assertThat(result).isNotNull();
+            assertThat(result.isEmpty()).isTrue();
         }
 
         @Test
