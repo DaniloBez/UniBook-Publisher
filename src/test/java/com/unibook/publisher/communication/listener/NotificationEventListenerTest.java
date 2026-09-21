@@ -3,6 +3,7 @@ package com.unibook.publisher.communication.listener;
 import com.unibook.publisher.common.enums.ThreadType;
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.*;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.service.NotificationService;
 import org.junit.jupiter.api.DisplayName;
@@ -25,6 +26,9 @@ class NotificationEventListenerTest {
 
     @Mock
     private NotificationService notificationService;
+
+    @Mock
+    private AppLogger logger;
 
     @InjectMocks
     private NotificationEventListener listener;
