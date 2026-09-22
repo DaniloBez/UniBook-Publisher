@@ -7,6 +7,7 @@ import com.unibook.publisher.common.event.ContractConfirmedEvent;
 import com.unibook.publisher.common.event.ContractRoyaltyUpdatedEvent;
 import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
+import com.unibook.publisher.common.exception.business.UnsupportedRoyaltyStrategyException;
 import com.unibook.publisher.common.exception.notfound.ContractNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
@@ -230,9 +231,7 @@ public class ContractService {
         RoyaltyStrategy strategy = strategies.get(type);
 
         if (strategy == null) {
-            throw new IllegalArgumentException(
-                "Відсутня стратегія виплати роялті" + type
-            );
+            throw new UnsupportedRoyaltyStrategyException(type);
         }
 
         return strategy;

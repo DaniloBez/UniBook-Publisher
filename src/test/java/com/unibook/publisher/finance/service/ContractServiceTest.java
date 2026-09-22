@@ -20,6 +20,8 @@ import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
 import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
 import com.unibook.publisher.finance.royalty.impl.FlatRateRoyaltyStrategy;
+import com.unibook.publisher.finance.royalty.impl.TieredVolumeRoyaltyStrategy;
+import com.unibook.publisher.finance.royalty.impl.AdvanceRecoupmentRoyaltyStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -60,17 +62,29 @@ class ContractServiceTest {
     @Mock
     private RoyaltyStrategy flatRateRoyaltyStrategy;
 
+    @Mock
+    private RoyaltyStrategy tieredVolumeRoyaltyStrategy;
+
+    @Mock
+    private RoyaltyStrategy advanceRecoupmentRoyaltyStrategy;
+
     private ContractService contractService;
     @BeforeEach
     void setUp() {
         when(flatRateRoyaltyStrategy.getType()).thenReturn(RoyaltyStrategyType.FLAT_RATE);
+        when(tieredVolumeRoyaltyStrategy.getType()).thenReturn(RoyaltyStrategyType.TIERED_VOLUME);
+        when(advanceRecoupmentRoyaltyStrategy.getType()).thenReturn(RoyaltyStrategyType.ADVANCE_RECOUPMENT);
 
         contractService = new ContractService(
                 contractRepository,
                 financeAuditLogRepository,
                 eventPublisher,
                 logger,
-                List.of(flatRateRoyaltyStrategy)
+                List.of(
+                        flatRateRoyaltyStrategy,
+                        tieredVolumeRoyaltyStrategy,
+                        advanceRecoupmentRoyaltyStrategy
+                )
         );
     }
 
@@ -297,26 +311,67 @@ class ContractServiceTest {
         @DisplayName("Коректний розрахунок виплати на основі ставки та авансу")
         void simulatePayout_Success() {
             Contract contract = draftContract();
-            PayoutSimulationRequest request = new PayoutSimulationRequest(
-                    new BigDecimal("10000.0"),
+            BigDecimal salesAmount = new BigDecimal("10000.0");
+
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
+
+            when(flatRateRoyaltyStrategy.calculateRoyalty(contract, salesAmount))
+                    .thenReturn(new BigDecimal("1000.00"));
+
+            when(tieredVolumeRoyaltyStrategy.calculateRoyalty(contract, salesAmount))
+                    .thenReturn(new BigDecimal("800.00"));
+
+            when(advanceRecoupmentRoyaltyStrategy.calculateRoyalty(contract, salesAmount))
+                    .thenReturn(new BigDecimal("0.00"));
+
+            PayoutSimulationRequest flatRateRequest = new PayoutSimulationRequest(
+                    salesAmount,
                     RoyaltyStrategyType.FLAT_RATE
             );
 
-            when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
-            when(flatRateRoyaltyStrategy.calculateRoyalty(contract, request.salesAmount()))
-                    .thenReturn(new BigDecimal("1000.00"));
-
-            PayoutSimulationResponse response = contractService.simulatePayout(
+            PayoutSimulationResponse flatRateResponse = contractService.simulatePayout(
                     contractId,
                     authorId,
                     UserRole.AUTHOR,
-                    request
+                    flatRateRequest
             );
 
-            assertThat(response.calculatedRoyalty()).isEqualByComparingTo("1000.00");
-            assertThat(response.totalPayout()).isEqualByComparingTo("2000.00");
+            assertThat(flatRateResponse.calculatedRoyalty()).isEqualByComparingTo("1000.00");
+            assertThat(flatRateResponse.totalPayout()).isEqualByComparingTo("2000.00");
 
-            verify(flatRateRoyaltyStrategy).calculateRoyalty(contract, request.salesAmount());
+            PayoutSimulationRequest tieredRequest = new PayoutSimulationRequest(
+                    salesAmount,
+                    RoyaltyStrategyType.TIERED_VOLUME
+            );
+
+            PayoutSimulationResponse tieredResponse = contractService.simulatePayout(
+                    contractId,
+                    authorId,
+                    UserRole.AUTHOR,
+                    tieredRequest
+            );
+
+            assertThat(tieredResponse.calculatedRoyalty()).isEqualByComparingTo("800.00");
+            assertThat(tieredResponse.totalPayout()).isEqualByComparingTo("1800.00");
+
+            PayoutSimulationRequest advanceRecoupmentRequest = new PayoutSimulationRequest(
+                    salesAmount,
+                    RoyaltyStrategyType.ADVANCE_RECOUPMENT
+            );
+
+            PayoutSimulationResponse advanceRecoupmentResponse = contractService.simulatePayout(
+                    contractId,
+                    authorId,
+                    UserRole.AUTHOR,
+                    advanceRecoupmentRequest
+            );
+
+            assertThat(advanceRecoupmentResponse.calculatedRoyalty()).isEqualByComparingTo("0.00");
+            assertThat(advanceRecoupmentResponse.totalPayout()).isEqualByComparingTo("1000.00");
+
+            verify(flatRateRoyaltyStrategy).calculateRoyalty(contract, salesAmount);
+            verify(tieredVolumeRoyaltyStrategy).calculateRoyalty(contract, salesAmount);
+            verify(advanceRecoupmentRoyaltyStrategy).calculateRoyalty(contract, salesAmount);
         }
 
         @Test
