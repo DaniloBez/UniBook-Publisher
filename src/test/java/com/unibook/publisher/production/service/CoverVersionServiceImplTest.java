@@ -2,6 +2,7 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.CoverVersionAddedEvent;
+import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
@@ -32,7 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class CoverVersionServiceTest {
+public class CoverVersionServiceImplTest {
 
     @Mock
     private CoverVersionRepository coverVersionRepository;
@@ -50,7 +51,7 @@ public class CoverVersionServiceTest {
     private AppLogger logger;
 
     @InjectMocks
-    private CoverVersionService coverVersionService;
+    private CoverVersionServiceImpl coverVersionService;
 
     private Manuscript manuscript(UUID manuscriptId, ManuscriptStatus status) {
         return new Manuscript(manuscriptId, "Дюна", UUID.randomUUID(), status, List.of(), "Анотація", "url", Instant.now());
@@ -105,5 +106,55 @@ public class CoverVersionServiceTest {
         assertThrows(InvalidStateTransitionException.class,
                 () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, new CoverVersionRequest("cover.png")));
         verify(coverVersionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Помилка, якщо рукопис не знайдено при завантаженні обкладинки")
+    void uploadCoverVersion_ManuscriptNotFoundException() {
+        UUID manuscriptId = UUID.randomUUID();
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
+
+        assertThrows(ManuscriptNotFoundException.class,
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, UUID.randomUUID(), new CoverVersionRequest("cover.png")));
+        verify(coverVersionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Заборонено завантажувати обкладинку, якщо дизайнера взагалі не призначено")
+    void uploadCoverVersion_ForbiddenWhenNoDesignerAssigned() {
+        UUID manuscriptId = UUID.randomUUID();
+        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.empty());
+
+        assertThrows(ForbiddenActionException.class,
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, UUID.randomUUID(), new CoverVersionRequest("cover.png")));
+        verify(coverVersionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Успішне отримання списку версій обкладинок рукопису")
+    void getCoverVersions_Success() {
+        UUID manuscriptId = UUID.randomUUID();
+        CoverVersion coverVersion = new CoverVersion(UUID.randomUUID(), manuscriptId, "cover.png", UUID.randomUUID(), 1, Instant.now());
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN)));
+        when(coverVersionRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of(coverVersion));
+
+        List<CoverVersionResponse> responses = coverVersionService.getCoverVersions(manuscriptId);
+
+        assertNotNull(responses);
+        assertEquals(1, responses.size());
+        assertEquals(1, responses.get(0).versionNumber());
+    }
+
+    @Test
+    @DisplayName("Помилка, якщо рукопис не знайдено при отриманні версій обкладинок")
+    void getCoverVersions_ManuscriptNotFoundException() {
+        UUID manuscriptId = UUID.randomUUID();
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
+
+        assertThrows(ManuscriptNotFoundException.class, () -> coverVersionService.getCoverVersions(manuscriptId));
     }
 }
