@@ -2,10 +2,12 @@ package com.unibook.publisher.finance.service;
 
 import com.unibook.publisher.common.enums.ContractStatus;
 import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.common.enums.RoyaltyStrategyType;
 import com.unibook.publisher.common.event.ContractConfirmedEvent;
 import com.unibook.publisher.common.event.ContractRoyaltyUpdatedEvent;
 import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
+import com.unibook.publisher.common.exception.business.UnsupportedRoyaltyStrategyException;
 import com.unibook.publisher.common.exception.notfound.ContractNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
@@ -18,13 +20,17 @@ import com.unibook.publisher.finance.entity.response.ContractResponse;
 import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
+import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.UUID;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class ContractService {
@@ -32,17 +38,20 @@ public class ContractService {
     private final FinanceAuditLogRepository financeAuditLogRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final AppLogger logger;
+    private final Map<RoyaltyStrategyType, RoyaltyStrategy> strategies;
 
     public ContractService(
             ContractRepository contractRepository,
             FinanceAuditLogRepository financeAuditLogRepository,
             ApplicationEventPublisher eventPublisher,
-            AppLogger logger
+            AppLogger logger,
+            List<RoyaltyStrategy> strategyList
     ) {
         this.contractRepository = contractRepository;
         this.financeAuditLogRepository = financeAuditLogRepository;
         this.eventPublisher = eventPublisher;
         this.logger = logger;
+        this.strategies = strategyList.stream().collect(Collectors.toMap(RoyaltyStrategy::getType, Function.identity()));
     }
 
     public void createContractForApprovedManuscript(ManuscriptApprovedEvent event) {
@@ -186,9 +195,12 @@ public class ContractService {
 
         checkViewAccess(contract, callerId, callerRole);
 
-        BigDecimal calculatedRoyalty = request.salesAmount()
-                .multiply(contract.royaltyPercent())
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        RoyaltyStrategy strategy = resolveStrategy(request.royaltyStrategyType());
+
+        BigDecimal calculatedRoyalty = strategy.calculateRoyalty(
+                contract,
+                request.salesAmount()
+        );
 
         BigDecimal totalPayout = calculatedRoyalty.add(contract.advancePayment());
 
@@ -213,5 +225,15 @@ public class ContractService {
 
         if (!isOwner && !isPrivileged)
             throw new ForbiddenActionException("Переглядати контракт можуть тільки бухгалтер, адміністратор або автор-власник");
+    }
+
+    private RoyaltyStrategy resolveStrategy(RoyaltyStrategyType type) {
+        RoyaltyStrategy strategy = strategies.get(type);
+
+        if (strategy == null) {
+            throw new UnsupportedRoyaltyStrategyException(type);
+        }
+
+        return strategy;
     }
 }
