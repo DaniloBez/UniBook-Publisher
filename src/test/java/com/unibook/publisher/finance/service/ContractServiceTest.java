@@ -1,6 +1,7 @@
 package com.unibook.publisher.finance.service;
 
 import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.common.enums.RoyaltyStrategyType;
 import com.unibook.publisher.common.event.ContractConfirmedEvent;
 import com.unibook.publisher.common.event.ContractRoyaltyUpdatedEvent;
 import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
@@ -17,6 +18,9 @@ import com.unibook.publisher.finance.entity.response.ContractResponse;
 import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
+import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
+import com.unibook.publisher.finance.royalty.impl.FlatRateRoyaltyStrategy;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -29,6 +33,7 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -52,8 +57,22 @@ class ContractServiceTest {
     @Mock
     private AppLogger logger;
 
-    @InjectMocks
+    @Mock
+    private RoyaltyStrategy flatRateRoyaltyStrategy;
+
     private ContractService contractService;
+    @BeforeEach
+    void setUp() {
+        when(flatRateRoyaltyStrategy.getType()).thenReturn(RoyaltyStrategyType.FLAT_RATE);
+
+        contractService = new ContractService(
+                contractRepository,
+                financeAuditLogRepository,
+                eventPublisher,
+                logger,
+                List.of(flatRateRoyaltyStrategy)
+        );
+    }
 
     private final UUID manuscriptId = UUID.randomUUID();
     private final UUID authorId = UUID.randomUUID();
@@ -278,21 +297,33 @@ class ContractServiceTest {
         @DisplayName("Коректний розрахунок виплати на основі ставки та авансу")
         void simulatePayout_Success() {
             Contract contract = draftContract();
-            PayoutSimulationRequest request = new PayoutSimulationRequest(new BigDecimal("10000.0"));
+            PayoutSimulationRequest request = new PayoutSimulationRequest(
+                    new BigDecimal("10000.0"),
+                    RoyaltyStrategyType.FLAT_RATE
+            );
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
+            when(flatRateRoyaltyStrategy.calculateRoyalty(contract, request.salesAmount()))
+                    .thenReturn(new BigDecimal("1000.00"));
 
-            PayoutSimulationResponse response = contractService.simulatePayout(contractId, authorId, UserRole.AUTHOR, request);
+            PayoutSimulationResponse response = contractService.simulatePayout(
+                    contractId,
+                    authorId,
+                    UserRole.AUTHOR,
+                    request
+            );
 
             assertThat(response.calculatedRoyalty()).isEqualByComparingTo("1000.00");
             assertThat(response.totalPayout()).isEqualByComparingTo("2000.00");
+
+            verify(flatRateRoyaltyStrategy).calculateRoyalty(contract, request.salesAmount());
         }
 
         @Test
         @DisplayName("Помилка доступу для стороннього користувача")
         void simulatePayout_Forbidden_ThrowsException() {
             Contract contract = draftContract();
-            PayoutSimulationRequest request = new PayoutSimulationRequest(new BigDecimal("10000.0"));
+            PayoutSimulationRequest request = new PayoutSimulationRequest(new BigDecimal("10000.0"), RoyaltyStrategyType.FLAT_RATE);
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
 
