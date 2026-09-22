@@ -14,5 +14,9 @@ public record FeedbackThread(
     boolean isSuggestion,
     String suggestedText,
     SuggestionStatus suggestionStatus,
-    Instant createdAt
+    Instant createdAt,
+    UUID targetRevisionId,
+    String quotedText,
+    Integer positionFrom,
+    Integer positionTo
 ) {}

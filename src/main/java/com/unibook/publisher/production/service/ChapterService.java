@@ -4,11 +4,13 @@ import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.RevisionAddedEvent;
 import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
+import com.unibook.publisher.common.exception.notfound.RevisionNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
+import com.unibook.publisher.production.entity.response.DiffResponse;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.Revision;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
@@ -32,14 +34,16 @@ public class ChapterService {
     private final ManuscriptRepository manuscriptRepository;
     private final RevisionRepository revisionRepository;
     private final TeamAssignmentRepository teamAssignmentRepository;
+    private final DiffService diffService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
-    public ChapterService(ChapterRepository chapterRepository, ManuscriptRepository manuscriptRepository, RevisionRepository revisionRepository, TeamAssignmentRepository teamAssignmentRepository, ApplicationEventPublisher publisher, AppLogger logger) {
+    public ChapterService(ChapterRepository chapterRepository, ManuscriptRepository manuscriptRepository, RevisionRepository revisionRepository, TeamAssignmentRepository teamAssignmentRepository, DiffService diffService, ApplicationEventPublisher publisher, AppLogger logger) {
         this.chapterRepository = chapterRepository;
         this.manuscriptRepository = manuscriptRepository;
         this.revisionRepository = revisionRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
+        this.diffService = diffService;
         this.publisher = publisher;
         this.logger = logger;
     }
@@ -119,7 +123,8 @@ public class ChapterService {
                 versionNumber,
                 request.fileUrl(),
                 userId,
-                Instant.now()
+                Instant.now(),
+                request.textContent()
         );
         Revision saved = revisionRepository.save(revision);
 
@@ -150,5 +155,22 @@ public class ChapterService {
         return revisionRepository.findAllByChapterId(chapterId).stream()
                 .map(RevisionResponse::from)
                 .toList();
+    }
+
+    public DiffResponse getDiffChapter(UUID chapterId, UUID fromRevisionId, UUID toRevisionId) {
+        if (chapterRepository.findById(chapterId).isEmpty()) {
+            throw new ChapterNotFoundException(chapterId);
+        }
+        Revision fromRevision = revisionRepository.findById(fromRevisionId)
+                .orElseThrow(() -> new RevisionNotFoundException(fromRevisionId));
+        Revision toRevision = revisionRepository.findById(toRevisionId)
+                .orElseThrow(() -> new RevisionNotFoundException(toRevisionId));
+
+        return diffService.compare(
+                fromRevisionId,
+                toRevisionId,
+                fromRevision.textContent(),
+                toRevision.textContent()
+        );
     }
 }

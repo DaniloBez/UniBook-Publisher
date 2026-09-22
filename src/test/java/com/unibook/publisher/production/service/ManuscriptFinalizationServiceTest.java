@@ -101,8 +101,20 @@ public class ManuscriptFinalizationServiceTest {
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
         TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, editorId, UserRole.EDITOR, Instant.now());
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
-        FeedbackThread openThread = new FeedbackThread(UUID.randomUUID(), chapterId, UUID.randomUUID(),
-                ThreadStatus.OPEN, false, null, null, Instant.now());
+        FeedbackThread openThread = new FeedbackThread(
+                UUID.randomUUID(),
+                chapterId,
+                UUID.randomUUID(),
+                ThreadStatus.OPEN,
+                false,
+                null,
+                null,
+                Instant.now(),
+                null,
+                null,
+                null,
+                null
+        );
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));

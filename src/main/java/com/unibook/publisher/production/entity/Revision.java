@@ -10,5 +10,6 @@ public record Revision(
       int versionNumber,
       String fileUrl,
       UUID uploadedByUserId,
-      Instant uploadedAt
+      Instant uploadedAt,
+      String textContent
 ) {}

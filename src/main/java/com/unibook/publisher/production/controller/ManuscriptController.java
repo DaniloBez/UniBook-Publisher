@@ -1,5 +1,7 @@
 package com.unibook.publisher.production.controller;
 
+import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptPostponementRequest;
@@ -41,8 +43,12 @@ public class ManuscriptController {
     public ResponseEntity<ManuscriptResponse> approveManuscript(
             @PathVariable UUID id,
             @RequestHeader("X-User-Id") UUID chiefEditorId,
+            @RequestHeader("X-User-Role") UserRole callerRole,
             @Valid @RequestBody ManuscriptApprovalRequest request
             ) {
+        if(callerRole != UserRole.CHIEF_EDITOR) {
+            throw new ForbiddenActionException("Підтвердити заявку може лише головний редактор");
+        }
         ManuscriptResponse response = manuscriptService.approveManuscript(id, chiefEditorId, request);
         return ResponseEntity.ok(response);
     }
@@ -51,8 +57,12 @@ public class ManuscriptController {
     public ResponseEntity<ManuscriptResponse> rejectManuscript(
             @PathVariable UUID id,
             @RequestHeader("X-User-Id") UUID chiefEditorId,
+            @RequestHeader("X-User-Role") UserRole callerRole,
             @Valid @RequestBody ManuscriptRejectionRequest request
     ) {
+        if(callerRole != UserRole.CHIEF_EDITOR) {
+            throw new ForbiddenActionException("Відхилити заявку може лише головний редактор");
+        }
         ManuscriptResponse response = manuscriptService.rejectManuscript(id, chiefEditorId, request);
         return ResponseEntity.ok(response);
     }
@@ -61,8 +71,12 @@ public class ManuscriptController {
     public ResponseEntity<ManuscriptResponse> postponeManuscript(
             @PathVariable UUID id,
             @RequestHeader("X-User-Id") UUID chiefEditorId,
+            @RequestHeader("X-User-Role") UserRole callerRole,
             @Valid @RequestBody ManuscriptPostponementRequest request
     ) {
+        if(callerRole != UserRole.CHIEF_EDITOR) {
+            throw new ForbiddenActionException("Відкласти заявку може лише головний редактор");
+        }
         ManuscriptResponse response = manuscriptService.postponeManuscript(id, chiefEditorId, request);
         return ResponseEntity.ok(response);
     }

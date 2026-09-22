@@ -4,12 +4,13 @@ import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.RevisionAddedEvent;
 import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
-import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.notfound.RevisionNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
+import com.unibook.publisher.production.entity.response.DiffResponse;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.Revision;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
@@ -57,6 +58,9 @@ public class ChapterServiceTest {
     @Mock
     private AppLogger logger;
 
+    @Mock
+    private DiffService diffService;
+
     @InjectMocks
     private ChapterService chapterService;
 
@@ -87,10 +91,10 @@ public class ChapterServiceTest {
     }
 
     @Test
-    void createChapter_ResourceNotFoundException() {
+    void createChapter_ManuscriptNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> chapterService.createChapter(manuscriptId, UUID.randomUUID(), new ChapterCreationRequest("Розділ", 1)));
+        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.createChapter(manuscriptId, UUID.randomUUID(), new ChapterCreationRequest("Розділ", 1)));
     }
 
     @Test
@@ -143,10 +147,10 @@ public class ChapterServiceTest {
     }
 
     @Test
-    void getChaptersByManuscriptId_ResourceNotFoundException() {
+    void getChaptersByManuscriptId_ManuscriptNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> chapterService.getChaptersByManuscriptId(manuscriptId));
+        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.getChaptersByManuscriptId(manuscriptId));
     }
 
     @Test
@@ -172,7 +176,7 @@ public class ChapterServiceTest {
         when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.empty());
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
 
-        RevisionResponse response = chapterService.uploadRevision(chapterId, editorId, new RevisionUploadRequest("new_url"));
+        RevisionResponse response = chapterService.uploadRevision(chapterId, editorId, new RevisionUploadRequest("new_url", "Текст ревізії"));
         assertNotNull(response);
         assertEquals(1, response.versionNumber());
         assertEquals("new_url", response.fileUrl());
@@ -202,7 +206,7 @@ public class ChapterServiceTest {
         when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.empty());
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
 
-        RevisionResponse response = chapterService.uploadRevision(chapterId, authorId, new RevisionUploadRequest("new_url"));
+        RevisionResponse response = chapterService.uploadRevision(chapterId, authorId, new RevisionUploadRequest("new_url", "Текст ревізії"));
         assertNotNull(response);
         assertEquals(1, response.versionNumber());
         assertEquals("new_url", response.fileUrl());
@@ -232,16 +236,23 @@ public class ChapterServiceTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.isUserAssignedToManuscript(manuscriptId, userId, UserRole.EDITOR)).thenReturn(false);
 
-        assertThrows(ForbiddenActionException.class, () -> chapterService.uploadRevision(chapterId, userId, new RevisionUploadRequest("url")));
+        assertThrows(ForbiddenActionException.class, () -> chapterService.uploadRevision(chapterId, userId, new RevisionUploadRequest("url", "Текст ревізії")));
     }
 
     @Test
-    void uploadRevision_ResourceNotFoundException() {
+    void uploadRevision_ManuscriptNotFoundException() {
         UUID chapterId = UUID.randomUUID();
         Chapter chapter = new Chapter(chapterId, UUID.randomUUID(), "Розділ 1", 1);
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(manuscriptRepository.findById(chapter.manuscriptId())).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), new RevisionUploadRequest("url")));
+        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), new RevisionUploadRequest("url", "Текст ревізії")));
+    }
+
+    @Test
+    void uploadRevision_ChapterNotFoundException() {
+        UUID chapterId = UUID.randomUUID();
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), new RevisionUploadRequest("url", "Текст ревізії")));
     }
 
     @Test
@@ -261,13 +272,13 @@ public class ChapterServiceTest {
         );
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(InvalidStateTransitionException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), new RevisionUploadRequest("url")));
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), new RevisionUploadRequest("url", "Текст ревізії")));
     }
 
     @Test
     void getRevisionsByChapterId_Success() {
         UUID chapterId = UUID.randomUUID();
-        Revision revision = new Revision(UUID.randomUUID(), chapterId, 1, "url", UUID.randomUUID(), Instant.now());
+        Revision revision = new Revision(UUID.randomUUID(), chapterId, 1, "url", UUID.randomUUID(), Instant.now(), "Текст ревізії");
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(mock(Chapter.class)));
         when(revisionRepository.findAllByChapterId(chapterId)).thenReturn(List.of(revision));
@@ -280,9 +291,58 @@ public class ChapterServiceTest {
     }
 
     @Test
-    void getRevisionsByChapterId_ResourceNotFoundException() {
+    void getRevisionsByChapterId_ChapterNotFoundException() {
         UUID chapterId = UUID.randomUUID();
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> chapterService.getRevisionsByChapterId(chapterId));
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.getRevisionsByChapterId(chapterId));
+    }
+
+    @Test
+    void getDiffChapter_Success() {
+        UUID chapterId = UUID.randomUUID();
+        UUID fromRevisionId = UUID.randomUUID();
+        UUID toRevisionId = UUID.randomUUID();
+
+        Chapter chapter = new Chapter(chapterId, UUID.randomUUID(), "Розділ 1", 1);
+        Revision fromRevision = new Revision(fromRevisionId, chapterId, 1, "url1", UUID.randomUUID(), Instant.now(), "Старий текст");
+        Revision toRevision = new Revision(toRevisionId, chapterId, 2, "url2", UUID.randomUUID(), Instant.now(), "Новий текст");
+        DiffResponse expectedResponse = new DiffResponse(fromRevisionId, toRevisionId, List.of());
+
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(revisionRepository.findById(fromRevisionId)).thenReturn(Optional.of(fromRevision));
+        when(revisionRepository.findById(toRevisionId)).thenReturn(Optional.of(toRevision));
+        when(diffService.compare(fromRevisionId, toRevisionId, "Старий текст", "Новий текст")).thenReturn(expectedResponse);
+
+        DiffResponse response = chapterService.getDiffChapter(chapterId, fromRevisionId, toRevisionId);
+        assertNotNull(response);
+        assertEquals(expectedResponse, response);
+        verify(diffService, times(1)).compare(fromRevisionId, toRevisionId, "Старий текст", "Новий текст");
+    }
+
+    @Test
+    void getDiffChapter_ChapterNotFoundException() {
+        UUID chapterId = UUID.randomUUID();
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.getDiffChapter(chapterId, UUID.randomUUID(), UUID.randomUUID()));
+    }
+
+    @Test
+    void getDiffChapter_FromRevisionNotFoundException() {
+        UUID chapterId = UUID.randomUUID();
+        UUID fromRevisionId = UUID.randomUUID();
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(mock(Chapter.class)));
+        when(revisionRepository.findById(fromRevisionId)).thenReturn(Optional.empty());
+        assertThrows(RevisionNotFoundException.class, () -> chapterService.getDiffChapter(chapterId, fromRevisionId, UUID.randomUUID()));
+    }
+
+    @Test
+    void getDiffChapter_ToRevisionNotFoundException() {
+        UUID chapterId = UUID.randomUUID();
+        UUID fromRevisionId = UUID.randomUUID();
+        UUID toRevisionId = UUID.randomUUID();
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(mock(Chapter.class)));
+        when(revisionRepository.findById(fromRevisionId)).thenReturn(Optional.of(mock(Revision.class)));
+        when(revisionRepository.findById(toRevisionId)).thenReturn(Optional.empty());
+        assertThrows(RevisionNotFoundException.class, () -> chapterService.getDiffChapter(chapterId, fromRevisionId, toRevisionId));
     }
 }
