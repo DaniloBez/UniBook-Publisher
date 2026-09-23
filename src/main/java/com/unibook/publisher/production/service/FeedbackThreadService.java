@@ -2,31 +2,28 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.ThreadType;
 import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.common.event.RevisionAddedEvent;
 import com.unibook.publisher.common.event.ThreadMessageAddedEvent;
 import com.unibook.publisher.common.event.ThreadOpenedEvent;
+import com.unibook.publisher.common.exception.business.EmptyRevisionTextException;
+import com.unibook.publisher.common.exception.business.InvalidQuoteException;
+import com.unibook.publisher.common.exception.business.InvalidQuotePositionException;
 import com.unibook.publisher.common.exception.business.ThreadNotASuggestionException;
 import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
+import com.unibook.publisher.common.exception.notfound.RevisionNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ThreadNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.production.entity.Chapter;
-import com.unibook.publisher.production.entity.FeedbackThread;
-import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.entity.TeamAssignment;
-import com.unibook.publisher.production.entity.ThreadMessage;
+import com.unibook.publisher.production.entity.*;
 import com.unibook.publisher.production.entity.request.OpenThreadRequest;
 import com.unibook.publisher.production.entity.request.ThreadMessageRequest;
 import com.unibook.publisher.production.entity.response.ThreadMessageResponse;
 import com.unibook.publisher.production.entity.response.ThreadResponse;
 import com.unibook.publisher.production.enums.SuggestionStatus;
 import com.unibook.publisher.production.enums.ThreadStatus;
-import com.unibook.publisher.production.repository.ChapterRepository;
-import com.unibook.publisher.production.repository.FeedbackThreadRepository;
-import com.unibook.publisher.production.repository.ManuscriptRepository;
-import com.unibook.publisher.production.repository.TeamAssignmentRepository;
-import com.unibook.publisher.production.repository.ThreadMessageRepository;
+import com.unibook.publisher.production.repository.*;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
@@ -41,6 +38,7 @@ public class FeedbackThreadService {
     private final FeedbackThreadRepository threadRepository;
     private final ThreadMessageRepository messageRepository;
     private final ChapterRepository chapterRepository;
+    private final RevisionRepository revisionRepository;
     private final ManuscriptRepository manuscriptRepository;
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final ApplicationEventPublisher publisher;
@@ -49,7 +47,7 @@ public class FeedbackThreadService {
     public FeedbackThreadService(
             FeedbackThreadRepository threadRepository,
             ThreadMessageRepository messageRepository,
-            ChapterRepository chapterRepository,
+            ChapterRepository chapterRepository, RevisionRepository revisionRepository,
             ManuscriptRepository manuscriptRepository,
             TeamAssignmentRepository teamAssignmentRepository,
             ApplicationEventPublisher publisher,
@@ -58,6 +56,7 @@ public class FeedbackThreadService {
         this.threadRepository = threadRepository;
         this.messageRepository = messageRepository;
         this.chapterRepository = chapterRepository;
+        this.revisionRepository = revisionRepository;
         this.manuscriptRepository = manuscriptRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
         this.publisher = publisher;
@@ -71,6 +70,8 @@ public class FeedbackThreadService {
         Manuscript manuscript = manuscriptRepository.findById(chapter.manuscriptId())
                 .orElseThrow(() -> new ManuscriptNotFoundException(chapter.manuscriptId()));
 
+        validateQuote(request);
+
         Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscriptIdAndRole(manuscript.manuscriptId(), UserRole.EDITOR);
         UUID recipientId = resolveOtherParty(manuscript, editor, initiatorId);
 
@@ -83,7 +84,11 @@ public class FeedbackThreadService {
                 isSuggestion,
                 isSuggestion ? request.suggestedText() : null,
                 isSuggestion ? SuggestionStatus.PENDING : null,
-                Instant.now()
+                Instant.now(),
+                request.targetRevisionId(),
+                request.quotedText(),
+                request.positionFrom(),
+                request.positionTo()
         );
         threadRepository.save(thread);
 
@@ -121,6 +126,32 @@ public class FeedbackThreadService {
         ));
 
         return ThreadResponse.from(thread);
+    }
+
+    private void validateQuote(OpenThreadRequest request) {
+        if (request.targetRevisionId() == null || request.quotedText() == null) {
+            return;
+        }
+
+        UUID revisionId = request.targetRevisionId();
+        Revision revision = revisionRepository.findById(revisionId)
+                .orElseThrow(() -> new RevisionNotFoundException(revisionId));
+
+        String textContent = revision.textContent();
+        if (textContent == null) {
+            throw new EmptyRevisionTextException();
+        }
+
+        Integer from = request.positionFrom();
+        Integer to = request.positionTo();
+        if (from == null || to == null || from < 0 || to > textContent.length() || from >= to) {
+            throw new InvalidQuotePositionException();
+        }
+
+        String quote = textContent.substring(from, to);
+        if (!quote.equals(request.quotedText())) {
+            throw new InvalidQuoteException(request.quotedText());
+        }
     }
 
     public List<ThreadResponse> getThreads(UUID chapterId, ThreadStatus statusFilter) {
@@ -192,8 +223,18 @@ public class FeedbackThreadService {
         }
 
         FeedbackThread updated = new FeedbackThread(
-                thread.id(), thread.chapterId(), thread.createdByUserId(), thread.status(),
-                thread.isSuggestion(), thread.suggestedText(), SuggestionStatus.ACCEPTED, thread.createdAt()
+                thread.id(),
+                thread.chapterId(),
+                thread.createdByUserId(),
+                thread.status(),
+                thread.isSuggestion(),
+                thread.suggestedText(),
+                SuggestionStatus.ACCEPTED,
+                thread.createdAt(),
+                thread.targetRevisionId(),
+                thread.quotedText(),
+                thread.positionFrom(),
+                thread.positionTo()
         );
         threadRepository.save(updated);
 
@@ -229,8 +270,18 @@ public class FeedbackThreadService {
         }
 
         FeedbackThread updated = new FeedbackThread(
-                thread.id(), thread.chapterId(), thread.createdByUserId(), thread.status(),
-                thread.isSuggestion(), thread.suggestedText(), SuggestionStatus.REJECTED, thread.createdAt()
+                thread.id(),
+                thread.chapterId(),
+                thread.createdByUserId(),
+                thread.status(),
+                thread.isSuggestion(),
+                thread.suggestedText(),
+                SuggestionStatus.REJECTED,
+                thread.createdAt(),
+                thread.targetRevisionId(),
+                thread.quotedText(),
+                thread.positionFrom(),
+                thread.positionTo()
         );
         threadRepository.save(updated);
 
@@ -265,8 +316,18 @@ public class FeedbackThreadService {
         }
 
         FeedbackThread updated = new FeedbackThread(
-                thread.id(), thread.chapterId(), thread.createdByUserId(), ThreadStatus.RESOLVED,
-                thread.isSuggestion(), thread.suggestedText(), thread.suggestionStatus(), thread.createdAt()
+                thread.id(),
+                thread.chapterId(),
+                thread.createdByUserId(),
+                ThreadStatus.RESOLVED,
+                thread.isSuggestion(),
+                thread.suggestedText(),
+                thread.suggestionStatus(),
+                thread.createdAt(),
+                thread.targetRevisionId(),
+                thread.quotedText(),
+                thread.positionFrom(),
+                thread.positionTo()
         );
         threadRepository.save(updated);
 

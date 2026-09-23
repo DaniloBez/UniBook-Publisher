@@ -2,13 +2,17 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.RevisionAddedEvent;
+import com.unibook.publisher.common.exception.business.BusinessRuleViolationException;
 import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
+import com.unibook.publisher.common.exception.notfound.RevisionNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
+import com.unibook.publisher.production.entity.request.DiffRequest;
+import com.unibook.publisher.production.entity.response.DiffResponse;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.Revision;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
@@ -32,14 +36,18 @@ public class ChapterService {
     private final ManuscriptRepository manuscriptRepository;
     private final RevisionRepository revisionRepository;
     private final TeamAssignmentRepository teamAssignmentRepository;
+    private final DiffService diffService;
+    private final FileStorageService fileStorageService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
-    public ChapterService(ChapterRepository chapterRepository, ManuscriptRepository manuscriptRepository, RevisionRepository revisionRepository, TeamAssignmentRepository teamAssignmentRepository, ApplicationEventPublisher publisher, AppLogger logger) {
+    public ChapterService(ChapterRepository chapterRepository, ManuscriptRepository manuscriptRepository, RevisionRepository revisionRepository, TeamAssignmentRepository teamAssignmentRepository, DiffService diffService, FileStorageService fileStorageService, ApplicationEventPublisher publisher, AppLogger logger) {
         this.chapterRepository = chapterRepository;
         this.manuscriptRepository = manuscriptRepository;
         this.revisionRepository = revisionRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
+        this.diffService = diffService;
+        this.fileStorageService = fileStorageService;
         this.publisher = publisher;
         this.logger = logger;
     }
@@ -113,13 +121,16 @@ public class ChapterService {
                 .map(revision -> revision.versionNumber() + 1)
                 .orElse(1);
 
+        String textContent = fileStorageService.readTextContent(request.fileUrl());
+
         Revision revision = new Revision(
                 UUID.randomUUID(),
                 chapterId,
                 versionNumber,
                 request.fileUrl(),
                 userId,
-                Instant.now()
+                Instant.now(),
+                textContent
         );
         Revision saved = revisionRepository.save(revision);
 
@@ -150,5 +161,26 @@ public class ChapterService {
         return revisionRepository.findAllByChapterId(chapterId).stream()
                 .map(RevisionResponse::from)
                 .toList();
+    }
+
+    public DiffResponse getDiffChapter(UUID chapterId, DiffRequest request) {
+        if (chapterRepository.findById(chapterId).isEmpty()) {
+            throw new ChapterNotFoundException(chapterId);
+        }
+        Revision fromRevision = revisionRepository.findById(request.fromRevisionId())
+                .orElseThrow(() -> new RevisionNotFoundException(request.fromRevisionId()));
+        Revision toRevision = revisionRepository.findById(request.toRevisionId())
+                .orElseThrow(() -> new RevisionNotFoundException(request.toRevisionId()));
+
+        if (!fromRevision.chapterId().equals(chapterId) || !toRevision.chapterId().equals(chapterId)) {
+            throw new BusinessRuleViolationException("Запитані ревізії не належать розділу з ID: " + chapterId);
+        }
+
+        return diffService.compare(
+                request.fromRevisionId(),
+                request.toRevisionId(),
+                fromRevision.textContent(),
+                toRevision.textContent()
+        );
     }
 }
