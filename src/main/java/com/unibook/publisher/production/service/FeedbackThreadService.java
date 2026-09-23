@@ -2,6 +2,7 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.ThreadType;
 import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.common.event.RevisionAddedEvent;
 import com.unibook.publisher.common.event.ThreadMessageAddedEvent;
 import com.unibook.publisher.common.event.ThreadOpenedEvent;
 import com.unibook.publisher.common.exception.business.EmptyRevisionTextException;
@@ -149,7 +150,7 @@ public class FeedbackThreadService {
 
         String quote = textContent.substring(from, to);
         if (!quote.equals(request.quotedText())) {
-            throw new InvalidQuoteException(quote);
+            throw new InvalidQuoteException(request.quotedText());
         }
     }
 
@@ -219,34 +220,6 @@ public class FeedbackThreadService {
                     SuggestionStatus.ACCEPTED,
                     Set.of()
             );
-        }
-
-        if (thread.targetRevisionId() != null && thread.positionFrom() != null && thread.positionTo() != null) {
-            UUID revisionId = thread.targetRevisionId();
-            Revision revision = revisionRepository.findById(revisionId).orElseThrow(() -> new RevisionNotFoundException(revisionId));
-
-            String textContent = revision.textContent() != null ? revision.textContent() : "";
-            String replacementContent = thread.suggestedText() != null ? thread.suggestedText() : "";
-
-            int from = thread.positionFrom();
-            int to = thread.positionTo();
-
-            if (from >= 0 && to <= textContent.length() && from <= to) {
-                String updatedContent = textContent.substring(0, from)
-                        + replacementContent
-                        + textContent.substring(to);
-
-                Revision updated = new Revision(
-                        revision.revisionId(),
-                        revision.chapterId(),
-                        revision.versionNumber(),
-                        revision.fileUrl(),
-                        revision.uploadedByUserId(),
-                        revision.uploadedAt(),
-                        updatedContent
-                );
-                revisionRepository.save(updated);
-            }
         }
 
         FeedbackThread updated = new FeedbackThread(

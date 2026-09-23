@@ -4,6 +4,5 @@ import jakarta.validation.constraints.NotBlank;
 
 public record RevisionUploadRequest(
         @NotBlank
-        String fileUrl,
-        String textContent
+        String fileUrl
 ) {}

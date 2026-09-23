@@ -1,6 +1,7 @@
 package com.unibook.publisher.production.controller;
 
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
+import com.unibook.publisher.production.entity.request.DiffRequest;
 import com.unibook.publisher.production.entity.request.RevisionUploadRequest;
 import com.unibook.publisher.production.entity.response.ChapterResponse;
 import com.unibook.publisher.production.entity.response.DiffResponse;
@@ -59,10 +60,9 @@ public class ChapterController {
     @GetMapping("/{chapterId}/diff")
     public ResponseEntity<DiffResponse> getDiffChapter(
             @PathVariable UUID chapterId,
-            @RequestParam UUID fromRevisionId,
-            @RequestParam UUID toRevisionId
+            @Valid @ModelAttribute DiffRequest request
     ) {
-        DiffResponse response = chapterService.getDiffChapter(chapterId, fromRevisionId, toRevisionId);
+        DiffResponse response = chapterService.getDiffChapter(chapterId, request);
         return ResponseEntity.ok(response);
     }
 }
