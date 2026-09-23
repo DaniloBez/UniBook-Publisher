@@ -55,6 +55,9 @@ public class ChapterServiceTest {
     private TeamAssignmentRepository teamAssignmentRepository;
 
     @Mock
+    private FileStorageService fileStorageService;
+
+    @Mock
     private ApplicationEventPublisher publisher;
 
     @Mock
@@ -177,6 +180,7 @@ public class ChapterServiceTest {
         when(teamAssignmentRepository.isUserAssignedToManuscript(manuscriptId, editorId, UserRole.EDITOR)).thenReturn(true);
         when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.empty());
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
+        when(fileStorageService.readTextContent("new_url")).thenReturn("Тестовий текст розділу");
 
         RevisionResponse response = chapterService.uploadRevision(chapterId, editorId, new RevisionUploadRequest("new_url"));
         assertNotNull(response);
@@ -207,6 +211,7 @@ public class ChapterServiceTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.empty());
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
+        when(fileStorageService.readTextContent("new_url")).thenReturn("Тестовий текст розділу");
 
         RevisionResponse response = chapterService.uploadRevision(chapterId, authorId, new RevisionUploadRequest("new_url"));
         assertNotNull(response);
