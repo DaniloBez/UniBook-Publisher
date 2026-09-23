@@ -1,9 +1,13 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.event.ThreadOpenedEvent;
+import com.unibook.publisher.common.exception.business.EmptyRevisionTextException;
+import com.unibook.publisher.common.exception.business.InvalidQuoteException;
+import com.unibook.publisher.common.exception.business.InvalidQuotePositionException;
 import com.unibook.publisher.common.exception.business.ThreadNotASuggestionException;
 import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
+import com.unibook.publisher.common.exception.notfound.RevisionNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ThreadNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
@@ -11,6 +15,7 @@ import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.FeedbackThread;
 import com.unibook.publisher.production.entity.Manuscript;
+import com.unibook.publisher.production.entity.Revision;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.ThreadMessage;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
@@ -24,6 +29,7 @@ import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.production.repository.ChapterRepository;
 import com.unibook.publisher.production.repository.FeedbackThreadRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
+import com.unibook.publisher.production.repository.RevisionRepository;
 import com.unibook.publisher.production.repository.TeamAssignmentRepository;
 import com.unibook.publisher.production.repository.ThreadMessageRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -62,6 +68,9 @@ public class FeedbackThreadServiceImplTest {
     private TeamAssignmentRepository teamAssignmentRepository;
 
     @Mock
+    private RevisionRepository revisionRepository;
+
+    @Mock
     private ApplicationEventPublisher publisher;
 
     @Mock
@@ -85,7 +94,7 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
         when(messageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThreadResponse response = threadService.openThread(chapterId, authorId, new OpenThreadRequest("Погляньте на цей абзац", null));
+        ThreadResponse response = threadService.openThread(chapterId, authorId, new OpenThreadRequest("Погляньте на цей абзац", null, null, null, null, null));
 
         assertEquals(ThreadStatus.OPEN, response.status());
         assertFalse(response.isSuggestion());
@@ -99,7 +108,7 @@ public class FeedbackThreadServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         UUID manuscriptId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                true, "новий текст", SuggestionStatus.PENDING, Instant.now());
+                true, "новий текст", SuggestionStatus.PENDING, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -119,7 +128,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, authorId, ThreadStatus.RESOLVED,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -141,7 +150,7 @@ public class FeedbackThreadServiceImplTest {
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
 
         assertThrows(ChapterNotFoundException.class,
-                () -> threadService.openThread(chapterId, authorId, new OpenThreadRequest("Погляньте на цей абзац", null)));
+                () -> threadService.openThread(chapterId, authorId, new OpenThreadRequest("Погляньте на цей абзац", null, null, null, null, null)));
         verify(threadRepository, never()).save(any());
     }
 
@@ -157,7 +166,7 @@ public class FeedbackThreadServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
         assertThrows(ManuscriptNotFoundException.class,
-                () -> threadService.openThread(chapterId, authorId, new OpenThreadRequest("Погляньте на цей абзац", null)));
+                () -> threadService.openThread(chapterId, authorId, new OpenThreadRequest("Погляньте на цей абзац", null, null, null, null, null)));
         verify(threadRepository, never()).save(any());
     }
 
@@ -177,7 +186,7 @@ public class FeedbackThreadServiceImplTest {
         when(messageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         ThreadResponse response = threadService.openThread(chapterId, authorId,
-                new OpenThreadRequest("Погляньте на цей абзац", "новий текст"));
+                new OpenThreadRequest("Погляньте на цей абзац", "новий текст", null, null, null, null));
 
         assertTrue(response.isSuggestion());
         assertEquals(SuggestionStatus.PENDING, response.suggestionStatus());
@@ -191,7 +200,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         FeedbackThread thread = new FeedbackThread(UUID.randomUUID(), chapterId, UUID.randomUUID(),
-                ThreadStatus.OPEN, false, null, null, Instant.now());
+                ThreadStatus.OPEN, false, null, null, Instant.now(), null, null, null, null);
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(threadRepository.findByChapterId(chapterId)).thenReturn(List.of(thread));
@@ -252,7 +261,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, authorId, ThreadStatus.OPEN,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -277,7 +286,7 @@ public class FeedbackThreadServiceImplTest {
         UUID authorId = UUID.randomUUID();
         UUID editorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, authorId, ThreadStatus.OPEN,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
         TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, editorId, UserRole.EDITOR, Instant.now());
@@ -302,7 +311,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, authorId, ThreadStatus.OPEN,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -333,7 +342,7 @@ public class FeedbackThreadServiceImplTest {
         UUID threadId = UUID.randomUUID();
         UUID chapterId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
@@ -349,7 +358,7 @@ public class FeedbackThreadServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         UUID manuscriptId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
@@ -368,7 +377,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                true, "новий текст", SuggestionStatus.PENDING, Instant.now());
+                true, "новий текст", SuggestionStatus.PENDING, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -401,7 +410,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -421,7 +430,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                true, "новий текст", SuggestionStatus.ACCEPTED, Instant.now());
+                true, "новий текст", SuggestionStatus.ACCEPTED, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -441,7 +450,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                true, "новий текст", SuggestionStatus.PENDING, Instant.now());
+                true, "новий текст", SuggestionStatus.PENDING, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -463,7 +472,7 @@ public class FeedbackThreadServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         UUID manuscriptId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                true, "новий текст", SuggestionStatus.PENDING, Instant.now());
+                true, "новий текст", SuggestionStatus.PENDING, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -493,7 +502,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -513,7 +522,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, UUID.randomUUID(), ThreadStatus.OPEN,
-                true, "новий текст", SuggestionStatus.REJECTED, Instant.now());
+                true, "новий текст", SuggestionStatus.REJECTED, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -533,7 +542,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, authorId, ThreadStatus.OPEN,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -567,7 +576,7 @@ public class FeedbackThreadServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         FeedbackThread thread = new FeedbackThread(threadId, chapterId, authorId, ThreadStatus.OPEN,
-                false, null, null, Instant.now());
+                false, null, null, Instant.now(), null, null, null, null);
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Анотація", "url", Instant.now());
 
@@ -578,5 +587,211 @@ public class FeedbackThreadServiceImplTest {
 
         assertThrows(ForbiddenActionException.class, () -> threadService.resolveThread(threadId, UUID.randomUUID()));
         verify(threadRepository, never()).save(any());
+    }
+
+    @Test
+    void validateQuote_ThrowsRevisionNotFoundException() {
+        UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+
+        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
+        Manuscript manuscript = new Manuscript(manuscriptId, "Книга", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Опис", "url", Instant.now());
+
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(revisionRepository.findById(revisionId)).thenReturn(Optional.empty());
+
+        OpenThreadRequest request = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null,
+                revisionId,
+                "Цитата",
+                0,
+                5
+        );
+        assertThrows(RevisionNotFoundException.class, () -> threadService.openThread(chapterId, authorId, request));
+    }
+
+    @Test
+    void validateQuote_Success_Return() {
+        UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+
+        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
+        Manuscript manuscript = new Manuscript(manuscriptId, "Книга", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Опис", "url", Instant.now());
+
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OpenThreadRequest request1 = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null,
+                null, // targetRevisionId = null
+                "Цитата",
+                0,
+                5
+        );
+        assertDoesNotThrow(() -> threadService.openThread(chapterId, authorId, request1));
+
+        OpenThreadRequest request2 = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null,
+                revisionId,
+                null, // quotedText = null
+                0,
+                5
+        );
+        assertDoesNotThrow(() -> threadService.openThread(chapterId, authorId, request2));
+        verify(revisionRepository, never()).findById(any());
+    }
+
+    @Test
+    void validateQuote_ThrowsEmptyRevisionTextException() {
+        UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+
+        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
+        Manuscript manuscript = new Manuscript(manuscriptId, "Книга", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Опис", "url", Instant.now());
+        Revision revision = new Revision(revisionId, chapterId, 1, "url", authorId, Instant.now(), null);
+
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(revisionRepository.findById(revisionId)).thenReturn(Optional.of(revision));
+
+        OpenThreadRequest request = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null,
+                revisionId,
+                "Цитата",
+                0,
+                5
+        );
+
+        assertThrows(EmptyRevisionTextException.class, () -> threadService.openThread(chapterId, authorId, request));
+    }
+
+    @Test
+    void validateQuote_ThrowsInvalidQuotePositionException() {
+        UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+
+        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
+        Manuscript manuscript = new Manuscript(manuscriptId, "Книга", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Опис", "url", Instant.now());
+        Revision revision = new Revision(revisionId, chapterId, 1, "url", authorId, Instant.now(), "Текст для перевірки");
+
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(revisionRepository.findById(revisionId)).thenReturn(Optional.of(revision));
+
+        OpenThreadRequest request1 = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null,
+                revisionId,
+                "Текст",
+                0,
+                100
+        );
+
+        OpenThreadRequest request2 = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null, revisionId,
+                "Текст",
+                10,
+                5
+        );
+
+        OpenThreadRequest request3 = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null, revisionId,
+                "Текст",
+                null,
+                5
+        );
+
+        OpenThreadRequest request4 = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null, revisionId,
+                "Текст",
+                0,
+                null
+        );
+
+        OpenThreadRequest request5 = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null, revisionId,
+                "Текст",
+                -1,
+                5
+        );
+
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request1));
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request2));
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request3));
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request4));
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request5));
+    }
+
+    @Test
+    void validateQuote_ThrowsInvalidQuoteException() {
+        UUID chapterId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+
+        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
+        Manuscript manuscript = new Manuscript(manuscriptId, "Книга", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Опис", "url", Instant.now());
+        Revision revision = new Revision(revisionId, chapterId, 1, "url", authorId, Instant.now(), "Текст для перевірки");
+
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(revisionRepository.findById(revisionId)).thenReturn(Optional.of(revision));
+
+        OpenThreadRequest request = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null,
+                revisionId,
+                "Сонце",
+                0,
+                5
+        );
+        assertThrows(InvalidQuoteException.class, () -> threadService.openThread(chapterId, authorId, request));
+    }
+
+    @Test
+    void validateQuote_NotThrowsInvalidQuoteException() {
+        UUID chapterId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+        UUID revisionId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+
+        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
+        Manuscript manuscript = new Manuscript(manuscriptId, "Книга", authorId, ManuscriptStatus.IN_PROGRESS, List.of(), "Опис", "url", Instant.now());
+        Revision revision = new Revision(revisionId, chapterId, 1, "url", authorId, Instant.now(), "Текст для перевірки");
+
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(revisionRepository.findById(revisionId)).thenReturn(Optional.of(revision));
+        when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(messageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        OpenThreadRequest request = new OpenThreadRequest(
+                "Початкове повідомлення",
+                null,
+                revisionId,
+                "Текст",
+                0,
+                5
+        );
+        assertDoesNotThrow(() -> threadService.openThread(chapterId, authorId, request));
     }
 }

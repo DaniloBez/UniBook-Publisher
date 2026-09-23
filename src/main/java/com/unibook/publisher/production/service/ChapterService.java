@@ -1,8 +1,10 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
+import com.unibook.publisher.production.entity.request.DiffRequest;
 import com.unibook.publisher.production.entity.request.RevisionUploadRequest;
 import com.unibook.publisher.production.entity.response.ChapterResponse;
+import com.unibook.publisher.production.entity.response.DiffResponse;
 import com.unibook.publisher.production.entity.response.RevisionResponse;
 
 import java.util.List;
@@ -17,4 +19,6 @@ public interface ChapterService {
     RevisionResponse uploadRevision(UUID chapterId, UUID userId, RevisionUploadRequest request);
 
     List<RevisionResponse> getRevisionsByChapterId(UUID chapterId);
+
+    DiffResponse getDiffChapter(UUID chapterId, DiffRequest request);
 }

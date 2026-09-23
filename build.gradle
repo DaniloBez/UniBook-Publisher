@@ -31,6 +31,7 @@ dependencies {
 	implementation 'org.springframework.modulith:spring-modulith-starter-core'
 	implementation 'org.springframework.modulith:spring-modulith-starter-jpa'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
+	implementation 'io.github.java-diff-utils:java-diff-utils:4.12'
 	compileOnly 'org.projectlombok:lombok'
 	runtimeOnly 'com.h2database:h2'
 	runtimeOnly 'org.postgresql:postgresql'
