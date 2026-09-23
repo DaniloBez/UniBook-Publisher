@@ -6,6 +6,8 @@ import com.unibook.publisher.common.event.ContractConfirmedEvent;
 import com.unibook.publisher.common.event.ContractRoyaltyUpdatedEvent;
 import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
+import com.unibook.publisher.common.exception.business.UnsupportedRoyaltyStrategyException;
+import com.unibook.publisher.common.exception.notfound.ContractNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
@@ -45,7 +47,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class ContractServiceTest {
+class ContractServiceImplTest {
 
     @Mock
     private ContractRepository contractRepository;
@@ -68,14 +70,14 @@ class ContractServiceTest {
     @Mock
     private RoyaltyStrategy advanceRecoupmentRoyaltyStrategy;
 
-    private ContractService contractService;
+    private ContractServiceImpl contractService;
     @BeforeEach
     void setUp() {
         when(flatRateRoyaltyStrategy.getType()).thenReturn(RoyaltyStrategyType.FLAT_RATE);
         when(tieredVolumeRoyaltyStrategy.getType()).thenReturn(RoyaltyStrategyType.TIERED_VOLUME);
         when(advanceRecoupmentRoyaltyStrategy.getType()).thenReturn(RoyaltyStrategyType.ADVANCE_RECOUPMENT);
 
-        contractService = new ContractService(
+        contractService = new ContractServiceImpl(
                 contractRepository,
                 financeAuditLogRepository,
                 eventPublisher,
@@ -187,6 +189,25 @@ class ContractServiceTest {
 
             assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, UUID.randomUUID(), UserRole.AUTHOR)) //REM I would die of laughing if that random UUID would match author id and that would fail the correct scenario. I swear, this will happen before the most important deploy to production
                     .isInstanceOf(ForbiddenActionException.class);
+        }
+
+        @Test
+        @DisplayName("Адміністратор може переглянути будь-який контракт")
+        void getContract_AsAdmin_Success() {
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
+
+            ContractResponse response = contractService.getContractByManuscriptId(manuscriptId, UUID.randomUUID(), UserRole.ADMIN);
+
+            assertThat(response.manuscriptId()).isEqualTo(manuscriptId);
+        }
+
+        @Test
+        @DisplayName("Помилка, якщо контракт не знайдено за id рукопису")
+        void getContract_ContractNotFound_ThrowsException() {
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, UUID.randomUUID(), UserRole.ACCOUNTANT))
+                    .isInstanceOf(ContractNotFoundException.class);
         }
     }
 
@@ -301,6 +322,19 @@ class ContractServiceTest {
             assertThatThrownBy(() -> contractService.confirmContract(contractId, authorId))
                     .isInstanceOf(InvalidStateTransitionException.class);
         }
+
+        @Test
+        @DisplayName("Повторне підтвердження вже підтвердженого контракту нічого не змінює (ідемпотентність)")
+        void confirmContract_AlreadyConfirmed_IsIdempotent() {
+            Contract alreadyConfirmed = draftContract().confirmedByAuthor(Instant.now());
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(alreadyConfirmed));
+
+            ContractResponse response = contractService.confirmContract(contractId, authorId);
+
+            assertThat(response.authorConfirmedAt()).isEqualTo(alreadyConfirmed.authorConfirmedAt());
+            verify(contractRepository, never()).save(any());
+            verifyNoInteractions(eventPublisher);
+        }
     }
 
     @Nested
@@ -384,6 +418,40 @@ class ContractServiceTest {
 
             assertThatThrownBy(() -> contractService.simulatePayout(contractId, UUID.randomUUID(), UserRole.EDITOR, request))
                     .isInstanceOf(ForbiddenActionException.class);
+        }
+
+        @Test
+        @DisplayName("Помилка, якщо контракт не знайдено")
+        void simulatePayout_ContractNotFound_ThrowsException() {
+            PayoutSimulationRequest request = new PayoutSimulationRequest(new BigDecimal("10000.0"), RoyaltyStrategyType.FLAT_RATE);
+
+            when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> contractService.simulatePayout(contractId, authorId, UserRole.AUTHOR, request))
+                    .isInstanceOf(ContractNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Помилка, якщо для типу стратегії роялті немає зареєстрованої реалізації")
+        void simulatePayout_UnsupportedRoyaltyStrategy_ThrowsException() {
+            Contract contract = draftContract();
+            PayoutSimulationRequest request = new PayoutSimulationRequest(new BigDecimal("10000.0"), RoyaltyStrategyType.ADVANCE_RECOUPMENT);
+
+            // Simulate a deployment where the ADVANCE_RECOUPMENT strategy bean is not registered:
+            // resolveStrategy must throw UnsupportedRoyaltyStrategyException instead of silently
+            // falling back to another strategy.
+            ContractServiceImpl serviceWithMissingStrategy = new ContractServiceImpl(
+                    contractRepository,
+                    financeAuditLogRepository,
+                    eventPublisher,
+                    logger,
+                    List.of(flatRateRoyaltyStrategy, tieredVolumeRoyaltyStrategy)
+            );
+
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
+
+            assertThatThrownBy(() -> serviceWithMissingStrategy.simulatePayout(contractId, authorId, UserRole.AUTHOR, request))
+                    .isInstanceOf(UnsupportedRoyaltyStrategyException.class);
         }
     }
 }

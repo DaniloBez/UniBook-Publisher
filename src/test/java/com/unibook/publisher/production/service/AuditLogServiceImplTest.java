@@ -20,13 +20,13 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class AuditLogServiceTest {
+public class AuditLogServiceImplTest {
 
     @Mock
     private ManuscriptAuditLogRepository auditLogRepository;
 
     @InjectMocks
-    private AuditLogService auditLogService;
+    private AuditLogServiceImpl auditLogService;
 
     @Test
     @DisplayName("Запис аудиту зберігається зі старим і новим статусом")

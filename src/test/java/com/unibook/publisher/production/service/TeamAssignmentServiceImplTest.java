@@ -26,7 +26,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class TeamAssignmentServiceTest {
+public class TeamAssignmentServiceImplTest {
 
     @Mock
     private TeamAssignmentRepository teamAssignmentRepository;
@@ -38,7 +38,7 @@ public class TeamAssignmentServiceTest {
     private AppLogger logger;
 
     @InjectMocks
-    private TeamAssignmentService teamAssignmentService;
+    private TeamAssignmentServiceImpl teamAssignmentService;
 
     @Test
     @DisplayName("Успішне призначення користувача в команду")

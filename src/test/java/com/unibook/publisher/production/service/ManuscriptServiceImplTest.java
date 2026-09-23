@@ -31,7 +31,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class ManuscriptServiceTest {
+public class ManuscriptServiceImplTest {
 
     @Mock
     private ManuscriptRepository repository;
@@ -46,7 +46,7 @@ public class ManuscriptServiceTest {
     private AppLogger logger;
 
     @InjectMocks
-    private ManuscriptService manuscriptService;
+    private ManuscriptServiceImpl manuscriptService;
 
     @Test
     void submitManuscript_Success() {

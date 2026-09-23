@@ -40,7 +40,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-public class ChapterServiceTest {
+public class ChapterServiceImplTest {
 
     @Mock
     private ChapterRepository chapterRepository;
@@ -67,7 +67,7 @@ public class ChapterServiceTest {
     private DiffService diffService;
 
     @InjectMocks
-    private ChapterService chapterService;
+    private ChapterServiceImpl chapterService;
 
     @Test
     void createChapter_Success() {
@@ -260,6 +260,37 @@ public class ChapterServiceTest {
         UUID chapterId = UUID.randomUUID();
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
         assertThrows(ChapterNotFoundException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), new RevisionUploadRequest("url")));
+    }
+
+    @Test
+    void uploadRevision_Author_Success_IncrementsVersionNumber() {
+        UUID chapterId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
+        Manuscript manuscript = new Manuscript(
+                manuscriptId,
+                "451 градус по Фаренгейту",
+                authorId,
+                ManuscriptStatus.IN_PROGRESS,
+                List.of(),
+                "Опис до книги 451 градус по Фаренгейту",
+                "url",
+                Instant.now()
+        );
+        Revision latestRevision = new Revision(UUID.randomUUID(), chapterId, 3, "old_url", authorId, Instant.now(), null);
+
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.of(latestRevision));
+        when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
+
+        RevisionResponse response = chapterService.uploadRevision(chapterId, authorId, new RevisionUploadRequest("new_url"));
+        assertNotNull(response);
+        assertEquals(4, response.versionNumber());
+        assertEquals("new_url", response.fileUrl());
+
+        verify(publisher, times(1)).publishEvent(any(RevisionAddedEvent.class));
     }
 
     @Test
