@@ -1,5 +1,7 @@
 plugins {
 	id 'java'
+	id 'jacoco'
+	id 'org.sonarqube' version '7.5.0.8588'
 	id 'org.springframework.boot' version '4.1.1'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
@@ -19,6 +21,30 @@ repositories {
 
 ext {
 	set('springModulithVersion', "2.1.1")
+}
+
+def coverageExcludes = [
+	'**/PublisherApplication.*',
+	'**/seeding/**',
+	'**/config/**',
+	'**/security/**',
+	'**/logging/**',
+	'**/entity/**',
+	'**/enums/**',
+	'**/event/**',
+	'**/exception/**',
+	'**/DummyFileStorageService.*'
+]
+
+sonar {
+	properties {
+		property 'sonar.projectKey', 'DaniloBez_UniBook-Publisher'
+		property 'sonar.organization',  'danilobez'
+		property 'sonar.host.url', 'https://sonarcloud.io'
+		property 'sonar.java.coveragePlugin', 'jacoco'
+		property 'sonar.coverage.jacoco.xmlReportPaths', "${layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml"
+		property 'sonar.coverage.exclusions', coverageExcludes.join(',')
+	}
 }
 
 dependencies {
@@ -58,4 +84,19 @@ tasks.named('test') {
 	useJUnitPlatform()
 	jvmArgs '-XX:+EnableDynamicAgentLoading'
 	// в jdk 21+ треба надавати підтвердження, щоб mockito міг мокати класи, інакше буде попередження
+	finalizedBy jacocoTestReport
 }
+
+jacocoTestReport {
+	dependsOn test
+	reports {
+		xml.required = true // SonarCloud потребує XML
+		html.required = true // Локальний перегляд у браузері
+	}
+	afterEvaluate {
+		classDirectories.setFrom(files(classDirectories.files.collect {
+			fileTree(dir: it, exclude: coverageExcludes)
+		}))
+	}
+}
+
