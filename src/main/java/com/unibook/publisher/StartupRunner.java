@@ -1,6 +1,7 @@
-package com.unibook.publisher.common;
+package com.unibook.publisher;
 
 import com.unibook.publisher.common.logging.AppLogger;
+import org.jspecify.annotations.NonNull;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +15,7 @@ public class StartupRunner implements CommandLineRunner {
     }
 
     @Override
-    public void run(String... args) { //we will put here anything for dev runtime purposes, e.g. populate h2 db with demo data
+    public void run(String @NonNull ... args) { //we will put here anything for dev runtime purposes, e.g. populate h2 db with demo data
         logger.info("Startup logger test: {}", "Hello from Spring");
     }
 }
