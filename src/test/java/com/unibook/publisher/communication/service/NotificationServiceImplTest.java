@@ -53,14 +53,14 @@ class NotificationServiceImplTest {
                         Notification notification = invocation.getArgument(0);
                         return new Notification(
                                 UUID.randomUUID(),
-                                notification.recipientId(),
-                                notification.senderId(),
-                                notification.targetId(),
-                                notification.title(),
-                                notification.message(),
-                                notification.type(),
+                                notification.getRecipientId(),
+                                notification.getSenderId(),
+                                notification.getTargetId(),
+                                notification.getTitle(),
+                                notification.getMessage(),
+                                notification.getType(),
                                 notification.isRead(),
-                                notification.createdAt()
+                                notification.getCreatedAt()
                         );
                     });
 
@@ -131,7 +131,7 @@ class NotificationServiceImplTest {
                     Instant.now()
             );
 
-            when(notificationRepository.findByRecipientId(userId)).thenReturn(List.of(notification1, notification2));
+            when(notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(notification1, notification2));
 
             List<NotificationResponse> result = notificationService.getUserNotifications(userId, false);
 
@@ -165,7 +165,7 @@ class NotificationServiceImplTest {
                     Instant.now()
             );
 
-            when(notificationRepository.findByRecipientId(userId)).thenReturn(List.of(unread, read));
+            when(notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId)).thenReturn(List.of(unread));
 
             List<NotificationResponse> result = notificationService.getUserNotifications(userId, true);
 
@@ -185,7 +185,7 @@ class NotificationServiceImplTest {
                     UUID.randomUUID(), userId, null, null, "Заголовок2", "Текст2", NotificationType.SYSTEM, true, Instant.now()
             );
 
-            when(notificationRepository.findByRecipientId(userId)).thenReturn(List.of(unread, read));
+            when(notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(unread, read));
 
             List<NotificationResponse> result = notificationService.getUserNotifications(userId, null);
 
@@ -196,7 +196,7 @@ class NotificationServiceImplTest {
         @DisplayName("Повертає порожній список, якщо у користувача немає сповіщень")
         void getUserNotifications_EmptyList_ReturnsEmpty() {
             UUID userId = UUID.randomUUID();
-            when(notificationRepository.findByRecipientId(userId)).thenReturn(List.of());
+            when(notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
             List<NotificationResponse> result = notificationService.getUserNotifications(userId, false);
 

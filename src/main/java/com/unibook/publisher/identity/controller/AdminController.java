@@ -40,4 +40,16 @@ public class AdminController {
 
         return ResponseEntity.created(location).body(response);
     }
+
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<Void> deleteUser(
+            @RequestHeader("X-User-Role") UserRole role,
+            @PathVariable UUID id
+    ) {
+        if (role != UserRole.ADMIN)
+            throw new ForbiddenActionException("Видаляти користувачів може тільки адміністратор");
+
+        userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
 }
