@@ -181,7 +181,8 @@ public class ChapterServiceImplTest {
         when(teamAssignmentRepository.existsByManuscript_ManuscriptIdAndUserIdAndRole(manuscriptId, editorId, UserRole.EDITOR)).thenReturn(true);
         when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.empty());
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
-        when(fileStorageService.readTextContent("new_url")).thenReturn("Тестовий текст розділу");
+        when(fileStorageService.getAsText("new_url")).thenReturn("Тестовий текст розділу");
+
 
         RevisionResponse response = chapterService.uploadRevision(chapterId, editorId, new RevisionUploadRequest("new_url"));
         assertNotNull(response);
@@ -212,7 +213,7 @@ public class ChapterServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.empty());
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
-        when(fileStorageService.readTextContent("new_url")).thenReturn("Тестовий текст розділу");
+        when(fileStorageService.getAsText("new_url")).thenReturn("Тестовий текст розділу");
 
         RevisionResponse response = chapterService.uploadRevision(chapterId, authorId, new RevisionUploadRequest("new_url"));
         assertNotNull(response);
@@ -285,6 +286,7 @@ public class ChapterServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.of(latestRevision));
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
+        when(fileStorageService.getAsText("new_url")).thenReturn("Тестовий текст розділу");
 
         RevisionResponse response = chapterService.uploadRevision(chapterId, authorId, new RevisionUploadRequest("new_url"));
         assertNotNull(response);

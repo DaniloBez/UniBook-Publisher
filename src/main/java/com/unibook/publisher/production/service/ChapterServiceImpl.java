@@ -124,7 +124,7 @@ public class ChapterServiceImpl implements ChapterService {
                 .map(revision -> revision.versionNumber() + 1)
                 .orElse(1);
 
-        String textContent = fileStorageService.readTextContent(request.fileUrl());
+        String textContent = fileStorageService.getAsText(request.fileUrl());  //REM Convenient but somewhat dangerous way to fill up all our server RAM with 100MB strings    xD
 
         Revision revision = new Revision(
                 UUID.randomUUID(),
