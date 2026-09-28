@@ -3,7 +3,6 @@ package com.unibook.publisher.identity.entity.response;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.identity.entity.User;
-import com.unibook.publisher.identity.entity.UserProfile;
 
 import java.util.UUID;
 

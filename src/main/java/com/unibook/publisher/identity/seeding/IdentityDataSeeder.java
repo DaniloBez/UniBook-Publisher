@@ -3,15 +3,13 @@ package com.unibook.publisher.identity.seeding;
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.common.seeding.SeedConstants;
-import com.unibook.publisher.identity.entity.User;
-import com.unibook.publisher.identity.entity.UserProfile;
 import com.unibook.publisher.identity.repository.UserRepository;
-import jakarta.persistence.EntityManager;
 import org.jspecify.annotations.NonNull;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.core.annotation.Order;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,23 +21,25 @@ import java.util.UUID;
 @Order(1)                       // Виконується першим, оскільки інші об'єкти посилаються на id клієнтів
 public class IdentityDataSeeder implements ApplicationRunner {
 
-    // Використовуємо EntityManager для можливості зберігання з власним id.
-    // Звичайний репо з визначеним id намагається оновити, а оскільки не має рядка з таким id - падає помилка
+    // Оскільки User має @GeneratedValue(strategy = GenerationType.UUID),
+    // Hibernate забороняє встановлювати кастомний id через persist() або save()
+    // (вважає ентіті detached і кидає EntityExistsException).
+    // Тому для початкового наповнення з фіксованими UUID використовуємо прямий JdbcTemplate.
 
     private final AppLogger logger;
     private final UserRepository userRepository;
-    private final EntityManager entityManager;
+    private final JdbcTemplate jdbcTemplate;
     private final PasswordEncoder passwordEncoder;
 
     public IdentityDataSeeder(
             AppLogger logger,
             UserRepository userRepository,
-            EntityManager entityManager,
+            JdbcTemplate jdbcTemplate,
             PasswordEncoder passwordEncoder
     ) {
         this.logger = logger;
         this.userRepository = userRepository;
-        this.entityManager = entityManager;
+        this.jdbcTemplate = jdbcTemplate;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -137,20 +137,15 @@ public class IdentityDataSeeder implements ApplicationRunner {
 
     private void createUser(UUID id, String email, String pass, UserRole role,
                             String name, String bio, String avatar, String locale) {
-        User user = new User();
-        user.setId(id);
-        user.setEmail(email);
-        user.setHashedPassword(pass);
-        user.setRole(role);
+        jdbcTemplate.update(
+                "INSERT INTO users (id, email, hashed_password, role) VALUES (?, ?, ?, ?)",
+                id, email, pass, role.name()
+        );
 
-        UserProfile profile = new UserProfile();
-        profile.setDisplayName(name);
-        profile.setBio(bio);
-        profile.setAvatarUrl(avatar);
-        profile.setPreferredLocale(locale);
-
-        user.setProfile(profile);
-
-        entityManager.persist(user);
+        UUID profileId = UUID.randomUUID();
+        jdbcTemplate.update(
+                "INSERT INTO user_profiles (id, user_id, display_name, bio, avatar_url, preferred_locale) VALUES (?, ?, ?, ?, ?, ?)",
+                profileId, id, name, bio, avatar, locale
+        );
     }
 }

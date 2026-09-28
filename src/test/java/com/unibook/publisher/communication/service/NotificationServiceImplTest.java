@@ -153,25 +153,20 @@ class NotificationServiceImplTest {
                     false,
                     Instant.now()
             );
-            Notification read = new Notification(
-                    UUID.randomUUID(),
-                    userId,
-                    null,
-                    null,
-                    "Заголовок2",
-                    "Сповіщення2",
-                    NotificationType.SYSTEM,
-                    true,
-                    Instant.now()
-            );
 
-            when(notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId)).thenReturn(List.of(unread));
+            when(notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId))
+                    .thenReturn(List.of(unread));
 
             List<NotificationResponse> result = notificationService.getUserNotifications(userId, true);
 
             assertThat(result).hasSize(1);
             assertThat(result.getFirst().title()).isEqualTo("Заголовок1");
             assertThat(result.getFirst().isRead()).isFalse();
+
+            verify(notificationRepository, times(1))
+                    .findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId);
+            verify(notificationRepository, never())
+                    .findByRecipientIdOrderByCreatedAtDesc(any());
         }
 
         @Test
