@@ -33,6 +33,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -78,7 +79,7 @@ public class ChapterServiceImplTest {
                 "451 градус по Фаренгейту",
                 authorId,
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
@@ -112,7 +113,7 @@ public class ChapterServiceImplTest {
                 "451 градус по Фаренгейту",
                 authorId,
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
@@ -130,7 +131,7 @@ public class ChapterServiceImplTest {
                 "451 градус по Фаренгейту",
                 authorId,
                 ManuscriptStatus.SUBMITTED,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
@@ -169,7 +170,7 @@ public class ChapterServiceImplTest {
                 "451 градус по Фаренгейту",
                 UUID.randomUUID(),
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
@@ -177,7 +178,7 @@ public class ChapterServiceImplTest {
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.isUserAssignedToManuscript(manuscriptId, editorId, UserRole.EDITOR)).thenReturn(true);
+        when(teamAssignmentRepository.existsByManuscript_ManuscriptIdAndUserIdAndRole(manuscriptId, editorId, UserRole.EDITOR)).thenReturn(true);
         when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.empty());
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
         when(fileStorageService.readTextContent("new_url")).thenReturn("Тестовий текст розділу");
@@ -201,7 +202,7 @@ public class ChapterServiceImplTest {
                 "451 градус по Фаренгейту",
                 authorId,
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
@@ -233,7 +234,7 @@ public class ChapterServiceImplTest {
                 "451 градус по Фаренгейту",
                 UUID.randomUUID(),
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
@@ -241,7 +242,7 @@ public class ChapterServiceImplTest {
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.isUserAssignedToManuscript(manuscriptId, userId, UserRole.EDITOR)).thenReturn(false);
+        when(teamAssignmentRepository.existsByManuscript_ManuscriptIdAndUserIdAndRole(manuscriptId, userId, UserRole.EDITOR)).thenReturn(false);
 
         assertThrows(ForbiddenActionException.class, () -> chapterService.uploadRevision(chapterId, userId, new RevisionUploadRequest("url")));
     }
@@ -273,7 +274,7 @@ public class ChapterServiceImplTest {
                 "451 градус по Фаренгейту",
                 authorId,
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
@@ -303,7 +304,7 @@ public class ChapterServiceImplTest {
                 "451 градус по Фаренгейту",
                 UUID.randomUUID(),
                 ManuscriptStatus.SUBMITTED,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()

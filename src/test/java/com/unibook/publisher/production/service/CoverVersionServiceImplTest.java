@@ -26,6 +26,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -54,7 +55,7 @@ public class CoverVersionServiceImplTest {
     private CoverVersionServiceImpl coverVersionService;
 
     private Manuscript manuscript(UUID manuscriptId, ManuscriptStatus status) {
-        return new Manuscript(manuscriptId, "Дюна", UUID.randomUUID(), status, List.of(), "Анотація", "url", Instant.now());
+        return new Manuscript(manuscriptId, "Дюна", UUID.randomUUID(), status, Set.of(), "Анотація", "url", Instant.now());
     }
 
     @Test
@@ -63,10 +64,10 @@ public class CoverVersionServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID designerId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
-        TeamAssignment designerAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, designerId, UserRole.DESIGNER, Instant.now());
+        TeamAssignment designerAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, designerId, UserRole.DESIGNER, Instant.now());
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
         when(coverVersionRepository.findLatestByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
         when(coverVersionRepository.save(any(CoverVersion.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
@@ -82,10 +83,10 @@ public class CoverVersionServiceImplTest {
     void uploadCoverVersion_ForbiddenWhenNotAssignedDesigner() {
         UUID manuscriptId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
-        TeamAssignment designerAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, UUID.randomUUID(), UserRole.DESIGNER, Instant.now());
+        TeamAssignment designerAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, UUID.randomUUID(), UserRole.DESIGNER, Instant.now());
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
 
         assertThrows(ForbiddenActionException.class,
                 () -> coverVersionService.uploadCoverVersion(manuscriptId, UUID.randomUUID(), new CoverVersionRequest("cover.png")));
@@ -98,10 +99,10 @@ public class CoverVersionServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID designerId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.TEXT_APPROVED);
-        TeamAssignment designerAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, designerId, UserRole.DESIGNER, Instant.now());
+        TeamAssignment designerAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, designerId, UserRole.DESIGNER, Instant.now());
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
 
         assertThrows(InvalidStateTransitionException.class,
                 () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, new CoverVersionRequest("cover.png")));
@@ -126,7 +127,7 @@ public class CoverVersionServiceImplTest {
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.empty());
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenActionException.class,
                 () -> coverVersionService.uploadCoverVersion(manuscriptId, UUID.randomUUID(), new CoverVersionRequest("cover.png")));

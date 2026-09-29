@@ -17,7 +17,7 @@ import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.request.AssignDesignerRequest;
-import com.unibook.publisher.production.entity.response.AuditLogResponse;
+import com.unibook.publisher.production.entity.response.ManuscriptAuditLogResponse;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.entity.response.TeamAssignmentResponse;
 import com.unibook.publisher.production.enums.SuggestionStatus;
@@ -38,6 +38,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -66,7 +67,7 @@ public class ManuscriptFinalizationServiceImplTest {
     private CoverVersionRepository coverVersionRepository;
 
     @Mock
-    private AuditLogService auditLogService;
+    private ManuscriptAuditLogService manuscriptAuditLogService;
 
     @Mock
     private ApplicationEventPublisher publisher;
@@ -78,7 +79,7 @@ public class ManuscriptFinalizationServiceImplTest {
     private ManuscriptFinalizationServiceImpl finalizationService;
 
     private Manuscript manuscript(UUID manuscriptId, ManuscriptStatus status) {
-        return new Manuscript(manuscriptId, "Дюна", UUID.randomUUID(), status, List.of(), "Анотація", "url", Instant.now());
+        return new Manuscript(manuscriptId, "Дюна", UUID.randomUUID(), status, Set.of(), "Анотація", "url", Instant.now());
     }
 
     @Test
@@ -87,17 +88,17 @@ public class ManuscriptFinalizationServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID editorId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
-        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, editorId, UserRole.EDITOR, Instant.now());
+        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
         when(chapterRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of());
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, editorId);
 
         assertEquals(ManuscriptStatus.TEXT_APPROVED, response.status());
-        verify(auditLogService, times(1)).record(manuscriptId, editorId, ManuscriptStatus.IN_PROGRESS, ManuscriptStatus.TEXT_APPROVED);
+        verify(manuscriptAuditLogService, times(1)).record(manuscriptId, editorId, ManuscriptStatus.IN_PROGRESS, ManuscriptStatus.TEXT_APPROVED);
         verify(publisher, times(1)).publishEvent(any(TextFinalizedEvent.class));
     }
 
@@ -108,13 +109,13 @@ public class ManuscriptFinalizationServiceImplTest {
         UUID editorId = UUID.randomUUID();
         UUID chapterId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
-        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, editorId, UserRole.EDITOR, Instant.now());
+        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         FeedbackThread openThread = new FeedbackThread(UUID.randomUUID(), chapterId, UUID.randomUUID(),
                 ThreadStatus.OPEN, false, null, null, Instant.now(), null, null, null, null);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
         when(chapterRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of(chapter));
         when(threadRepository.findByChapterId(chapterId)).thenReturn(List.of(openThread));
 
@@ -156,7 +157,7 @@ public class ManuscriptFinalizationServiceImplTest {
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.empty());
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenActionException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
         verify(manuscriptRepository, never()).save(any());
@@ -168,10 +169,10 @@ public class ManuscriptFinalizationServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID editorId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
-        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, UUID.randomUUID(), UserRole.EDITOR, Instant.now());
+        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, UUID.randomUUID(), UserRole.EDITOR, Instant.now());
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
 
         assertThrows(ForbiddenActionException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
         verify(manuscriptRepository, never()).save(any());
@@ -183,10 +184,10 @@ public class ManuscriptFinalizationServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID editorId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.PUBLISHED);
-        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, editorId, UserRole.EDITOR, Instant.now());
+        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
 
         assertThrows(InvalidStateTransitionException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
         verify(manuscriptRepository, never()).save(any());
@@ -199,13 +200,13 @@ public class ManuscriptFinalizationServiceImplTest {
         UUID editorId = UUID.randomUUID();
         UUID chapterId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
-        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscriptId, editorId, UserRole.EDITOR, Instant.now());
+        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
         Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         FeedbackThread suggestionThread = new FeedbackThread(UUID.randomUUID(), chapterId, UUID.randomUUID(),
                 ThreadStatus.RESOLVED, true, "новий текст", SuggestionStatus.PENDING, Instant.now(), null, null, null, null);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
         when(chapterRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of(chapter));
         when(threadRepository.findByChapterId(chapterId)).thenReturn(List.of(suggestionThread));
 
@@ -310,16 +311,16 @@ public class ManuscriptFinalizationServiceImplTest {
     void getAuditLog_Success() {
         UUID manuscriptId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
-        List<AuditLogResponse> expected = List.of(new AuditLogResponse(
+        List<ManuscriptAuditLogResponse> expected = List.of(new ManuscriptAuditLogResponse(
                 UUID.randomUUID(), manuscriptId, UUID.randomUUID(), ManuscriptStatus.SUBMITTED, ManuscriptStatus.IN_PROGRESS, Instant.now()));
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(auditLogService.getAuditLog(manuscriptId)).thenReturn(expected);
+        when(manuscriptAuditLogService.getAuditLog(manuscriptId)).thenReturn(expected);
 
-        List<AuditLogResponse> result = finalizationService.getAuditLog(manuscriptId);
+        List<ManuscriptAuditLogResponse> result = finalizationService.getAuditLog(manuscriptId);
 
         assertEquals(expected, result);
-        verify(auditLogService, times(1)).getAuditLog(manuscriptId);
+        verify(manuscriptAuditLogService, times(1)).getAuditLog(manuscriptId);
     }
 
     @Test
@@ -330,6 +331,6 @@ public class ManuscriptFinalizationServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
         assertThrows(ManuscriptNotFoundException.class, () -> finalizationService.getAuditLog(manuscriptId));
-        verify(auditLogService, never()).getAuditLog(any());
+        verify(manuscriptAuditLogService, never()).getAuditLog(any());
     }
 }

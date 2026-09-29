@@ -73,7 +73,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
 
         validateQuote(request);
 
-        Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscriptIdAndRole(manuscript.manuscriptId(), UserRole.EDITOR);
+        Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscript.getManuscriptId(), UserRole.EDITOR);
         UUID recipientId = resolveOtherParty(manuscript, editor, initiatorId);
 
         boolean isSuggestion = request.suggestedText() != null && !request.suggestedText().isBlank();
@@ -116,8 +116,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         );
 
         publisher.publishEvent(new ThreadOpenedEvent(
-                manuscript.manuscriptId(),
-                manuscript.title(),
+                manuscript.getManuscriptId(),
+                manuscript.getTitle(),
                 ThreadType.CHAPTER,
                 thread.id(),
                 chapterId,
@@ -177,7 +177,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         Manuscript manuscript = manuscriptRepository.findById(chapter.manuscriptId())
                 .orElseThrow(() -> new ManuscriptNotFoundException(chapter.manuscriptId()));
 
-        Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscriptIdAndRole(manuscript.manuscriptId(), UserRole.EDITOR);
+        Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscript.getManuscriptId(), UserRole.EDITOR);
 
         if (!isAuthorOrEditor(manuscript, editor, senderId))
             throw new ForbiddenActionException("Відповідати в треді може лише автор або призначений редактор");
@@ -193,7 +193,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
 
         UUID recipientId = resolveOtherParty(manuscript, editor, senderId);
         publisher.publishEvent(new ThreadMessageAddedEvent(
-                manuscript.manuscriptId(),
+                manuscript.getManuscriptId(),
                 threadId,
                 chapter.chapterTitle(),
                 senderId,
@@ -210,7 +210,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
         Manuscript manuscript = manuscriptOfThread(thread);
 
-        if (!manuscript.authorId().equals(userId))
+        if (!manuscript.getAuthorId().equals(userId))
             throw new ForbiddenActionException("Пропозицію може прийняти лише автор рукопису");
 
         if (!thread.isSuggestion())
@@ -258,7 +258,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
         Manuscript manuscript = manuscriptOfThread(thread);
 
-        if (!manuscript.authorId().equals(userId))
+        if (!manuscript.getAuthorId().equals(userId))
             throw new ForbiddenActionException("Пропозицію може відхилити лише автор рукопису");
 
         if (!thread.isSuggestion())
@@ -306,7 +306,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
 
         Manuscript manuscript = manuscriptOfThread(thread);
-        Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscriptIdAndRole(manuscript.manuscriptId(), UserRole.EDITOR);
+        Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscript.getManuscriptId(), UserRole.EDITOR);
 
         if (!isAuthorOrEditor(manuscript, editor, userId))
             throw new ForbiddenActionException("Закрити тред може лише автор або призначений редактор");
@@ -356,14 +356,14 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     }
 
     private boolean isAuthorOrEditor(Manuscript manuscript, Optional<TeamAssignment> editor, UUID userId) {
-        return manuscript.authorId().equals(userId)
-                || editor.map(a -> a.userId().equals(userId)).orElse(false);
+        return manuscript.getAuthorId().equals(userId)
+                || editor.map(a -> a.getUserId().equals(userId)).orElse(false);
     }
 
     private UUID resolveOtherParty(Manuscript manuscript, Optional<TeamAssignment> editor, UUID userId) {
-        if (manuscript.authorId().equals(userId))
-            return editor.map(TeamAssignment::userId).orElse(null);
+        if (manuscript.getAuthorId().equals(userId))
+            return editor.map(TeamAssignment::getUserId).orElse(null);
 
-        return manuscript.authorId();
+        return manuscript.getAuthorId();
     }
 }

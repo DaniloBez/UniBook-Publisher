@@ -6,6 +6,5 @@ import com.unibook.publisher.production.entity.response.TeamAssignmentResponse;
 import java.util.UUID;
 
 public interface TeamAssignmentService {
-
     TeamAssignmentResponse assign(UUID manuscriptId, UUID userId, UserRole role);
 }

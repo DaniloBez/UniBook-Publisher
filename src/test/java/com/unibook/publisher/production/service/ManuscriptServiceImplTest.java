@@ -2,10 +2,10 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.*;
-import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.production.entity.Genre;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
@@ -13,6 +13,7 @@ import com.unibook.publisher.production.entity.request.ManuscriptPostponementReq
 import com.unibook.publisher.production.entity.request.ManuscriptRejectionRequest;
 import com.unibook.publisher.production.entity.request.ManuscriptSubmissionRequest;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
+import com.unibook.publisher.production.repository.GenreRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -24,7 +25,9 @@ import org.springframework.context.ApplicationEventPublisher;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -43,6 +46,9 @@ public class ManuscriptServiceImplTest {
     private TeamAssignmentService teamAssignmentService;
 
     @Mock
+    private GenreRepository genreRepository;
+
+    @Mock
     private AppLogger logger;
 
     @InjectMocks
@@ -58,12 +64,13 @@ public class ManuscriptServiceImplTest {
         );
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
+
         Manuscript saved = new Manuscript(
                 manuscriptId,
                 request.title(),
                 authorId,
                 ManuscriptStatus.SUBMITTED,
-                request.genreIds(),
+                Set.of(),
                 request.annotation(),
                 request.draftFileUrl(),
                 Instant.now()
@@ -91,12 +98,13 @@ public class ManuscriptServiceImplTest {
                 "Аліса",
                 UUID.randomUUID(),
                 ManuscriptStatus.SUBMITTED,
-                List.of(),
+                Set.of(),
                 "Опис до книги Аліса",
                 "url",
                 Instant.now()
         );
-        when(repository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptApprovalRequest request = new ManuscriptApprovalRequest(editorId);
         ManuscriptResponse response = manuscriptService.approveManuscript(manuscriptId, chiefEditorId, request);
@@ -120,12 +128,13 @@ public class ManuscriptServiceImplTest {
                 "Аліса",
                 UUID.randomUUID(),
                 ManuscriptStatus.POSTPONED,
-                List.of(),
+                Set.of(),
                 "Опис до книги Аліса",
                 "url",
                 Instant.now()
         );
-        when(repository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptApprovalRequest request = new ManuscriptApprovalRequest(editorId);
         ManuscriptResponse response = manuscriptService.approveManuscript(manuscriptId, chiefEditorId, request);
@@ -146,20 +155,20 @@ public class ManuscriptServiceImplTest {
                 "Аліса",
                 UUID.randomUUID(),
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Опис до книги Аліса",
                 "url", Instant.now()
         );
-        when(repository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
         assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.approveManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptApprovalRequest(UUID.randomUUID())));
     }
 
     @Test
     void approveManuscript_ResourceNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
-        when(repository.findById(manuscriptId)).thenReturn(Optional.empty());
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> manuscriptService.approveManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptApprovalRequest(UUID.randomUUID())));
-        verify(repository, times(1)).findById(manuscriptId);
+        verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
     }
 
@@ -174,12 +183,13 @@ public class ManuscriptServiceImplTest {
                 "451 градус по Фаренгейту",
                 authorId,
                 ManuscriptStatus.SUBMITTED,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
         );
-        when(repository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptRejectionRequest request = new ManuscriptRejectionRequest("Причина");
         ManuscriptResponse response = manuscriptService.rejectManuscript(manuscriptId, chiefEditorId, request);
@@ -201,12 +211,13 @@ public class ManuscriptServiceImplTest {
                 "451 градус по Фаренгейту",
                 authorId,
                 ManuscriptStatus.POSTPONED,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
         );
-        when(repository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptRejectionRequest request = new ManuscriptRejectionRequest("Причина");
         ManuscriptResponse response = manuscriptService.rejectManuscript(manuscriptId, chiefEditorId, request);
@@ -225,21 +236,21 @@ public class ManuscriptServiceImplTest {
                 "451 градус по Фаренгейту",
                 UUID.randomUUID(),
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
         );
-        when(repository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
         assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.rejectManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptRejectionRequest("Причина")));
     }
 
     @Test
     void rejectManuscript_ResourceNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
-        when(repository.findById(manuscriptId)).thenReturn(Optional.empty());
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> manuscriptService.rejectManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptRejectionRequest("Причина")));
-        verify(repository, times(1)).findById(manuscriptId);
+        verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
     }
 
@@ -254,12 +265,13 @@ public class ManuscriptServiceImplTest {
                 "451 градус по Фаренгейту",
                 authorId,
                 ManuscriptStatus.SUBMITTED,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
         );
-        when(repository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptPostponementRequest request = new ManuscriptPostponementRequest("Коментар");
         ManuscriptResponse response = manuscriptService.postponeManuscript(manuscriptId, chiefEditorId, request);
@@ -278,21 +290,21 @@ public class ManuscriptServiceImplTest {
                 "451 градус по Фаренгейту",
                 UUID.randomUUID(),
                 ManuscriptStatus.REJECTED,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
         );
-        when(repository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
         assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.postponeManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptPostponementRequest("Коментар")));
     }
 
     @Test
     void postponeManuscript_ResourceNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
-        when(repository.findById(manuscriptId)).thenReturn(Optional.empty());
+        when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> manuscriptService.postponeManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptPostponementRequest("Коментар")));
-        verify(repository, times(1)).findById(manuscriptId);
+        verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
         verify(publisher, never()).publishEvent(any());
     }
@@ -305,26 +317,26 @@ public class ManuscriptServiceImplTest {
                 "451 градус по Фаренгейту",
                 UUID.randomUUID(),
                 ManuscriptStatus.SUBMITTED,
-                List.of(),
+                Set.of(),
                 "Опис до книги 451 градус по Фаренгейту",
                 "url",
                 Instant.now()
         );
-        when(repository.findById(id)).thenReturn(Optional.of(manuscript));
+        when(repository.findByIdWithGenres(id)).thenReturn(Optional.of(manuscript));
 
         ManuscriptResponse response = manuscriptService.getManuscriptById(id);
         assertNotNull(response);
         assertEquals("451 градус по Фаренгейту", response.title());
 
-        verify(repository, times(1)).findById(id);
+        verify(repository, times(1)).findByIdWithGenres(id);
     }
 
     @Test
     void getManuscriptsById_ResourceNotFoundException() {
         UUID id = UUID.randomUUID();
-        when(repository.findById(id)).thenReturn(Optional.empty());
+        when(repository.findByIdWithGenres(id)).thenReturn(Optional.empty());
         assertThrows(ResourceNotFoundException.class, () -> manuscriptService.getManuscriptById(id));
-        verify(repository, times(1)).findById(id);
+        verify(repository, times(1)).findByIdWithGenres(id);
     }
 
     @Test
@@ -334,7 +346,7 @@ public class ManuscriptServiceImplTest {
                 "Аліса",
                 UUID.randomUUID(),
                 ManuscriptStatus.SUBMITTED,
-                List.of(),
+                Set.of(),
                 "Опис до книги Аліса",
                 "url1",
                 Instant.now()
@@ -344,12 +356,12 @@ public class ManuscriptServiceImplTest {
                 "Гаррі Поттер",
                 UUID.randomUUID(),
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Опис до книги Гаррі Поттер",
                 "url2",
                 Instant.now()
         );
-        when(repository.findAll()).thenReturn(List.of(manuscript1, manuscript2));
+        when(repository.findAllWithGenres()).thenReturn(List.of(manuscript1, manuscript2));
 
         List<ManuscriptResponse> manuscripts = manuscriptService.getManuscripts(null);
         assertNotNull(manuscripts);
@@ -357,7 +369,7 @@ public class ManuscriptServiceImplTest {
         assertEquals("Аліса", manuscripts.get(0).title());
         assertEquals("Гаррі Поттер", manuscripts.get(1).title());
 
-        verify(repository, times(1)).findAll();
+        verify(repository, times(1)).findAllWithGenres();
     }
 
     @Test
@@ -367,18 +379,18 @@ public class ManuscriptServiceImplTest {
                 "Аліса",
                 UUID.randomUUID(),
                 ManuscriptStatus.SUBMITTED,
-                List.of(),
+                Set.of(),
                 "Опис до книги Аліса",
                 "url",
                 Instant.now()
         );
-        when(repository.findByStatus(ManuscriptStatus.SUBMITTED)).thenReturn(List.of(manuscript));
+        when(repository.findByStatusWithGenres(ManuscriptStatus.SUBMITTED)).thenReturn(List.of(manuscript));
 
         List<ManuscriptResponse> manuscripts = manuscriptService.getManuscripts(ManuscriptStatus.SUBMITTED);
         assertNotNull(manuscripts);
         assertEquals(1, manuscripts.size());
         assertEquals("Аліса", manuscripts.get(0).title());
 
-        verify(repository, times(1)).findByStatus(ManuscriptStatus.SUBMITTED);
+        verify(repository, times(1)).findByStatusWithGenres(ManuscriptStatus.SUBMITTED);
     }
 }

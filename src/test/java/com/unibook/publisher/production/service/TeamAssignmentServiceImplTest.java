@@ -19,6 +19,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -50,7 +51,7 @@ public class TeamAssignmentServiceImplTest {
                 "Гаррі Поттер",
                 UUID.randomUUID(),
                 ManuscriptStatus.IN_PROGRESS,
-                List.of(),
+                Set.of(),
                 "Анотація до книги Гаррі Поттер",
                 "url",
                 Instant.now()

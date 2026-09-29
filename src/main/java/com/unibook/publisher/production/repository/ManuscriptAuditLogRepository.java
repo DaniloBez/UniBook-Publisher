@@ -1,6 +1,10 @@
 package com.unibook.publisher.production.repository;
 
 import com.unibook.publisher.production.entity.ManuscriptAuditLog;
+import com.unibook.publisher.production.entity.response.ManuscriptAuditLogResponse;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Comparator;
@@ -9,18 +13,7 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
-public class ManuscriptAuditLogRepository {
-    private final ConcurrentHashMap<UUID, ManuscriptAuditLog> logs = new ConcurrentHashMap<>();
-
-    public ManuscriptAuditLog save(ManuscriptAuditLog log) {
-        logs.put(log.id(), log);
-        return log;
-    }
-
-    public List<ManuscriptAuditLog> findByManuscriptId(UUID manuscriptId) {
-        return logs.values().stream()
-                .filter(log -> log.manuscriptId().equals(manuscriptId))
-                .sorted(Comparator.comparing(ManuscriptAuditLog::timestamp))
-                .toList();
-    }
+public interface ManuscriptAuditLogRepository extends JpaRepository<ManuscriptAuditLog, UUID> {
+    @Query("SELECT l FROM ManuscriptAuditLog l WHERE l.manuscript.manuscriptId = :manuscriptId ORDER BY l.timestamp DESC")
+    List<ManuscriptAuditLog> findByManuscriptId(@Param("manuscriptId") UUID manuscriptId);
 }

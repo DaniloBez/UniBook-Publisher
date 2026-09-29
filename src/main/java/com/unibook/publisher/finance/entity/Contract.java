@@ -1,37 +1,49 @@
 package com.unibook.publisher.finance.entity;
 
 import com.unibook.publisher.common.enums.ContractStatus;
+import com.unibook.publisher.production.entity.Manuscript;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+@Entity
+@Table(name = "contracts")
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class Contract {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "contract_id")
+    private UUID id;
 
-public record Contract(
-        UUID id,
-        UUID manuscriptId,
-        String manuscriptTitle,
-        UUID authorId,
-        BigDecimal royaltyPercent,
-        BigDecimal advancePayment,
-        ContractStatus status,
-        Instant authorConfirmedAt,
-        Instant createdAt
-) {
-    public Contract withUpdatedRoyalty(BigDecimal newRoyaltyPercent, BigDecimal newAdvance) {
-        return new Contract(
-                id, manuscriptId, manuscriptTitle, authorId,
-                newRoyaltyPercent, newAdvance, status,
-                null, //the agreement resets with any royalty change
-                createdAt
-        );
-    }
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "manuscript_id", nullable = false, unique = true)
+    private Manuscript manuscript;
 
-    public Contract confirmedByAuthor(Instant confirmedAt) {
-        return new Contract(id, manuscriptId, manuscriptTitle, authorId, royaltyPercent, advancePayment, status, confirmedAt, createdAt);
-    }
+    @Column(name = "author_id", nullable = false)
+    private UUID authorId;
 
-    public Contract activated() {
-        return new Contract(id, manuscriptId, manuscriptTitle, authorId, royaltyPercent, advancePayment, ContractStatus.ACTIVE, authorConfirmedAt, createdAt);
-    }
+    @Column(name = "royalty_percent", nullable = false)
+    private BigDecimal royaltyPercent;
+
+    @Column(name = "advance_payment", nullable = false)
+    private BigDecimal advancePayment;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private ContractStatus status;
+
+    @Column(name = "author_confirmed_at")
+    private Instant authorConfirmedAt;
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 }

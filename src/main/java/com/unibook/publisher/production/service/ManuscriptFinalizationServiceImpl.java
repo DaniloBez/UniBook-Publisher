@@ -15,7 +15,7 @@ import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.request.AssignDesignerRequest;
-import com.unibook.publisher.production.entity.response.AuditLogResponse;
+import com.unibook.publisher.production.entity.response.ManuscriptAuditLogResponse;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.enums.SuggestionStatus;
 import com.unibook.publisher.production.enums.ThreadStatus;
@@ -38,7 +38,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final TeamAssignmentService teamAssignmentService;
     private final CoverVersionRepository coverVersionRepository;
-    private final AuditLogService auditLogService;
+    private final ManuscriptAuditLogService manuscriptAuditLogService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
@@ -49,7 +49,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
             TeamAssignmentRepository teamAssignmentRepository,
             TeamAssignmentService teamAssignmentService,
             CoverVersionRepository coverVersionRepository,
-            AuditLogService auditLogService,
+            ManuscriptAuditLogService manuscriptAuditLogService,
             ApplicationEventPublisher publisher,
             AppLogger logger
     ) {
@@ -59,7 +59,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
         this.teamAssignmentRepository = teamAssignmentRepository;
         this.teamAssignmentService = teamAssignmentService;
         this.coverVersionRepository = coverVersionRepository;
-        this.auditLogService = auditLogService;
+        this.manuscriptAuditLogService = manuscriptAuditLogService;
         this.publisher = publisher;
         this.logger = logger;
     }
@@ -68,20 +68,18 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
     public ManuscriptResponse finalizeText(UUID manuscriptId, UUID editorId) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
-
-        TeamAssignment editorAssignment = teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)
+        TeamAssignment editorAssignment = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)
                 .orElseThrow(() -> new ForbiddenActionException("Редактора не призначено на цей рукопис"));
 
-        if (!editorAssignment.userId().equals(editorId))
+        if (!editorAssignment.getUserId().equals(editorId))
             throw new ForbiddenActionException("Фіналізувати текст може лише призначений редактор");
-
-        if (!manuscript.status().canTransitionTo(ManuscriptStatus.TEXT_APPROVED)) {
+        if (!manuscript.getStatus().canTransitionTo(ManuscriptStatus.TEXT_APPROVED)) {
             throw new InvalidStateTransitionException(
                     "Manuscript",
                     manuscriptId,
-                    manuscript.status(),
+                    manuscript.getStatus(),
                     ManuscriptStatus.TEXT_APPROVED,
-                    manuscript.status().allowedTransitions()
+                    manuscript.getStatus().allowedTransitions()
             );
         }
 
@@ -91,24 +89,27 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
                 .anyMatch(thread -> thread.status() == ThreadStatus.OPEN
                         || (thread.isSuggestion() && thread.suggestionStatus() == SuggestionStatus.PENDING));
 
-        if (hasOpenWork)
-            throw new UnresolvedThreadsException();
+        if (hasOpenWork) throw new UnresolvedThreadsException();
 
-
-        Manuscript updated = manuscript.withStatus(ManuscriptStatus.TEXT_APPROVED);
-        manuscriptRepository.save(updated);
+        ManuscriptStatus oldStatus = manuscript.getStatus();
+        manuscript.setStatus(ManuscriptStatus.TEXT_APPROVED);
+        Manuscript updated = manuscriptRepository.save(manuscript);
 
         logger.info(
             "Updated manuscript {} status: {} -> {} by editor {}",
             manuscriptId,
-            manuscript.status(),
-            updated.status(),
+            oldStatus,
+            updated.getStatus(),
             editorId
         );
+        manuscriptAuditLogService.record(manuscriptId, editorId, oldStatus, updated.getStatus());
 
-        auditLogService.record(manuscriptId, editorId, manuscript.status(), updated.status());
-
-        publisher.publishEvent(new TextFinalizedEvent(manuscriptId, updated.title(), editorId, updated.authorId()));
+        publisher.publishEvent(new TextFinalizedEvent(
+                manuscriptId,
+                updated.getTitle(),
+                editorId,
+                updated.getAuthorId()
+        ));
         return ManuscriptResponse.from(updated);
     }
 
@@ -116,34 +117,39 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
     public ManuscriptResponse assignDesigner(UUID manuscriptId, UUID chiefEditorId, AssignDesignerRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
-        if (!manuscript.status().canTransitionTo(ManuscriptStatus.IN_DESIGN)) {
+        if (!manuscript.getStatus().canTransitionTo(ManuscriptStatus.IN_DESIGN)) {
             throw new InvalidStateTransitionException(
                     "Manuscript",
                     manuscriptId,
-                    manuscript.status(),
+                    manuscript.getStatus(),
                     ManuscriptStatus.IN_DESIGN,
-                    manuscript.status().allowedTransitions()
+                    manuscript.getStatus().allowedTransitions()
             );
         }
 
         teamAssignmentService.assign(manuscriptId, request.designerId(), UserRole.DESIGNER);
 
-        Manuscript updated = manuscript.withStatus(ManuscriptStatus.IN_DESIGN);
-        manuscriptRepository.save(updated);
+        ManuscriptStatus oldStatus = manuscript.getStatus();
+        manuscript.setStatus(ManuscriptStatus.IN_DESIGN);
+        Manuscript updated = manuscriptRepository.save(manuscript);
 
         logger.info(
             "Updated manuscript {} status: {} -> {} and assigned designer {} by chief editor {}",
             manuscriptId,
-            manuscript.status(),
-            updated.status(),
+            oldStatus,
+            updated.getStatus(),
             request.designerId(),
             chiefEditorId
         );
-
-        auditLogService.record(manuscriptId, chiefEditorId, manuscript.status(), updated.status());
+        manuscriptAuditLogService.record(manuscriptId, chiefEditorId, oldStatus, updated.getStatus());
 
         publisher.publishEvent(new WorkerAssignedEvent(
-                manuscriptId, updated.title(), chiefEditorId, request.designerId(), UserRole.DESIGNER, updated.authorId()
+                manuscriptId,
+                updated.getTitle(),
+                chiefEditorId,
+                request.designerId(),
+                UserRole.DESIGNER,
+                updated.getAuthorId()
         ));
         return ManuscriptResponse.from(updated);
     }
@@ -153,41 +159,42 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
 
-        if (!manuscript.status().canTransitionTo(ManuscriptStatus.PUBLISHED)) {
+        if (!manuscript.getStatus().canTransitionTo(ManuscriptStatus.PUBLISHED)) {
             throw new InvalidStateTransitionException(
                     "Manuscript",
                     manuscriptId,
-                    manuscript.status(),
+                    manuscript.getStatus(),
                     ManuscriptStatus.PUBLISHED,
-                    manuscript.status().allowedTransitions()
+                    manuscript.getStatus().allowedTransitions()
             );
         }
+        if (coverVersionRepository.findByManuscriptId(manuscriptId).isEmpty()) throw new MissingCoverException();
 
-        if (coverVersionRepository.findByManuscriptId(manuscriptId).isEmpty())
-            throw new MissingCoverException();
-
-
-        Manuscript updated = manuscript.withStatus(ManuscriptStatus.PUBLISHED);
-        manuscriptRepository.save(updated);
+        ManuscriptStatus oldStatus = manuscript.getStatus();
+        manuscript.setStatus(ManuscriptStatus.PUBLISHED);
+        Manuscript updated = manuscriptRepository.save(manuscript);
 
         logger.info(
             "Updated manuscript {} status: {} -> PUBLISHED by chief editor {}",
             manuscriptId,
-            manuscript.status(),
+            oldStatus,
             chiefEditorId
         );
+        manuscriptAuditLogService.record(manuscriptId, chiefEditorId, oldStatus, updated.getStatus());
 
-        auditLogService.record(manuscriptId, chiefEditorId, manuscript.status(), updated.status());
-
-        publisher.publishEvent(new ManuscriptPublishedEvent(manuscriptId, updated.title(), updated.authorId()));
+        publisher.publishEvent(new ManuscriptPublishedEvent(
+                manuscriptId,
+                updated.getTitle(),
+                updated.getAuthorId()
+        ));
         return ManuscriptResponse.from(updated);
     }
 
     @Override
-    public List<AuditLogResponse> getAuditLog(UUID manuscriptId) {
+    public List<ManuscriptAuditLogResponse> getAuditLog(UUID manuscriptId) {
         if (manuscriptRepository.findById(manuscriptId).isEmpty())
             throw new ManuscriptNotFoundException(manuscriptId);
 
-        return auditLogService.getAuditLog(manuscriptId);
+        return manuscriptAuditLogService.getAuditLog(manuscriptId);
     }
 }

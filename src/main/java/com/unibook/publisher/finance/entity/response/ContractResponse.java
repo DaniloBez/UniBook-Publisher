@@ -33,15 +33,16 @@ public record ContractResponse(
         Instant createdAt
 ) {
     public static ContractResponse from(Contract contract) {
+        UUID manuscriptId = (contract.getManuscript() != null) ? contract.getManuscript().getManuscriptId() : null;
         return new ContractResponse(
-                contract.id(),
-                contract.manuscriptId(),
-                contract.authorId(),
-                contract.royaltyPercent(),
-                contract.advancePayment(),
-                contract.status(),
-                contract.authorConfirmedAt(),
-                contract.createdAt()
+                contract.getId(),
+                manuscriptId,
+                contract.getAuthorId(),
+                contract.getRoyaltyPercent(),
+                contract.getAdvancePayment(),
+                contract.getStatus(),
+                contract.getAuthorConfirmedAt(),
+                contract.getCreatedAt()
         );
     }
 }

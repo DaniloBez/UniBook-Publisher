@@ -49,18 +49,18 @@ public class CoverVersionServiceImpl implements CoverVersionService {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
 
-        TeamAssignment designerAssignment = teamAssignmentRepository.findByManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)
+        TeamAssignment designerAssignment = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)
                 .orElseThrow(() -> new ForbiddenActionException("Дизайнера не призначено на цей рукопис"));
-        if (!designerAssignment.userId().equals(designerId)) {
+        if (!designerAssignment.getUserId().equals(designerId)) {
             throw new ForbiddenActionException("Завантажувати обкладинку може лише призначений дизайнер");
         }
-        if (manuscript.status() != ManuscriptStatus.IN_DESIGN) {
+        if (manuscript.getStatus() != ManuscriptStatus.IN_DESIGN) {
             throw new InvalidStateTransitionException(
                     "Manuscript",
                     manuscriptId,
-                    manuscript.status(),
+                    manuscript.getStatus(),
                     ManuscriptStatus.IN_DESIGN,
-                    manuscript.status().allowedTransitions()
+                    manuscript.getStatus().allowedTransitions()
             );
         }
 
@@ -86,11 +86,11 @@ public class CoverVersionServiceImpl implements CoverVersionService {
         );
 
         publisher.publishEvent(new CoverVersionAddedEvent(
-                manuscript.manuscriptId(),
-                manuscript.title(),
+                manuscript.getManuscriptId(),
+                manuscript.getTitle(),
                 saved.id(),
                 designerId,
-                manuscript.authorId()
+                manuscript.getAuthorId()
         ));
 
         return CoverVersionResponse.from(saved);

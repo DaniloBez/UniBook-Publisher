@@ -3,16 +3,19 @@ package com.unibook.publisher.production.service;
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.response.TeamAssignmentResponse;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import com.unibook.publisher.production.repository.TeamAssignmentRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class TeamAssignmentServiceImpl implements TeamAssignmentService {
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final ManuscriptRepository manuscriptRepository;
@@ -25,26 +28,28 @@ public class TeamAssignmentServiceImpl implements TeamAssignmentService {
     }
 
     @Override
+    @Transactional
     public TeamAssignmentResponse assign(UUID manuscriptId, UUID userId, UserRole role) {
-        if(manuscriptRepository.findById(manuscriptId).isEmpty())
-            throw new ManuscriptNotFoundException(manuscriptId);
+        Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
+                .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
 
         TeamAssignment assignment = new TeamAssignment(
-                UUID.randomUUID(),
-                manuscriptId,
+                null,
+                manuscript,
                 userId,
                 role,
                 Instant.now()
         );
+        TeamAssignment saved = teamAssignmentRepository.save(assignment);
 
         logger.info(
             "Created team assignment {}: user {} assigned as {} to manuscript {}",
-            assignment.teamId(),
+            saved.getAssignmentId(),
             userId,
             role,
             manuscriptId
         );
 
-        return TeamAssignmentResponse.from(teamAssignmentRepository.save(assignment));
+        return TeamAssignmentResponse.from(saved);
     }
 }

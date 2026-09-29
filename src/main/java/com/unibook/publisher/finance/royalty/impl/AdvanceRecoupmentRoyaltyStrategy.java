@@ -19,11 +19,11 @@ public class AdvanceRecoupmentRoyaltyStrategy implements RoyaltyStrategy {
     @Override
     public BigDecimal calculateRoyalty(Contract contract, BigDecimal salesAmount) {
         BigDecimal royalty = salesAmount
-                .multiply(contract.royaltyPercent())
+                .multiply(contract.getRoyaltyPercent())
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
 
         return royalty
-                .subtract(contract.advancePayment()) //subtracting like in case when advance is an amount already paid and recouped against future royalties
+                .subtract(contract.getAdvancePayment()) //subtracting like in case when advance is an amount already paid and recouped against future royalties
                 .max(BigDecimal.ZERO)
                 .setScale(2, RoundingMode.HALF_UP);
     }
