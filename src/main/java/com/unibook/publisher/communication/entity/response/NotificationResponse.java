@@ -28,16 +28,16 @@ public record NotificationResponse(
         @JsonProperty("created_at")
         Instant createdAt
 ) {
-    public static NotificationResponse from(Notification n) {
+    public static NotificationResponse from(Notification notification) {
         return new NotificationResponse(
-                n.id(),
-                n.senderId(),
-                n.targetId(),
-                n.title(),
-                n.message(),
-                n.type(),
-                n.isRead(),
-                n.createdAt()
+                notification.getId(),
+                notification.getSenderId(),
+                notification.getTargetId(),
+                notification.getTitle(),
+                notification.getMessage(),
+                notification.getType(),
+                notification.isRead(),
+                notification.getCreatedAt()
         );
     }
 }

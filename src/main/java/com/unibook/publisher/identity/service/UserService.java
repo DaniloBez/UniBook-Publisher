@@ -24,4 +24,6 @@ public interface UserService {
     UserResponse createStaff(StaffRequest request);
 
     List<UserResponse> getUsers(UserRole role);
+
+    void deleteUser(UUID id);
 }

@@ -293,7 +293,8 @@ com.unibook.publisher.common.exception/
 - **Шаблонізація**: Thymeleaf
 - **Конфігурація середовища**: springboot4-dotenv 5.1.0
 - **Зберігання артефактів**: S3-сумісне сховище (для рукописів та графіки обкладинок)
-- **Тестування**: JUnit 5, Mockito, AssertJ, Spring Modulith Starter Test
+- **Тестування та метрики**: JUnit 5, Mockito, AssertJ, Spring Modulith Starter Test, JaCoCo
+- **Статичний аналіз коду**: SonarCloud (SonarQube)
 - **Збірка та автоматизація**: Gradle Wrapper, GitHub Actions
 
 ---
@@ -350,7 +351,25 @@ cp .env.example .env
 
 ---
 
-### 7.3. Локальний запуск та тестування
+### 7.3. Демо-дані та автосидінг (Data Seeding)
+
+У проєкті реалізовано модульну систему наповнення початковими даними, яка зберігає суворі архітектурні кордони Spring Modulith:
+- Кожен модуль містить свій сідер (`IdentityDataSeeder`, `CommunicationDataSeeder` тощо), що інкапсулює внутрішню логіку збереження.
+- Крос-модульні зв'язки забезпечуються фіксованими UUID зі спільного класу `SeedConstants` (модуль `common`).
+- Сідери активні за замовчуванням у режимі розробки з H2 та автоматично вимикаються для профілів `postgres` та `test` завдяки умові `@Profile("!postgres & !test")`.
+
+**Тестові облікові записи (пароль для всіх: `SuperSecretPassword123!`):**
+- `admin@unibook-demo.local` (`ADMIN`)
+- `chief.editor@unibook-demo.local` (`CHIEF_EDITOR`)
+- `editor@unibook-demo.local` (`EDITOR`)
+- `designer@unibook-demo.local` (`DESIGNER`)
+- `author1@unibook-demo.local` (`AUTHOR`)
+- `author2@unibook-demo.local` (`AUTHOR`)
+- `accountant@unibook-demo.local` (`ACCOUNTANT`)
+
+---
+
+### 7.4. Локальний запуск та тестування
 
 #### Передумови
 - Встановлений комплект розробника JDK 25 (або вище)
@@ -386,3 +405,24 @@ cd publisher
   - JDBC URL: `jdbc:h2:mem:unibook_db`
   - Користувач: `sa`
   - Пароль: *(порожній)*
+
+---
+
+### 7.5. Аналіз якості коду та тестового покриття (SonarCloud & JaCoCo)
+
+Для забезпечення високої надійності, безпеки та чистоти коду в проєкті інтегровано зв'язку **JaCoCo + SonarCloud**.
+
+#### 1. Як це працює
+- **JaCoCo**: під час запуску тестів збирає статистику виконання рядків і гілок коду та генерує XML-звіт (`build/reports/jacoco/test/jacocoTestReport.xml`) і локальний HTML-звіт (`build/reports/jacoco/test/html/index.html`).
+- **SonarCloud**: отримує вихідний код і JaCoCo XML-звіт, аналізує вразливості, баги, code smells та відображає підсумковий відсоток покриття на Quality Gate дашборді.
+- Для чистоти метрик із розрахунку покриття виключено DTO, конфігурації, сутності, енуми, винятки та сідери (`sonar.coverage.exclusions`).
+
+#### 2. Локальний перегляд покриття тестами
+Щоб запустити тести та згенерувати локальний HTML-звіт без відправки на хмару:
+```bash
+./gradlew test jacocoTestReport
+```
+Після виконання відкрийте у браузері файл `build/reports/jacoco/test/html/index.html`.
+
+#### 3. Повністю автоматичний CI (GitHub Actions)
+Вам не потрібно запускати Sonar або тримати токени локально, він запускається автоматично при PR.

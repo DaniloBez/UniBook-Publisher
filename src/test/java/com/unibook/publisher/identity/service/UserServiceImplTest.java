@@ -12,7 +12,6 @@ import com.unibook.publisher.identity.entity.request.StaffRequest;
 import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
-import com.unibook.publisher.identity.repository.UserProfileRepository;
 import com.unibook.publisher.identity.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -36,17 +35,33 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class UserServiceImplTest {
-    @Mock
-    private UserRepository userRepository;
 
     @Mock
-    private UserProfileRepository userProfileRepository;
+    private UserRepository userRepository;
 
     @Spy
     private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @InjectMocks
     private UserServiceImpl userService;
+
+    private User buildUser(UUID id, String email, String rawPassword, UserRole role, String displayName) {
+        User user = new User();
+        user.setId(id);
+        user.setEmail(email);
+        user.setHashedPassword(passwordEncoder.encode(rawPassword));
+        user.setRole(role);
+
+        UserProfile profile = new UserProfile();
+        profile.setId(UUID.randomUUID());
+        profile.setDisplayName(displayName != null ? displayName : "Default Name");
+        profile.setBio("Bio text");
+        profile.setAvatarUrl("https://avatar.url/default.png");
+        profile.setPreferredLocale("uk-UA");
+
+        user.setProfile(profile);
+        return user;
+    }
 
     @Nested
     @DisplayName("Реєстрація користувача")
@@ -64,7 +79,7 @@ public class UserServiceImplTest {
                     "uk-UA"
             );
             UUID generatedId = UUID.randomUUID();
-            User savedUser = new User(generatedId, request.email(), "encodedPassword", UserRole.AUTHOR);
+            User savedUser = buildUser(generatedId, request.email(), request.password(), UserRole.AUTHOR, request.displayName());
 
             when(userRepository.existsByEmail(request.email())).thenReturn(false);
             when(userRepository.save(any(User.class))).thenReturn(savedUser);
@@ -76,7 +91,7 @@ public class UserServiceImplTest {
             assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
             assertThat(response.token()).contains(generatedId.toString());
 
-            verify(userProfileRepository, times(1)).save(any(UserProfile.class));
+            verify(userRepository, times(1)).save(any(User.class));
         }
 
         @Test
@@ -92,7 +107,6 @@ public class UserServiceImplTest {
                     .hasMessageContaining("вже існує");
 
             verify(userRepository, never()).save(any());
-            verify(userProfileRepository, never()).save(any());
         }
     }
 
@@ -104,9 +118,8 @@ public class UserServiceImplTest {
         @DisplayName("Успішний вхід з правильними кредами")
         void login_Success() {
             String rawPassword = "password123";
-            String hashedPassword = passwordEncoder.encode(rawPassword);
             UUID userId = UUID.randomUUID();
-            User user = new User(userId, "author@gmail.com", hashedPassword, UserRole.AUTHOR);
+            User user = buildUser(userId, "author@gmail.com", rawPassword, UserRole.AUTHOR, "Artur");
 
             LoginRequest request = new LoginRequest("author@gmail.com", rawPassword);
             when(userRepository.getByEmail(request.email())).thenReturn(Optional.of(user));
@@ -132,8 +145,8 @@ public class UserServiceImplTest {
         @Test
         @DisplayName("Помилка, якщо пароль не збігається")
         void login_WrongPassword_ThrowsException() {
-            String hashedPassword = passwordEncoder.encode("correctPassword");
-            User user = new User(UUID.randomUUID(), "author@gmail.com", hashedPassword, UserRole.AUTHOR);
+            UUID userId = UUID.randomUUID();
+            User user = buildUser(userId, "author@gmail.com", "correctPassword", UserRole.AUTHOR, "Artur");
 
             LoginRequest request = new LoginRequest("author@gmail.com", "wrongPassword");
             when(userRepository.getByEmail(request.email())).thenReturn(Optional.of(user));
@@ -152,38 +165,23 @@ public class UserServiceImplTest {
         @DisplayName("Успішне отримання профілю користувача")
         void getUserProfile_Success() {
             UUID userId = UUID.randomUUID();
-            User user = new User(userId, "user@gmail.com", "hash", UserRole.AUTHOR);
-            UserProfile profile = new UserProfile(userId, "User Display", "My bio", "avatar.png", "uk-UA");
+            User user = buildUser(userId, "user@gmail.com", "pass", UserRole.AUTHOR, "User Display");
 
-            when(userRepository.get(userId)).thenReturn(Optional.of(user));
-            when(userProfileRepository.get(userId)).thenReturn(Optional.of(profile));
+            when(userRepository.findByIdWithProfile(userId)).thenReturn(Optional.of(user));
 
             UserResponse response = userService.getUserProfile(userId);
 
             assertThat(response.userId()).isEqualTo(userId);
             assertThat(response.displayName()).isEqualTo("User Display");
             assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
-            assertThat(response.bio()).isEqualTo("My bio");
+            assertThat(response.bio()).isEqualTo("Bio text");
         }
 
         @Test
         @DisplayName("Помилка отримання профілю, якщо користувача не знайдено")
         void getUserProfile_UserNotFound_ThrowsException() {
             UUID userId = UUID.randomUUID();
-            when(userRepository.get(userId)).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> userService.getUserProfile(userId))
-                    .isInstanceOf(UserNotFoundException.class);
-        }
-
-        @Test
-        @DisplayName("Помилка отримання профілю, якщо профіль користувача відсутній")
-        void getUserProfile_ProfileNotFound_ThrowsException() {
-            UUID userId = UUID.randomUUID();
-            User user = new User(userId, "user@gmail.com", "hash", UserRole.AUTHOR);
-
-            when(userRepository.get(userId)).thenReturn(Optional.of(user));
-            when(userProfileRepository.get(userId)).thenReturn(Optional.empty());
+            when(userRepository.findByIdWithProfile(userId)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> userService.getUserProfile(userId))
                     .isInstanceOf(UserNotFoundException.class);
@@ -193,17 +191,20 @@ public class UserServiceImplTest {
         @DisplayName("Успішне оновлення даних профілю")
         void updateUserProfile_Success() {
             UUID userId = UUID.randomUUID();
-            User user = new User(userId, "user@gmail.com", "hash", UserRole.AUTHOR);
-            UserProfile updatedProfile = new UserProfile(userId, "New Name", "New Bio", "new.png", "en-US");
+            User user = buildUser(userId, "user@gmail.com", "pass", UserRole.AUTHOR, "Old Name");
             UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest("New Name", "New Bio", "new.png", "en-US");
 
-            when(userRepository.get(userId)).thenReturn(Optional.of(user));
-            when(userProfileRepository.update(eq(userId), any(UserProfile.class))).thenReturn(Optional.of(updatedProfile));
+            when(userRepository.findByIdWithProfile(userId)).thenReturn(Optional.of(user));
+            when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
             UserResponse response = userService.updateUserProfile(userId, updateRequest);
 
             assertThat(response.displayName()).isEqualTo("New Name");
+            assertThat(response.bio()).isEqualTo("New Bio");
+            assertThat(response.avatarUrl()).isEqualTo("new.png");
             assertThat(response.preferredLocale()).isEqualTo("en-US");
+
+            verify(userRepository, times(1)).save(user);
         }
 
         @Test
@@ -212,32 +213,18 @@ public class UserServiceImplTest {
             UUID userId = UUID.randomUUID();
             UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest("New Name", null, null, "en-US");
 
-            when(userRepository.get(userId)).thenReturn(Optional.empty());
+            when(userRepository.findByIdWithProfile(userId)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> userService.updateUserProfile(userId, updateRequest))
                     .isInstanceOf(UserNotFoundException.class);
 
-            verify(userProfileRepository, never()).update(any(), any());
-        }
-
-        @Test
-        @DisplayName("Помилка оновлення профілю, якщо запис профілю не знайдено для оновлення")
-        void updateUserProfile_ProfileNotFound_ThrowsException() {
-            UUID userId = UUID.randomUUID();
-            User user = new User(userId, "user@gmail.com", "hash", UserRole.AUTHOR);
-            UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest("New Name", null, null, "en-US");
-
-            when(userRepository.get(userId)).thenReturn(Optional.of(user));
-            when(userProfileRepository.update(eq(userId), any(UserProfile.class))).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> userService.updateUserProfile(userId, updateRequest))
-                    .isInstanceOf(UserNotFoundException.class);
+            verify(userRepository, never()).save(any());
         }
     }
 
     @Nested
-    @DisplayName("Створення та фільтрація співробітників")
-    class StaffAndFilterTests {
+    @DisplayName("Створення, фільтрація та видалення користувачів")
+    class StaffFilterAndDeleteTests {
 
         @Test
         @DisplayName("Успішне створення співробітника адміністратором")
@@ -246,20 +233,19 @@ public class UserServiceImplTest {
                     "editor@unibook.com", "securePass", UserRole.EDITOR, "Editor John", "Head of Editing", null, "uk-UA"
             );
             UUID generatedId = UUID.randomUUID();
-            User savedUser = new User(generatedId, request.email(), "hash", UserRole.EDITOR);
+            User savedUser = buildUser(generatedId, request.email(), request.password(), UserRole.EDITOR, request.displayName());
 
             when(userRepository.existsByEmail(request.email())).thenReturn(false);
             when(userRepository.save(any(User.class))).thenReturn(savedUser);
-
-            when(userProfileRepository.save(any(UserProfile.class)))
-                    .thenAnswer(invocation -> invocation.getArgument(0));
 
             UserResponse response = userService.createStaff(request);
 
             assertThat(response).isNotNull();
             assertThat(response.userId()).isEqualTo(generatedId);
             assertThat(response.role()).isEqualTo(UserRole.EDITOR);
-            verify(userProfileRepository, times(1)).save(any(UserProfile.class));
+            assertThat(response.displayName()).isEqualTo("Editor John");
+
+            verify(userRepository, times(1)).save(any(User.class));
         }
 
         @Test
@@ -276,31 +262,29 @@ public class UserServiceImplTest {
                     .hasMessageContaining("вже існує");
 
             verify(userRepository, never()).save(any());
-            verify(userProfileRepository, never()).save(any());
         }
 
         @Test
-        @DisplayName("Отримання користувачів за заданою роллю")
+        @DisplayName("Отримання користувачів за заданою роллю з підвантаженням профілю")
         void getUsers_FilteredByRole() {
             UUID id = UUID.randomUUID();
-            User user = new User(id, "editor@unibook.com", "hash", UserRole.EDITOR);
-            UserProfile profile = new UserProfile(id, "Editor John", null, null, "uk-UA");
+            User user = buildUser(id, "editor@unibook.com", "pass", UserRole.EDITOR, "Editor John");
 
-            when(userRepository.findByRole(UserRole.EDITOR)).thenReturn(List.of(user));
-            when(userProfileRepository.get(id)).thenReturn(Optional.of(profile));
+            when(userRepository.findByRoleWithProfile(UserRole.EDITOR)).thenReturn(List.of(user));
 
             List<UserResponse> result = userService.getUsers(UserRole.EDITOR);
 
             assertThat(result.size()).isEqualTo(1);
             assertThat(result.getFirst().role()).isEqualTo(UserRole.EDITOR);
             assertThat(result.getFirst().displayName()).isEqualTo("Editor John");
-            verify(userRepository, never()).findAll();
+
+            verify(userRepository, never()).findAllWithProfile();
         }
 
         @Test
         @DisplayName("Повертає порожній список, якщо за роллю не знайдено жодного користувача")
         void getUsers_EmptyResult_ReturnsEmptyList() {
-            when(userRepository.findByRole(UserRole.ADMIN)).thenReturn(List.of());
+            when(userRepository.findByRoleWithProfile(UserRole.ADMIN)).thenReturn(List.of());
 
             List<UserResponse> result = userService.getUsers(UserRole.ADMIN);
 
@@ -309,19 +293,42 @@ public class UserServiceImplTest {
         }
 
         @Test
-        @DisplayName("Отримання всіх користувачів, якщо роль не передано")
+        @DisplayName("Отримання всіх користувачів з профілями, якщо роль не передано")
         void getUsers_AllUsers_WhenRoleIsNull() {
             UUID id = UUID.randomUUID();
-            User user = new User(id, "user@gmail.com", "hash", UserRole.AUTHOR);
+            User user = buildUser(id, "user@gmail.com", "pass", UserRole.AUTHOR, "Author One");
 
-            when(userRepository.findAll()).thenReturn(List.of(user));
-            when(userProfileRepository.get(id)).thenReturn(Optional.empty());
+            when(userRepository.findAllWithProfile()).thenReturn(List.of(user));
 
             List<UserResponse> result = userService.getUsers(null);
 
             assertThat(result.size()).isEqualTo(1);
-            assertThat(result.getFirst().displayName()).isNull();
-            verify(userRepository, times(1)).findAll();
+            assertThat(result.getFirst().displayName()).isEqualTo("Author One");
+
+            verify(userRepository, times(1)).findAllWithProfile();
+        }
+
+        @Test
+        @DisplayName("Успішне видалення користувача за ID")
+        void deleteUser_Success() {
+            UUID userId = UUID.randomUUID();
+            when(userRepository.existsById(userId)).thenReturn(true);
+
+            userService.deleteUser(userId);
+
+            verify(userRepository, times(1)).deleteById(userId);
+        }
+
+        @Test
+        @DisplayName("Помилка видалення, якщо користувача з таким ID не існує")
+        void deleteUser_NotFound_ThrowsException() {
+            UUID userId = UUID.randomUUID();
+            when(userRepository.existsById(userId)).thenReturn(false);
+
+            assertThatThrownBy(() -> userService.deleteUser(userId))
+                    .isInstanceOf(UserNotFoundException.class);
+
+            verify(userRepository, never()).deleteById(any());
         }
     }
 }

@@ -8,12 +8,13 @@ import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
 import com.unibook.publisher.communication.repository.NotificationRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class NotificationServiceImpl implements NotificationService {
     private final NotificationRepository notificationRepository;
     private final AppLogger logger;
@@ -24,6 +25,7 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
+    @Transactional
     public NotificationResponse send(
             UUID recipientId,
             UUID senderId,
@@ -33,21 +35,19 @@ public class NotificationServiceImpl implements NotificationService {
             NotificationType type
     ) {
         Notification notification = new Notification(
-                null,
                 recipientId,
                 senderId,
                 targetId,
                 title,
                 message,
-                type,
-                false,
-                Instant.now()
+                type
         );
+
         Notification saved = notificationRepository.save(notification);
 
         logger.info(
             "Created notification {} for recipient {} from sender {}",
-            saved.id(),
+            saved.getId(),
             recipientId,
             senderId
         );
@@ -57,21 +57,26 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public List<NotificationResponse> getUserNotifications(UUID recipientId, Boolean unreadOnly) {
-        return notificationRepository.findByRecipientId(recipientId).stream()
-                .filter(n -> unreadOnly == null || !unreadOnly || !n.isRead())
+        List<Notification> list = Boolean.TRUE.equals(unreadOnly)
+                ? notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(recipientId)
+                : notificationRepository.findByRecipientIdOrderByCreatedAtDesc(recipientId);
+
+        return list.stream()
                 .map(NotificationResponse::from)
                 .toList();
     }
 
     @Override
+    @Transactional
     public NotificationResponse markAsRead(UUID notificationId, UUID userId) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new NotificationNotFoundException(notificationId));
 
-        if (!notification.recipientId().equals(userId))
+        if (!notification.getRecipientId().equals(userId))
             throw new ForbiddenActionException("Можна відмічати тільки свої повідомлення");
 
-        Notification updated = notificationRepository.save(notification.markAsRead());
+        notification.markAsRead();
+        Notification updated = notificationRepository.save(notification);
 
         logger.info(
             "Updated notification {}: marked as read by user {}",
