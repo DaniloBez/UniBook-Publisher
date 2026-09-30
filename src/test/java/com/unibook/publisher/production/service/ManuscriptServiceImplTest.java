@@ -2,15 +2,15 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.*;
+import com.unibook.publisher.common.exception.notfound.GenreNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.production.entity.Genre;
 import com.unibook.publisher.production.entity.Manuscript;
+import com.unibook.publisher.production.entity.request.*;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
-import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
-import com.unibook.publisher.production.entity.request.ManuscriptPostponementRequest;
-import com.unibook.publisher.production.entity.request.ManuscriptRejectionRequest;
-import com.unibook.publisher.production.entity.request.ManuscriptSubmissionRequest;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.repository.GenreRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
@@ -22,11 +22,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -391,5 +387,197 @@ public class ManuscriptServiceImplTest {
         assertEquals("Аліса", manuscripts.get(0).title());
 
         verify(repository, times(1)).findByStatusWithGenres(ManuscriptStatus.SUBMITTED);
+    }
+
+    @Test
+    void updateManuscript_Success() {
+        UUID id = UUID.randomUUID();
+        UUID genreId1 = UUID.randomUUID();
+        UUID genreId2 = UUID.randomUUID();
+
+        Manuscript manuscript = new Manuscript(
+                id,
+                "Стара назва",
+                UUID.randomUUID(),
+                ManuscriptStatus.SUBMITTED,
+                new HashSet<>(),
+                "Стара анотація",
+                "old-url",
+                Instant.now()
+        );
+
+        Genre genre1 = new Genre(genreId1, "Фантастика");
+        Genre genre2 = new Genre(genreId2, "Детектив");
+
+        ManuscriptUpdateRequest request = new ManuscriptUpdateRequest(
+                "Нова назва",
+                "Нова анотація",
+                "new-url",
+                Set.of(genreId1, genreId2)
+        );
+
+        when(repository.findByIdWithGenres(id)).thenReturn(Optional.of(manuscript));
+        when(genreRepository.findAllById(request.genreIds())).thenReturn(List.of(genre1, genre2));
+        when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ManuscriptResponse response = manuscriptService.updateManuscript(id, request);
+
+        assertNotNull(response);
+        assertEquals("Нова назва", response.title());
+        assertEquals(2, response.genreIds().size());
+
+        verify(repository, times(1)).findByIdWithGenres(id);
+        verify(genreRepository, times(1)).findAllById(request.genreIds());
+        verify(repository, times(1)).save(any(Manuscript.class));
+    }
+
+    @Test
+    void updateManuscript_ManuscriptNotFoundException() {
+        UUID id = UUID.randomUUID();
+        ManuscriptUpdateRequest request = new ManuscriptUpdateRequest(
+                "Нова назва",
+                "Нова анотація",
+                "new-url",
+                Set.of(UUID.randomUUID())
+        );
+        when(repository.findByIdWithGenres(id)).thenReturn(Optional.empty());
+        assertThrows(ManuscriptNotFoundException.class, () -> manuscriptService.updateManuscript(id, request));
+        verify(repository, times(1)).findByIdWithGenres(id);
+        verify(genreRepository, never()).findAllById(any());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void updateManuscript_GenreNotFoundException() {
+        UUID id = UUID.randomUUID();
+        UUID existingGenreId = UUID.randomUUID();
+        UUID missingGenreId = UUID.randomUUID();
+
+        Manuscript manuscript = new Manuscript(
+                id,
+                "Стара назва",
+                UUID.randomUUID(),
+                ManuscriptStatus.SUBMITTED,
+                Set.of(),
+                "Стара анотація",
+                "old-url",
+                Instant.now()
+        );
+
+        Genre genre = new Genre(existingGenreId, "Фантастика");
+        ManuscriptUpdateRequest request = new ManuscriptUpdateRequest(
+                "Нова назва",
+                "Нова анотація",
+                "new-url",
+                Set.of(existingGenreId, missingGenreId)
+        );
+
+        when(repository.findByIdWithGenres(id)).thenReturn(Optional.of(manuscript));
+        when(genreRepository.findAllById(request.genreIds())).thenReturn(List.of(genre));
+        assertThrows(GenreNotFoundException.class, () -> manuscriptService.updateManuscript(id, request));
+        verify(repository, times(1)).findByIdWithGenres(id);
+        verify(genreRepository, times(1)).findAllById(request.genreIds());
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    void deleteManuscript_Success() {
+        UUID id = UUID.randomUUID();
+
+        Manuscript manuscript = new Manuscript(
+                id,
+                "Книга",
+                UUID.randomUUID(),
+                ManuscriptStatus.SUBMITTED,
+                new HashSet<>(),
+                "Анотація",
+                "url",
+                Instant.now()
+        );
+
+        when(repository.findByIdWithGenres(id)).thenReturn(Optional.of(manuscript));
+        manuscriptService.deleteManuscript(id);
+        verify(repository, times(1)).findByIdWithGenres(id);
+        verify(repository, times(1)).save(manuscript);
+        verify(repository, times(1)).delete(manuscript);
+    }
+
+    @Test
+    void deleteManuscript_ManuscriptNotFoundException() {
+        UUID id = UUID.randomUUID();
+        when(repository.findByIdWithGenres(id)).thenReturn(Optional.empty());
+        assertThrows(ManuscriptNotFoundException.class, () -> manuscriptService.deleteManuscript(id));
+        verify(repository, times(1)).findByIdWithGenres(id);
+        verify(repository, never()).save(any());
+        verify(repository, never()).delete(any());
+    }
+
+    @Test
+    void submitManuscript_NullGenres_Success() {
+        UUID authorId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+
+        ManuscriptSubmissionRequest request = new ManuscriptSubmissionRequest(
+                "Без жанрів",
+                "Анотація",
+                "url",
+                null
+        );
+
+        Manuscript saved = new Manuscript(
+                manuscriptId,
+                request.title(),
+                authorId,
+                ManuscriptStatus.SUBMITTED,
+                new HashSet<>(),
+                request.annotation(),
+                request.draftFileUrl(),
+                Instant.now()
+        );
+        when(repository.save(any(Manuscript.class))).thenReturn(saved);
+
+        ManuscriptResponse response = manuscriptService.submitManuscript(authorId, request);
+
+        assertNotNull(response);
+        assertEquals(manuscriptId, response.manuscriptId());
+        assertEquals("Без жанрів", response.title());
+
+        verify(genreRepository, never()).findAllById(any());
+        verify(repository, times(1)).save(any(Manuscript.class));
+        verify(publisher, times(1)).publishEvent(any(ManuscriptSubmittedEvent.class));
+    }
+
+    @Test
+    void submitManuscript_EmptyGenres_Success() {
+        UUID authorId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+
+        ManuscriptSubmissionRequest request = new ManuscriptSubmissionRequest(
+                "Порожній список",
+                "Анотація",
+                "url",
+                List.of()
+        );
+
+        Manuscript saved = new Manuscript(
+                manuscriptId,
+                request.title(),
+                authorId,
+                ManuscriptStatus.SUBMITTED,
+                new HashSet<>(),
+                request.annotation(),
+                request.draftFileUrl(),
+                Instant.now()
+        );
+        when(repository.save(any(Manuscript.class))).thenReturn(saved);
+
+        ManuscriptResponse response = manuscriptService.submitManuscript(authorId, request);
+
+        assertNotNull(response);
+        assertEquals("Порожній список", response.title());
+
+        verify(genreRepository, never()).findAllById(any());
+        verify(repository, times(1)).save(any(Manuscript.class));
+        verify(publisher, times(1)).publishEvent(any(ManuscriptSubmittedEvent.class));
     }
 }

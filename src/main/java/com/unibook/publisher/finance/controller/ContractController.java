@@ -1,6 +1,8 @@
 package com.unibook.publisher.finance.controller;
 
 import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.finance.entity.request.ContractCreateRequest;
+import com.unibook.publisher.finance.entity.request.ContractUpdateRequest;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
 import com.unibook.publisher.finance.entity.response.ContractResponse;
@@ -10,6 +12,7 @@ import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -56,5 +59,49 @@ public class ContractController {
             @RequestBody @Valid PayoutSimulationRequest request
     ) {
         return ResponseEntity.ok(contractService.simulatePayout(id, userId, userRole, request));
+    }
+
+    @PostMapping
+    public ResponseEntity<ContractResponse> createContract(
+            @Valid @RequestBody ContractCreateRequest request
+    ) {
+        return ResponseEntity.status(201).body(contractService.createContract(request));
+    }
+
+    @GetMapping("/{id}")
+    public ResponseEntity<ContractResponse> getContractById(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestHeader("X-User-Role") UserRole userRole
+    ) {
+        return ResponseEntity.ok(contractService.getContractById(id, userId, userRole));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<ContractResponse>> getAllContracts(
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestHeader("X-User-Role") UserRole userRole
+    ) {
+        return ResponseEntity.ok(contractService.getAllContracts(userId, userRole));
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ContractResponse> updateContract(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestHeader("X-User-Role") UserRole userRole,
+            @Valid @RequestBody ContractUpdateRequest request
+    ) {
+        return ResponseEntity.ok(contractService.updateContract(id, userId, userRole, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteContract(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-Id") UUID userId,
+            @RequestHeader("X-User-Role") UserRole userRole
+    ) {
+        contractService.deleteContract(id, userId, userRole);
+        return ResponseEntity.noContent().build();
     }
 }

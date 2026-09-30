@@ -2,18 +2,17 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.event.*;
+import com.unibook.publisher.common.exception.notfound.GenreNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Genre;
 import com.unibook.publisher.production.entity.Manuscript;
+import com.unibook.publisher.production.entity.request.*;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
-import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
-import com.unibook.publisher.production.entity.request.ManuscriptPostponementRequest;
-import com.unibook.publisher.production.entity.request.ManuscriptRejectionRequest;
-import com.unibook.publisher.production.entity.request.ManuscriptSubmissionRequest;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.repository.GenreRepository;
+import com.unibook.publisher.production.repository.ManuscriptAuditLogRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -24,19 +23,22 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
 public class ManuscriptServiceImpl implements ManuscriptService {
 
     private final ManuscriptRepository manuscriptRepository;
+    private final ManuscriptAuditLogRepository manuscriptAuditLogRepository;
     private final GenreRepository genreRepository;
     private final TeamAssignmentService teamAssignmentService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
-    public ManuscriptServiceImpl(ManuscriptRepository manuscriptRepository, GenreRepository genreRepository, TeamAssignmentService teamAssignmentService, ApplicationEventPublisher publisher, AppLogger logger) {
+    public ManuscriptServiceImpl(ManuscriptRepository manuscriptRepository, ManuscriptAuditLogRepository manuscriptAuditLogRepository, GenreRepository genreRepository, TeamAssignmentService teamAssignmentService, ApplicationEventPublisher publisher, AppLogger logger) {
         this.manuscriptRepository = manuscriptRepository;
+        this.manuscriptAuditLogRepository = manuscriptAuditLogRepository;
         this.genreRepository = genreRepository;
         this.teamAssignmentService = teamAssignmentService;
         this.publisher = publisher;
@@ -204,5 +206,46 @@ public class ManuscriptServiceImpl implements ManuscriptService {
                 saved.getAuthorId()
         ));
         return ManuscriptResponse.from(saved);
+    }
+
+    @Override
+    @Transactional
+    public ManuscriptResponse updateManuscript(UUID id, ManuscriptUpdateRequest request) {
+        Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
+                .orElseThrow(() -> new ManuscriptNotFoundException(id));
+
+        Set<Genre> genres = new HashSet<>(genreRepository.findAllById(request.genreIds()));
+        if (genres.size() != request.genreIds().size()) {
+            Set<UUID> found = genres.stream()
+                    .map(Genre::getGenreId).
+                    collect(Collectors.toSet());
+            Set<UUID> missing = request.genreIds().stream()
+                    .filter(genreId -> !found.contains(genreId))
+                    .collect(Collectors.toSet());
+            throw new GenreNotFoundException("Не знайдено жанрів: " + missing);
+        }
+
+        manuscript.setTitle(request.title());
+        manuscript.setAnnotation(request.annotation());
+        manuscript.setDraftFileUrl(request.draftFileUrl());
+        manuscript.getGenres().clear();
+        manuscript.getGenres().addAll(genres);
+
+        Manuscript updated = manuscriptRepository.save(manuscript);
+
+        logger.info("Updated manuscript {}: title='{}', genres={}",
+                id, updated.getTitle(), updated.getGenres().size());
+
+        return ManuscriptResponse.from(updated);
+    }
+
+    @Override
+    public void deleteManuscript(UUID id) {
+        Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
+                .orElseThrow(() -> new ManuscriptNotFoundException(id));
+        manuscript.getGenres().clear();
+        manuscriptRepository.save(manuscript);
+        manuscriptRepository.delete(manuscript);
+        logger.info("Deleted manuscript {} '{}'", id, manuscript.getTitle());
     }
 }

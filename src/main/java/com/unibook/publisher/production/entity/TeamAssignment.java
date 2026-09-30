@@ -6,6 +6,8 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -24,6 +26,7 @@ public class TeamAssignment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "manuscript_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Manuscript manuscript;
 
     @Column(name = "user_id", nullable = false)

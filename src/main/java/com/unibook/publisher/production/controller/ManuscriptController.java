@@ -2,11 +2,8 @@ package com.unibook.publisher.production.controller;
 
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.production.entity.request.*;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
-import com.unibook.publisher.production.entity.request.ManuscriptApprovalRequest;
-import com.unibook.publisher.production.entity.request.ManuscriptPostponementRequest;
-import com.unibook.publisher.production.entity.request.ManuscriptRejectionRequest;
-import com.unibook.publisher.production.entity.request.ManuscriptSubmissionRequest;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.service.ManuscriptService;
 import jakarta.validation.Valid;
@@ -88,5 +85,19 @@ public class ManuscriptController {
     ) {
         ManuscriptResponse response = manuscriptService.submitManuscript(authorId, request);
         return ResponseEntity.ok(response);
+    }
+
+    @PutMapping("/{id}")
+    public ResponseEntity<ManuscriptResponse> updateManuscript(
+            @PathVariable UUID id,
+            @Valid @RequestBody ManuscriptUpdateRequest request
+    ) {
+        return ResponseEntity.ok(manuscriptService.updateManuscript(id, request));
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteManuscript(@PathVariable UUID id) {
+        manuscriptService.deleteManuscript(id);
+        return ResponseEntity.noContent().build();
     }
 }

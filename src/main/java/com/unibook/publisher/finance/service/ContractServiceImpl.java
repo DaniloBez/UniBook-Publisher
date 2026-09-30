@@ -15,6 +15,8 @@ import com.unibook.publisher.common.exception.state.InvalidStateTransitionExcept
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.finance.entity.Contract;
 import com.unibook.publisher.finance.entity.FinanceAuditLog;
+import com.unibook.publisher.finance.entity.request.ContractCreateRequest;
+import com.unibook.publisher.finance.entity.request.ContractUpdateRequest;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
 import com.unibook.publisher.finance.entity.response.ContractResponse;
@@ -262,5 +264,96 @@ public class ContractServiceImpl implements ContractService {
         }
 
         return strategy;
+    }
+
+    @Override
+    @Transactional
+    public ContractResponse createContract(ContractCreateRequest request) {
+        contractRepository.findByManuscriptId(request.manuscriptId())
+                .ifPresent(c -> {
+                    throw new IllegalStateException(
+                            "Контракт для рукопису " + request.manuscriptId() + " вже існує");
+                });
+
+        ManuscriptDto manuscript = api.findById(request.manuscriptId())
+                .orElseThrow(() -> new ManuscriptNotFoundException(request.manuscriptId()));
+
+        Contract contract = new Contract(
+                null,
+                request.manuscriptId(),
+                manuscript.title(),
+                request.authorId(),
+                request.royaltyPercent(),
+                request.advancePayment(),
+                ContractStatus.DRAFT,
+                null,
+                Instant.now()
+        );
+
+        Contract saved = contractRepository.save(contract);
+        logger.info("Created contract {} for manuscript {}", saved.getId(), request.manuscriptId());
+
+        return ContractResponse.from(saved);
+    }
+
+    @Override
+    public ContractResponse getContractById(UUID id, UUID callerId, UserRole callerRole) {
+        Contract contract = getContractOrThrow(id);
+        checkViewAccess(contract, callerId, callerRole);
+        return ContractResponse.from(contract);
+    }
+
+    @Override
+    public List<ContractResponse> getAllContracts(UUID callerId, UserRole callerRole) {
+        if (callerRole != UserRole.ACCOUNTANT && callerRole != UserRole.ADMIN) {
+            throw new ForbiddenActionException("Переглядати всі контракти можуть лише бухгалтер або адміністратор");
+        }
+        return contractRepository.findAll().stream()
+                .map(ContractResponse::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ContractResponse updateContract(UUID id, UUID callerId, UserRole callerRole, ContractUpdateRequest request) {
+        if (callerRole != UserRole.ACCOUNTANT) {
+            throw new ForbiddenActionException("Оновлювати контракт може лише бухгалтер");
+        }
+
+        Contract contract = getContractOrThrow(id);
+
+        if (contract.getStatus() != ContractStatus.DRAFT) {
+            throw new InvalidStateTransitionException(
+                    "Contract", id, contract.getStatus(), ContractStatus.DRAFT,
+                    contract.getStatus().allowedTransitions()
+            );
+        }
+
+        contract.setRoyaltyPercent(request.royaltyPercent());
+        contract.setAdvancePayment(request.advancePayment());
+        contract.setAuthorConfirmedAt(null);
+
+        Contract updated = contractRepository.save(contract);
+        logger.info("Updated contract {}: royalty={}, advance={}",
+                id, updated.getRoyaltyPercent(), updated.getAdvancePayment());
+
+        return ContractResponse.from(updated);
+    }
+
+    @Override
+    @Transactional
+    public void deleteContract(UUID id, UUID callerId, UserRole callerRole) {
+        if (callerRole != UserRole.ADMIN) {
+            throw new ForbiddenActionException("Видаляти контракт може лише адміністратор");
+        }
+        Contract contract = getContractOrThrow(id);
+        if (contract.getStatus() == ContractStatus.ACTIVE) {
+            throw new InvalidStateTransitionException(
+                    "Contract", id, contract.getStatus(), ContractStatus.TERMINATED,
+                    contract.getStatus().allowedTransitions()
+            );
+        }
+        contractRepository.delete(contract);
+        logger.info("Deleted contract {} for manuscript {}", id, contract.getManuscriptId());
     }
 }
