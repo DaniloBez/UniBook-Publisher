@@ -40,7 +40,7 @@ public class ManuscriptAuditLogServiceImplTest {
 
     @Test
     @DisplayName("Запис аудиту зберігається зі старим і новим статусом")
-    void record_SavesLogWithGivenStatuses() {
+    void record_StatusChange_SavesLogWithGivenStatuses() {
         UUID manuscriptId = UUID.randomUUID();
         UUID changedByUserId = UUID.randomUUID();
 
@@ -48,7 +48,7 @@ public class ManuscriptAuditLogServiceImplTest {
         manuscript.setManuscriptId(manuscriptId);
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
 
-        auditLogService.record(
+        auditLogService.recordStatusChange(
                 manuscriptId,
                 changedByUserId,
                 ManuscriptStatus.IN_PROGRESS,

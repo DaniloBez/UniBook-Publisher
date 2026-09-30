@@ -102,7 +102,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
             updated.getStatus(),
             editorId
         );
-        manuscriptAuditLogService.record(manuscriptId, editorId, oldStatus, updated.getStatus());
+        manuscriptAuditLogService.recordStatusChange(manuscriptId, editorId, oldStatus, updated.getStatus());
 
         publisher.publishEvent(new TextFinalizedEvent(
                 manuscriptId,
@@ -141,7 +141,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
             request.designerId(),
             chiefEditorId
         );
-        manuscriptAuditLogService.record(manuscriptId, chiefEditorId, oldStatus, updated.getStatus());
+        manuscriptAuditLogService.recordStatusChange(manuscriptId, chiefEditorId, oldStatus, updated.getStatus());
 
         publisher.publishEvent(new WorkerAssignedEvent(
                 manuscriptId,
@@ -180,7 +180,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
             oldStatus,
             chiefEditorId
         );
-        manuscriptAuditLogService.record(manuscriptId, chiefEditorId, oldStatus, updated.getStatus());
+        manuscriptAuditLogService.recordStatusChange(manuscriptId, chiefEditorId, oldStatus, updated.getStatus());
 
         publisher.publishEvent(new ManuscriptPublishedEvent(
                 manuscriptId,

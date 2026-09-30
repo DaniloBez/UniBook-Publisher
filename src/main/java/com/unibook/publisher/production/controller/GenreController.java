@@ -1,6 +1,5 @@
 package com.unibook.publisher.production.controller;
 
-import com.unibook.publisher.production.entity.Genre;
 import com.unibook.publisher.production.entity.request.GenreRequest;
 import com.unibook.publisher.production.entity.response.GenreResponse;
 import com.unibook.publisher.production.service.GenreService;

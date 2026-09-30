@@ -7,6 +7,6 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ManuscriptAuditLogService {
-    void record(UUID manuscriptId, UUID changedByUserId, ManuscriptStatus oldStatus, ManuscriptStatus newStatus);
+    void recordStatusChange(UUID manuscriptId, UUID changedByUserId, ManuscriptStatus oldStatus, ManuscriptStatus newStatus);
     List<ManuscriptAuditLogResponse> getAuditLog(UUID manuscriptId);
 }

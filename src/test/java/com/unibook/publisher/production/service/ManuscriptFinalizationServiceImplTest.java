@@ -98,7 +98,7 @@ public class ManuscriptFinalizationServiceImplTest {
         ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, editorId);
 
         assertEquals(ManuscriptStatus.TEXT_APPROVED, response.status());
-        verify(manuscriptAuditLogService, times(1)).record(manuscriptId, editorId, ManuscriptStatus.IN_PROGRESS, ManuscriptStatus.TEXT_APPROVED);
+        verify(manuscriptAuditLogService, times(1)).recordStatusChange(manuscriptId, editorId, ManuscriptStatus.IN_PROGRESS, ManuscriptStatus.TEXT_APPROVED);
         verify(publisher, times(1)).publishEvent(any(TextFinalizedEvent.class));
     }
 

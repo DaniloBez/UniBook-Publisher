@@ -2,7 +2,6 @@ package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.ThreadType;
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.event.RevisionAddedEvent;
 import com.unibook.publisher.common.event.ThreadMessageAddedEvent;
 import com.unibook.publisher.common.event.ThreadOpenedEvent;
 import com.unibook.publisher.common.exception.business.EmptyRevisionTextException;

@@ -30,7 +30,7 @@ public class ManuscriptAuditLogServiceImpl implements ManuscriptAuditLogService 
 
     @Override
     @Transactional
-    public void record(UUID manuscriptId, UUID changedByUserId, ManuscriptStatus oldStatus, ManuscriptStatus newStatus) {
+    public void recordStatusChange(UUID manuscriptId, UUID changedByUserId, ManuscriptStatus oldStatus, ManuscriptStatus newStatus) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
 
