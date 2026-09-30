@@ -18,7 +18,7 @@ import java.util.UUID;
 
 @Component
 @Profile("!postgres & !test")
-@Order(3)
+@Order(4)
 public class FinanceDataSeeder implements ApplicationRunner {
     private final AppLogger logger;
     private final ContractRepository contractRepository;

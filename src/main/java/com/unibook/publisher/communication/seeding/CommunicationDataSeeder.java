@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 @Profile("!postgres & !test")
-@Order(4)
+@Order(5)
 public class CommunicationDataSeeder implements ApplicationRunner {
 
     private final AppLogger logger;
