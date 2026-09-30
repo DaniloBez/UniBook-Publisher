@@ -17,7 +17,6 @@ import com.unibook.publisher.production.entity.FeedbackThread;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.Revision;
 import com.unibook.publisher.production.entity.TeamAssignment;
-import com.unibook.publisher.production.entity.ThreadMessage;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.request.OpenThreadRequest;
 import com.unibook.publisher.production.entity.request.ThreadMessageRequest;

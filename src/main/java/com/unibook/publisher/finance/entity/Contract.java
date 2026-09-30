@@ -26,7 +26,7 @@ public class Contract {
     @Column(name = "manuscript_id", nullable = false, unique = true)
     private UUID manuscriptId;
 
-    @Column(name = "title", nullable = false, unique = true)
+    @Column(name = "title", nullable = false)
     private String title;
 
     @Column(name = "author_id", nullable = false)
