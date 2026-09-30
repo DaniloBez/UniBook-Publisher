@@ -24,7 +24,7 @@ public class ContractController {
         this.contractService = contractService;
     }
 
-    @GetMapping
+    @GetMapping(params = "manuscriptId")
     public ResponseEntity<ContractResponse> getContract(
             @RequestHeader("X-User-Id") UUID userId,
             @RequestHeader("X-User-Role") UserRole userRole,
