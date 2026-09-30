@@ -219,7 +219,8 @@ com.unibook.publisher.common.exception/
 │   ├── ContractNotFoundException.java
 │   ├── UserNotFoundException.java
 │   ├── NotificationNotFoundException.java
-│   └── RevisionNotFoundException.java
+│   ├── RevisionNotFoundException.java
+│   └── FileNotFoundException.java                      # Файл відсутній
 │
 ├── state/                                              # HTTP 422 UNPROCESSABLE ENTITY
 │   └── InvalidStateTransitionException.java            # Помилка переходу між станами
@@ -333,6 +334,7 @@ cp .env.example .env
 
 4. **S3 Сховище (Garage / MinIO / Cloudflare R2)**:
    - `S3_ENDPOINT`: URL точки доступу до S3 (наприклад, `http://localhost:3900`).
+   - `S3_REGION`: регіон місця проживання бакета.
    - `S3_BUCKET`: назва робочого бакета.
    - `S3_ACCESS_KEY` / `S3_SECRET_KEY`: ключі доступу S3 API.
 

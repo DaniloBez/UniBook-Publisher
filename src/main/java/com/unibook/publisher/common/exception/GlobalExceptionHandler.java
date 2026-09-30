@@ -3,6 +3,7 @@ package com.unibook.publisher.common.exception;
 import com.unibook.publisher.common.exception.business.BusinessRuleViolationException;
 import com.unibook.publisher.common.exception.conflict.DuplicateResourceException;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
+import com.unibook.publisher.common.exception.notfound.FileNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
@@ -82,6 +83,14 @@ public class GlobalExceptionHandler {
         return detail;
     }
 
+    // @ExceptionHandler(FileStorageException.class)
+    // public ProblemDetail handleNotFound(FileStorageException exception) {
+    //     ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+    //     detail.setTitle("Файл не знайдено");
+    //     detail.setProperty("timestamp", Instant.now());
+    //     return detail;
+    // }
+
     @ExceptionHandler(InvalidStateTransitionException.class)
     public ProblemDetail handleInvalidState(InvalidStateTransitionException exception) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
@@ -151,5 +160,13 @@ public class GlobalExceptionHandler {
         problem.setTitle(exception.getMessage());
         problem.setProperty("timestamp", Instant.now());
         return problem;
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    public ProblemDetail handleServerSideException(RuntimeException exception) {
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
+        detail.setTitle("Помилка сервера");
+        detail.setProperty("timestamp", Instant.now());
+        return detail;
     }
 }
