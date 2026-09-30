@@ -21,18 +21,14 @@ import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
 import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
-import com.unibook.publisher.finance.royalty.impl.FlatRateRoyaltyStrategy;
-import com.unibook.publisher.finance.royalty.impl.TieredVolumeRoyaltyStrategy;
-import com.unibook.publisher.finance.royalty.impl.AdvanceRecoupmentRoyaltyStrategy;
-import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.repository.ManuscriptRepository;
+import com.unibook.publisher.production.api.ManuscriptApi;
+import com.unibook.publisher.production.api.ManuscriptDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -58,7 +54,7 @@ class ContractServiceImplTest {
     private FinanceAuditLogRepository financeAuditLogRepository;
 
     @Mock
-    private ManuscriptRepository manuscriptRepository;
+    private ManuscriptApi api;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -85,7 +81,7 @@ class ContractServiceImplTest {
         contractService = new ContractServiceImpl(
                 contractRepository,
                 financeAuditLogRepository,
-                manuscriptRepository,
+                api,
                 eventPublisher,
                 logger,
                 List.of(
@@ -100,12 +96,12 @@ class ContractServiceImplTest {
     private final UUID authorId = UUID.randomUUID();
     private final UUID contractId = UUID.randomUUID();
     private final String manuscriptTitle = "Кобзар";  //REM ironically, I don't think that we need to strike a contracted deal with Shevchenko
-    private Manuscript manuscript = mock(Manuscript.class);
 
     private Contract draftContract() {
         return new Contract(
                 contractId,
-                manuscript,
+                manuscriptId,
+                manuscriptTitle,
                 authorId,
                 new BigDecimal("10.0"),
                 new BigDecimal("1000.0"),
@@ -139,11 +135,7 @@ class ContractServiceImplTest {
                     authorId
             );
 
-            Manuscript manuscript = new Manuscript();
-            manuscript.setManuscriptId(manuscriptId);
-            manuscript.setTitle(manuscriptTitle);
-
-            when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+            when(api.findById(manuscriptId)).thenReturn(Optional.of(new ManuscriptDto(manuscriptId, manuscriptTitle)));
             when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
             contractService.createContractForApprovedManuscript(event);
@@ -153,7 +145,8 @@ class ContractServiceImplTest {
 
             Contract saved = captor.getValue();
 
-            assertThat(saved.getManuscript().getManuscriptId()).isEqualTo(manuscriptId);
+            assertThat(saved.getManuscriptId()).isEqualTo(manuscriptId);
+            assertThat(saved.getTitle()).isEqualTo(manuscriptTitle);
             assertThat(saved.getAuthorId()).isEqualTo(authorId);
             assertThat(saved.getStatus()).isEqualTo(ContractStatus.DRAFT);
             assertThat(saved.getAuthorConfirmedAt()).isNull();
@@ -165,7 +158,7 @@ class ContractServiceImplTest {
             Contract confirmedDraft = confirmedContract(draftContract());
             ManuscriptPublishedEvent event = new ManuscriptPublishedEvent(manuscriptId, manuscriptTitle, authorId);
 
-            when(contractRepository.findByManuscript_ManuscriptId(manuscriptId)).thenReturn(Optional.of(confirmedDraft));
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(confirmedDraft));
             when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
             contractService.activateContractForPublishedManuscript(event);
@@ -179,7 +172,7 @@ class ContractServiceImplTest {
         @DisplayName("activateContractForPublishedManuscript: помилка, якщо контракт не знайдено")
         void activateContractForPublishedManuscript_NotFound_ThrowsException() {
             ManuscriptPublishedEvent event = new ManuscriptPublishedEvent(manuscriptId, manuscriptTitle, authorId);
-            when(contractRepository.findByManuscript_ManuscriptId(manuscriptId)).thenReturn(Optional.empty());
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> contractService.activateContractForPublishedManuscript(event))
                     .isInstanceOf(ResourceNotFoundException.class);
@@ -193,22 +186,7 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Бухгалтер може переглянути будь-який контракт")
         void getContract_AsAccountant_Success() {
-            Manuscript manuscript = mock(Manuscript.class);
-            when(manuscript.getManuscriptId()).thenReturn(manuscriptId);
-
-            Contract contract = new Contract(
-                    contractId,
-                    manuscript,
-                    authorId,
-                    new BigDecimal("10.0"),
-                    new BigDecimal("1000.0"),
-                    ContractStatus.DRAFT,
-                    null,
-                    Instant.now()
-            );
-
-            when(contractRepository.findByManuscript_ManuscriptId(manuscriptId))
-                    .thenReturn(Optional.of(contract));
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
             ContractResponse response = contractService.getContractByManuscriptId(
                     manuscriptId,
@@ -222,7 +200,7 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Автор-власник може переглянути свій контракт")
         void getContract_AsOwnerAuthor_Success() {
-            when(contractRepository.findByManuscript_ManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
             ContractResponse response = contractService.getContractByManuscriptId(manuscriptId, authorId, UserRole.AUTHOR);
 
@@ -232,7 +210,7 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Сторонній автор не може переглянути чужий контракт")
         void getContract_AsForeignAuthor_ThrowsException() {
-            when(contractRepository.findByManuscript_ManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
             assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, UUID.randomUUID(), UserRole.AUTHOR)) //REM I would die of laughing if that random UUID would match author id and that would fail the correct scenario. I swear, this will happen before the most important deploy to production
                     .isInstanceOf(ForbiddenActionException.class);
@@ -241,22 +219,7 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Адміністратор може переглянути будь-який контракт")
         void getContract_AsAdmin_Success() {
-            Manuscript manuscript = mock(Manuscript.class);
-            when(manuscript.getManuscriptId()).thenReturn(manuscriptId);
-
-            Contract contract = new Contract(
-                    contractId,
-                    manuscript,
-                    authorId,
-                    new BigDecimal("10.0"),
-                    new BigDecimal("1000.0"),
-                    ContractStatus.DRAFT,
-                    null,
-                    Instant.now()
-            );
-
-            when(contractRepository.findByManuscript_ManuscriptId(manuscriptId))
-                    .thenReturn(Optional.of(contract));
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
             ContractResponse response = contractService.getContractByManuscriptId(
                     manuscriptId,
@@ -270,7 +233,7 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Помилка, якщо контракт не знайдено за id рукопису")
         void getContract_ContractNotFound_ThrowsException() {
-            when(contractRepository.findByManuscript_ManuscriptId(manuscriptId)).thenReturn(Optional.empty());
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, UUID.randomUUID(), UserRole.ACCOUNTANT))
                     .isInstanceOf(ContractNotFoundException.class);
@@ -509,7 +472,7 @@ class ContractServiceImplTest {
             ContractServiceImpl serviceWithMissingStrategy = new ContractServiceImpl(
                     contractRepository,
                     financeAuditLogRepository,
-                    manuscriptRepository,
+                    api,
                     eventPublisher,
                     logger,
                     List.of(flatRateRoyaltyStrategy, tieredVolumeRoyaltyStrategy)

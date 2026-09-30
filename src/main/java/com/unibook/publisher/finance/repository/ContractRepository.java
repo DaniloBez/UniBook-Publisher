@@ -9,5 +9,5 @@ import java.util.UUID;
 
 @Repository
 public interface ContractRepository extends JpaRepository<Contract, UUID> {
-    Optional<Contract> findByManuscript_ManuscriptId(UUID manuscriptId);
+    Optional<Contract> findByManuscriptId(UUID manuscriptId);
 }

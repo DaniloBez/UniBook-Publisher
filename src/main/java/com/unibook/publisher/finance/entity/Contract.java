@@ -1,7 +1,6 @@
 package com.unibook.publisher.finance.entity;
 
 import com.unibook.publisher.common.enums.ContractStatus;
-import com.unibook.publisher.production.entity.Manuscript;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -24,9 +23,11 @@ public class Contract {
     @Column(name = "contract_id")
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "manuscript_id", nullable = false, unique = true)
-    private Manuscript manuscript;
+    @Column(name = "manuscript_id", nullable = false, unique = true)
+    private UUID manuscriptId;
+
+    @Column(name = "title", nullable = false, unique = true)
+    private String title;
 
     @Column(name = "author_id", nullable = false)
     private UUID authorId;

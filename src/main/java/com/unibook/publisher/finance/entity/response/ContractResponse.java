@@ -15,6 +15,8 @@ public record ContractResponse(
         @JsonProperty("manuscript_id")
         UUID manuscriptId,
 
+        String title,
+
         @JsonProperty("author_id")
         UUID authorId,
 
@@ -33,10 +35,10 @@ public record ContractResponse(
         Instant createdAt
 ) {
     public static ContractResponse from(Contract contract) {
-        UUID manuscriptId = (contract.getManuscript() != null) ? contract.getManuscript().getManuscriptId() : null;
         return new ContractResponse(
                 contract.getId(),
-                manuscriptId,
+                contract.getManuscriptId(),
+                contract.getTitle(),
                 contract.getAuthorId(),
                 contract.getRoyaltyPercent(),
                 contract.getAdvancePayment(),

@@ -22,8 +22,8 @@ import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
 import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
-import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.repository.ManuscriptRepository;
+import com.unibook.publisher.production.api.ManuscriptApi;
+import com.unibook.publisher.production.api.ManuscriptDto;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,21 +41,21 @@ import java.util.stream.Collectors;
 public class ContractServiceImpl implements ContractService {
     private final ContractRepository contractRepository;
     private final FinanceAuditLogRepository financeAuditLogRepository;
-    private final ManuscriptRepository manuscriptRepository;
+    private final ManuscriptApi api;
     private final ApplicationEventPublisher eventPublisher;
     private final AppLogger logger;
     private final Map<RoyaltyStrategyType, RoyaltyStrategy> strategies;
 
     public ContractServiceImpl(
             ContractRepository contractRepository,
-            FinanceAuditLogRepository financeAuditLogRepository, ManuscriptRepository manuscriptRepository,
+            FinanceAuditLogRepository financeAuditLogRepository, ManuscriptApi api,
             ApplicationEventPublisher eventPublisher,
             AppLogger logger,
             List<RoyaltyStrategy> strategyList
     ) {
         this.contractRepository = contractRepository;
         this.financeAuditLogRepository = financeAuditLogRepository;
-        this.manuscriptRepository = manuscriptRepository;
+        this.api = api;
         this.eventPublisher = eventPublisher;
         this.logger = logger;
         this.strategies = strategyList.stream().collect(Collectors.toMap(RoyaltyStrategy::getType, Function.identity()));
@@ -64,11 +64,13 @@ public class ContractServiceImpl implements ContractService {
     @Override
     @Transactional
     public void createContractForApprovedManuscript(ManuscriptApprovedEvent event) {
-        Manuscript manuscript = manuscriptRepository.findById(event.manuscriptId())
+        ManuscriptDto manuscript = api.findById(event.manuscriptId())
                 .orElseThrow(() -> new ManuscriptNotFoundException(event.manuscriptId()));
+
         Contract contract = new Contract(
                 null,
-                manuscript,
+                manuscript.manuscriptId(),
+                manuscript.title(),
                 event.authorId(),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
@@ -88,7 +90,7 @@ public class ContractServiceImpl implements ContractService {
     @Override
     @Transactional
     public void activateContractForPublishedManuscript(ManuscriptPublishedEvent event) {
-        Contract contract = contractRepository.findByManuscript_ManuscriptId(event.manuscriptId())
+        Contract contract = contractRepository.findByManuscriptId(event.manuscriptId())
                 .orElseThrow(() -> new ContractNotFoundException(event.manuscriptId()));
 
         ContractStatus oldStatus = contract.getStatus();
@@ -105,7 +107,7 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     public ContractResponse getContractByManuscriptId(UUID manuscriptId, UUID callerId, UserRole callerRole) {
-        Contract contract = contractRepository.findByManuscript_ManuscriptId(manuscriptId)
+        Contract contract = contractRepository.findByManuscriptId(manuscriptId)
                 .orElseThrow(() -> new ContractNotFoundException(manuscriptId));
 
         checkViewAccess(contract, callerId, callerRole);
@@ -164,8 +166,8 @@ public class ContractServiceImpl implements ContractService {
 
         eventPublisher.publishEvent(new ContractRoyaltyUpdatedEvent(
                 updated.getId(),
-                updated.getManuscript().getManuscriptId(),
-                updated.getManuscript().getTitle(),
+                updated.getManuscriptId(),
+                updated.getTitle(),
                 updated.getAuthorId(),
                 updated.getRoyaltyPercent()
         ));
@@ -206,8 +208,8 @@ public class ContractServiceImpl implements ContractService {
 
         eventPublisher.publishEvent(new ContractConfirmedEvent(
                 updated.getId(),
-                updated.getManuscript().getManuscriptId(),
-                updated.getManuscript().getTitle(),
+                updated.getManuscriptId(),
+                updated.getTitle(),
                 updated.getAuthorId()
         ));
 
