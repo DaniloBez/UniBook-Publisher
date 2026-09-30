@@ -8,12 +8,15 @@ import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
 import com.unibook.publisher.common.exception.business.UnsupportedRoyaltyStrategyException;
 import com.unibook.publisher.common.exception.notfound.ContractNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.finance.entity.Contract;
 import com.unibook.publisher.common.enums.ContractStatus;
+import com.unibook.publisher.finance.entity.request.ContractCreateRequest;
+import com.unibook.publisher.finance.entity.request.ContractUpdateRequest;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
 import com.unibook.publisher.finance.entity.response.ContractResponse;
@@ -21,16 +24,14 @@ import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
 import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
-import com.unibook.publisher.finance.royalty.impl.FlatRateRoyaltyStrategy;
-import com.unibook.publisher.finance.royalty.impl.TieredVolumeRoyaltyStrategy;
-import com.unibook.publisher.finance.royalty.impl.AdvanceRecoupmentRoyaltyStrategy;
+import com.unibook.publisher.production.api.ManuscriptApi;
+import com.unibook.publisher.production.api.ManuscriptDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -43,6 +44,7 @@ import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -54,6 +56,9 @@ class ContractServiceImplTest {
 
     @Mock
     private FinanceAuditLogRepository financeAuditLogRepository;
+
+    @Mock
+    private ManuscriptApi api;
 
     @Mock
     private ApplicationEventPublisher eventPublisher;
@@ -80,6 +85,7 @@ class ContractServiceImplTest {
         contractService = new ContractServiceImpl(
                 contractRepository,
                 financeAuditLogRepository,
+                api,
                 eventPublisher,
                 logger,
                 List.of(
@@ -109,6 +115,16 @@ class ContractServiceImplTest {
         );
     }
 
+    private Contract confirmedContract(Contract contract) {
+        contract.setAuthorConfirmedAt(Instant.now());
+        return contract;
+    }
+
+    private Contract activeContract(Contract contract) {
+        contract.setStatus(ContractStatus.ACTIVE);
+        return contract;
+    }
+
     @Nested
     @DisplayName("Створення та активація контракту через події")
     class LifecycleEventTests {
@@ -116,8 +132,15 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("createContractForApprovedManuscript: створює новий контракт у статусі DRAFT")
         void createContractForApprovedManuscript_Success() {
-            ManuscriptApprovedEvent event = new ManuscriptApprovedEvent(manuscriptId, manuscriptTitle, UUID.randomUUID(), authorId);
-            when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0)); //returning the very same input
+            ManuscriptApprovedEvent event = new ManuscriptApprovedEvent(
+                    manuscriptId,
+                    manuscriptTitle,
+                    UUID.randomUUID(),
+                    authorId
+            );
+
+            when(api.findById(manuscriptId)).thenReturn(Optional.of(new ManuscriptDto(manuscriptId, manuscriptTitle)));
+            when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
             contractService.createContractForApprovedManuscript(event);
 
@@ -125,16 +148,18 @@ class ContractServiceImplTest {
             verify(contractRepository).save(captor.capture());
 
             Contract saved = captor.getValue();
-            assertThat(saved.manuscriptId()).isEqualTo(manuscriptId);
-            assertThat(saved.authorId()).isEqualTo(authorId);
-            assertThat(saved.status()).isEqualTo(ContractStatus.DRAFT);
-            assertThat(saved.authorConfirmedAt()).isNull();
+
+            assertThat(saved.getManuscriptId()).isEqualTo(manuscriptId);
+            assertThat(saved.getTitle()).isEqualTo(manuscriptTitle);
+            assertThat(saved.getAuthorId()).isEqualTo(authorId);
+            assertThat(saved.getStatus()).isEqualTo(ContractStatus.DRAFT);
+            assertThat(saved.getAuthorConfirmedAt()).isNull();
         }
 
         @Test
         @DisplayName("activateContractForPublishedManuscript: переводить контракт у статус ACTIVE")
         void activateContractForPublishedManuscript_Success() {
-            Contract confirmedDraft = draftContract().confirmedByAuthor(Instant.now());
+            Contract confirmedDraft = confirmedContract(draftContract());
             ManuscriptPublishedEvent event = new ManuscriptPublishedEvent(manuscriptId, manuscriptTitle, authorId);
 
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(confirmedDraft));
@@ -144,7 +169,7 @@ class ContractServiceImplTest {
 
             ArgumentCaptor<Contract> captor = ArgumentCaptor.forClass(Contract.class);
             verify(contractRepository).save(captor.capture());
-            assertThat(captor.getValue().status()).isEqualTo(ContractStatus.ACTIVE);
+            assertThat(captor.getValue().getStatus()).isEqualTo(ContractStatus.ACTIVE);
         }
 
         @Test
@@ -167,7 +192,11 @@ class ContractServiceImplTest {
         void getContract_AsAccountant_Success() {
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
-            ContractResponse response = contractService.getContractByManuscriptId(manuscriptId, UUID.randomUUID(), UserRole.ACCOUNTANT);
+            ContractResponse response = contractService.getContractByManuscriptId(
+                    manuscriptId,
+                    UUID.randomUUID(),
+                    UserRole.ACCOUNTANT
+            );
 
             assertThat(response.manuscriptId()).isEqualTo(manuscriptId);
         }
@@ -196,7 +225,11 @@ class ContractServiceImplTest {
         void getContract_AsAdmin_Success() {
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
-            ContractResponse response = contractService.getContractByManuscriptId(manuscriptId, UUID.randomUUID(), UserRole.ADMIN);
+            ContractResponse response = contractService.getContractByManuscriptId(
+                    manuscriptId,
+                    UUID.randomUUID(),
+                    UserRole.ADMIN
+            );
 
             assertThat(response.manuscriptId()).isEqualTo(manuscriptId);
         }
@@ -218,7 +251,7 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Бухгалтер успішно змінює ставку в статусі DRAFT та скидає підтвердження автора")
         void updateRoyalty_Success_ResetsConfirmation() {
-            Contract confirmed = draftContract().confirmedByAuthor(Instant.now());
+            Contract confirmed = confirmedContract(draftContract());
             RoyaltyUpdateRequest request = new RoyaltyUpdateRequest(
                     new BigDecimal("12.5"), new BigDecimal("5000.0"), "Перегляд з огляду на обсяг рукопису"
             );
@@ -252,7 +285,7 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Помилка, якщо контракт вже у статусі ACTIVE")
         void updateRoyalty_ActiveContract_ThrowsException() {
-            Contract active = draftContract().activated();
+            Contract active = activeContract(draftContract());
             RoyaltyUpdateRequest request = new RoyaltyUpdateRequest(
                     new BigDecimal("12.5"), new BigDecimal("5000.0"), "Причина"
             );
@@ -316,7 +349,7 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Помилка, якщо контракт вже ACTIVE")
         void confirmContract_AlreadyActive_ThrowsException() {
-            Contract active = draftContract().activated();
+            Contract active = activeContract(draftContract());
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
 
             assertThatThrownBy(() -> contractService.confirmContract(contractId, authorId))
@@ -326,12 +359,12 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Повторне підтвердження вже підтвердженого контракту нічого не змінює (ідемпотентність)")
         void confirmContract_AlreadyConfirmed_IsIdempotent() {
-            Contract alreadyConfirmed = draftContract().confirmedByAuthor(Instant.now());
+            Contract alreadyConfirmed = confirmedContract(draftContract());
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(alreadyConfirmed));
 
             ContractResponse response = contractService.confirmContract(contractId, authorId);
 
-            assertThat(response.authorConfirmedAt()).isEqualTo(alreadyConfirmed.authorConfirmedAt());
+            assertThat(response.authorConfirmedAt()).isEqualTo(alreadyConfirmed.getAuthorConfirmedAt());
             verify(contractRepository, never()).save(any());
             verifyNoInteractions(eventPublisher);
         }
@@ -443,6 +476,7 @@ class ContractServiceImplTest {
             ContractServiceImpl serviceWithMissingStrategy = new ContractServiceImpl(
                     contractRepository,
                     financeAuditLogRepository,
+                    api,
                     eventPublisher,
                     logger,
                     List.of(flatRateRoyaltyStrategy, tieredVolumeRoyaltyStrategy)
@@ -452,6 +486,206 @@ class ContractServiceImplTest {
 
             assertThatThrownBy(() -> serviceWithMissingStrategy.simulatePayout(contractId, authorId, UserRole.AUTHOR, request))
                     .isInstanceOf(UnsupportedRoyaltyStrategyException.class);
+        }
+    }
+
+    @Nested
+    class CreateContractTests {
+        @Test
+        void createContract_Success() {
+            ContractCreateRequest request = new ContractCreateRequest(
+                    manuscriptId,
+                    authorId,
+                    new BigDecimal("12.5"),
+                    new BigDecimal("1000.0")
+            );
+
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
+            when(api.findById(manuscriptId)).thenReturn(Optional.of(new ManuscriptDto(manuscriptId, manuscriptTitle)));
+            when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            ContractResponse response = contractService.createContract(request);
+
+            assertThat(response.manuscriptId()).isEqualTo(manuscriptId);
+            assertThat(response.authorId()).isEqualTo(authorId);
+            assertThat(response.royaltyPercent()).isEqualByComparingTo("12.5");
+            assertThat(response.advancePayment()).isEqualByComparingTo("1000.0");
+            assertThat(response.status()).isEqualTo(ContractStatus.DRAFT);
+            assertThat(response.authorConfirmedAt()).isNull();
+
+            ArgumentCaptor<Contract> captor = ArgumentCaptor.forClass(Contract.class);
+            verify(contractRepository).save(captor.capture());
+            assertThat(captor.getValue().getTitle()).isEqualTo(manuscriptTitle);
+        }
+
+        @Test
+        void createContract_AlreadyExists_ThrowsException() {
+            ContractCreateRequest request = new ContractCreateRequest(
+                    manuscriptId, authorId,
+                    new BigDecimal("12.5"), new BigDecimal("1000.0")
+            );
+
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
+            assertThrows(IllegalStateException.class, () -> contractService.createContract(request));
+            verify(contractRepository, never()).save(any());
+            verifyNoInteractions(api);
+        }
+
+        @Test
+        void createContract_ManuscriptNotFound_ThrowsException() {
+            ContractCreateRequest request = new ContractCreateRequest(
+                    manuscriptId, authorId,
+                    new BigDecimal("12.5"), new BigDecimal("1000.0")
+            );
+
+            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
+            when(api.findById(manuscriptId)).thenReturn(Optional.empty());
+            assertThrows(ManuscriptNotFoundException.class, () -> contractService.createContract(request));
+            verify(contractRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    class GetContractByIdTests {
+        @Test
+        void getContractById_AsAccountant_Success() {
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(draftContract()));
+            ContractResponse response = contractService.getContractById(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT);
+            assertThat(response.contractId()).isEqualTo(contractId);
+            assertThat(response.manuscriptId()).isEqualTo(manuscriptId);
+        }
+
+        @Test
+        void getContractById_AsOwnerAuthor_Success() {
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(draftContract()));
+            ContractResponse response = contractService.getContractById(contractId, authorId, UserRole.AUTHOR);
+            assertThat(response.authorId()).isEqualTo(authorId);
+        }
+
+        @Test
+        void getContractById_AsForeignAuthor_ThrowsException() {
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(draftContract()));
+            assertThrows(ForbiddenActionException.class, () -> contractService.getContractById(contractId, UUID.randomUUID(), UserRole.AUTHOR));
+        }
+
+        @Test
+        void getContractById_NotFound_ThrowsException() {
+            when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
+            assertThrows(ContractNotFoundException.class, () -> contractService.getContractById(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT));
+        }
+    }
+
+    @Nested
+    class GetAllContractsTests {
+
+        @Test
+        void getAllContracts_AsAccountant_Success() {
+            when(contractRepository.findAll()).thenReturn(List.of(draftContract(), activeContract(draftContract())));
+            List<ContractResponse> result = contractService.getAllContracts(UUID.randomUUID(), UserRole.ACCOUNTANT);
+            assertThat(result).hasSize(2);
+            verify(contractRepository).findAll();
+        }
+
+        @Test
+        void getAllContracts_AsAdmin_Success() {
+            when(contractRepository.findAll()).thenReturn(List.of(draftContract()));
+            List<ContractResponse> result = contractService.getAllContracts(UUID.randomUUID(), UserRole.ADMIN);
+            assertThat(result).hasSize(1);
+        }
+
+        @Test
+        void getAllContracts_AsAuthor_ThrowsException() {
+            assertThrows(ForbiddenActionException.class, () -> contractService.getAllContracts(authorId, UserRole.AUTHOR));
+        }
+
+        @Test
+        void getAllContracts_AsEditor_ThrowsException() {
+            assertThrows(ForbiddenActionException.class, () -> contractService.getAllContracts(UUID.randomUUID(), UserRole.EDITOR));
+        }
+    }
+
+    @Nested
+    class UpdateContractTests {
+        @Test
+        void updateContract_Success_ResetsConfirmation() {
+            Contract confirmed = confirmedContract(draftContract());
+            ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
+
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(confirmed));
+            when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+            ContractResponse response = contractService.updateContract(
+                    contractId, UUID.randomUUID(), UserRole.ACCOUNTANT, request
+            );
+
+            assertThat(response.royaltyPercent()).isEqualByComparingTo("20.0");
+            assertThat(response.advancePayment()).isEqualByComparingTo("3000.0");
+            assertThat(response.authorConfirmedAt()).isNull();
+            verify(contractRepository).save(any(Contract.class));
+        }
+
+        @Test
+        void updateContract_NotAccountant_ThrowsException() {
+            ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
+            assertThrows(ForbiddenActionException.class, () -> contractService.updateContract(contractId, UUID.randomUUID(), UserRole.ADMIN, request));
+        }
+
+        @Test
+        void updateContract_NotDraft_ThrowsException() {
+            Contract active = activeContract(draftContract());
+            ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
+            assertThrows(InvalidStateTransitionException.class, () -> contractService.updateContract(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT, request));
+            verify(contractRepository, never()).save(any());
+        }
+
+        @Test
+        void updateContract_NotFound_ThrowsException() {
+            ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
+
+            when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
+            assertThrows(ContractNotFoundException.class, () -> contractService.updateContract(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT, request));
+            verify(contractRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    class DeleteContractTests {
+        @Test
+        void deleteContract_Draft_Success() {
+            Contract draft = draftContract();
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(draft));
+            contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ADMIN);
+            verify(contractRepository).delete(draft);
+        }
+
+        @Test
+        void deleteContract_Terminated_Success() {
+            Contract terminated = draftContract();
+            terminated.setStatus(ContractStatus.TERMINATED);
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(terminated));
+            contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ADMIN);
+            verify(contractRepository).delete(terminated);
+        }
+
+        @Test
+        void deleteContract_NotAdmin_ThrowsException() {
+            assertThrows(ForbiddenActionException.class, () -> contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT));
+        }
+
+        @Test
+        void deleteContract_Active_ThrowsException() {
+            Contract active = activeContract(draftContract());
+            when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
+            assertThrows(InvalidStateTransitionException.class, () -> contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ADMIN));
+            verify(contractRepository, never()).delete(any());
+        }
+
+        @Test
+        void deleteContract_NotFound_ThrowsException() {
+            when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
+            assertThrows(ContractNotFoundException.class, () -> contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ADMIN));
+            verify(contractRepository, never()).delete(any());
         }
     }
 }

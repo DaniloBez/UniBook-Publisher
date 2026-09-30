@@ -7,7 +7,7 @@ import com.unibook.publisher.production.enums.ManuscriptStatus;
 import java.time.Instant;
 import java.util.UUID;
 
-public record AuditLogResponse(
+public record ManuscriptAuditLogResponse(
         UUID id,
 
         @JsonProperty("manuscript_id")
@@ -24,14 +24,15 @@ public record AuditLogResponse(
 
         Instant timestamp
 ) {
-    public static AuditLogResponse from(ManuscriptAuditLog log) {
-        return new AuditLogResponse(
-                log.id(),
-                log.manuscriptId(),
-                log.changedByUserId(),
-                log.oldStatus(),
-                log.newStatus(),
-                log.timestamp()
+    public static ManuscriptAuditLogResponse from(ManuscriptAuditLog log) {
+        UUID manuscriptId = (log.getManuscript() != null) ? log.getManuscript().getManuscriptId() : null;
+        return new ManuscriptAuditLogResponse(
+                log.getId(),
+                manuscriptId,
+                log.getChangedByUserId(),
+                log.getOldStatus(),
+                log.getNewStatus(),
+                log.getTimestamp()
         );
     }
 }

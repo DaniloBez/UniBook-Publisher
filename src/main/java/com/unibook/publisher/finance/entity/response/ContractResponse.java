@@ -15,6 +15,8 @@ public record ContractResponse(
         @JsonProperty("manuscript_id")
         UUID manuscriptId,
 
+        String title,
+
         @JsonProperty("author_id")
         UUID authorId,
 
@@ -34,14 +36,15 @@ public record ContractResponse(
 ) {
     public static ContractResponse from(Contract contract) {
         return new ContractResponse(
-                contract.id(),
-                contract.manuscriptId(),
-                contract.authorId(),
-                contract.royaltyPercent(),
-                contract.advancePayment(),
-                contract.status(),
-                contract.authorConfirmedAt(),
-                contract.createdAt()
+                contract.getId(),
+                contract.getManuscriptId(),
+                contract.getTitle(),
+                contract.getAuthorId(),
+                contract.getRoyaltyPercent(),
+                contract.getAdvancePayment(),
+                contract.getStatus(),
+                contract.getAuthorConfirmedAt(),
+                contract.getCreatedAt()
         );
     }
 }

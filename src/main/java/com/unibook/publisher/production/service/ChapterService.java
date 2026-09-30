@@ -11,14 +11,9 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ChapterService {
-
     ChapterResponse createChapter(UUID manuscriptId, UUID authorId, ChapterCreationRequest request);
-
     List<ChapterResponse> getChaptersByManuscriptId(UUID manuscriptId);
-
     RevisionResponse uploadRevision(UUID chapterId, UUID userId, RevisionUploadRequest request);
-
     List<RevisionResponse> getRevisionsByChapterId(UUID chapterId);
-
     DiffResponse getDiffChapter(UUID chapterId, DiffRequest request);
 }

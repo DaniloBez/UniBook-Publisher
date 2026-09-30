@@ -3,7 +3,7 @@ package com.unibook.publisher.production.controller;
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.production.entity.request.AssignDesignerRequest;
-import com.unibook.publisher.production.entity.response.AuditLogResponse;
+import com.unibook.publisher.production.entity.response.ManuscriptAuditLogResponse;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.service.ManuscriptFinalizationService;
 import jakarta.validation.Valid;
@@ -56,7 +56,7 @@ public class ManuscriptEditorialController {
     }
 
     @GetMapping("/{id}/audit-log")
-    public ResponseEntity<List<AuditLogResponse>> getAuditLog(@PathVariable UUID id) {
+    public ResponseEntity<List<ManuscriptAuditLogResponse>> getAuditLog(@PathVariable UUID id) {
         return ResponseEntity.ok(finalizationService.getAuditLog(id));
     }
 }

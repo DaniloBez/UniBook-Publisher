@@ -8,8 +8,8 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record TeamAssignmentResponse(
-        @JsonProperty("team_id")
-        UUID teamId,
+        @JsonProperty("assignment_id")
+        UUID assignmentId,
 
         @JsonProperty("manuscript_id")
         UUID manuscriptId,
@@ -22,13 +22,14 @@ public record TeamAssignmentResponse(
         @JsonProperty("assigned_at")
         Instant assignedAt
 ) {
-    public static TeamAssignmentResponse from(TeamAssignment teamAssignment) {
+    public static TeamAssignmentResponse from(TeamAssignment assignment) {
+        UUID manuscriptId = (assignment.getManuscript() != null) ? assignment.getManuscript().getManuscriptId() : null;
         return new TeamAssignmentResponse(
-                teamAssignment.teamId(),
-                teamAssignment.manuscriptId(),
-                teamAssignment.userId(),
-                teamAssignment.role(),
-                teamAssignment.assignedAt()
+                assignment.getAssignmentId(),
+                manuscriptId,
+                assignment.getUserId(),
+                assignment.getRole(),
+                assignment.getAssignedAt()
         );
     }
 }

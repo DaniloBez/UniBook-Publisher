@@ -9,11 +9,14 @@ import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
 import com.unibook.publisher.common.exception.business.UnsupportedRoyaltyStrategyException;
 import com.unibook.publisher.common.exception.notfound.ContractNotFoundException;
+import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.finance.entity.Contract;
 import com.unibook.publisher.finance.entity.FinanceAuditLog;
+import com.unibook.publisher.finance.entity.request.ContractCreateRequest;
+import com.unibook.publisher.finance.entity.request.ContractUpdateRequest;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
 import com.unibook.publisher.finance.entity.response.ContractResponse;
@@ -21,8 +24,11 @@ import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
 import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
+import com.unibook.publisher.production.api.ManuscriptApi;
+import com.unibook.publisher.production.api.ManuscriptDto;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,33 +39,40 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
+@Transactional(readOnly = true)
 public class ContractServiceImpl implements ContractService {
     private final ContractRepository contractRepository;
     private final FinanceAuditLogRepository financeAuditLogRepository;
+    private final ManuscriptApi api;
     private final ApplicationEventPublisher eventPublisher;
     private final AppLogger logger;
     private final Map<RoyaltyStrategyType, RoyaltyStrategy> strategies;
 
     public ContractServiceImpl(
             ContractRepository contractRepository,
-            FinanceAuditLogRepository financeAuditLogRepository,
+            FinanceAuditLogRepository financeAuditLogRepository, ManuscriptApi api,
             ApplicationEventPublisher eventPublisher,
             AppLogger logger,
             List<RoyaltyStrategy> strategyList
     ) {
         this.contractRepository = contractRepository;
         this.financeAuditLogRepository = financeAuditLogRepository;
+        this.api = api;
         this.eventPublisher = eventPublisher;
         this.logger = logger;
         this.strategies = strategyList.stream().collect(Collectors.toMap(RoyaltyStrategy::getType, Function.identity()));
     }
 
     @Override
+    @Transactional
     public void createContractForApprovedManuscript(ManuscriptApprovedEvent event) {
+        ManuscriptDto manuscript = api.findById(event.manuscriptId())
+                .orElseThrow(() -> new ManuscriptNotFoundException(event.manuscriptId()));
+
         Contract contract = new Contract(
                 null,
-                event.manuscriptId(),
-                event.manuscriptTitle(),
+                manuscript.manuscriptId(),
+                manuscript.title(),
                 event.authorId(),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
@@ -77,17 +90,20 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    @Transactional
     public void activateContractForPublishedManuscript(ManuscriptPublishedEvent event) {
         Contract contract = contractRepository.findByManuscriptId(event.manuscriptId())
                 .orElseThrow(() -> new ContractNotFoundException(event.manuscriptId()));
 
-        contractRepository.save(contract.activated());
+        ContractStatus oldStatus = contract.getStatus();
+        contract.setStatus(ContractStatus.ACTIVE);
+        contractRepository.save(contract);
 
         logger.info(
             "Updated contract {} status: {} -> {}",
-            contract.id(),
-            contract.status(),
-            contract.status()
+            contract.getId(),
+            oldStatus,
+            contract.getStatus()
         );
     }
 
@@ -102,82 +118,89 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
+    @Transactional
     public ContractResponse updateRoyalty(UUID contractId, UUID callerId, UserRole callerRole, RoyaltyUpdateRequest request) {
         if (callerRole != UserRole.ACCOUNTANT)
             throw new ForbiddenActionException("Змінювати умови контракту може тільки бухгалтер");
 
         Contract contract = getContractOrThrow(contractId);
 
-        if (contract.status() != ContractStatus.DRAFT) {
+        if (contract.getStatus() != ContractStatus.DRAFT) {
             throw new InvalidStateTransitionException(
                     "Contract",
                     contractId,
-                    contract.status(),
+                    contract.getStatus(),
                     ContractStatus.DRAFT,
-                    contract.status().allowedTransitions()
+                    contract.getStatus().allowedTransitions()
             );
         }
 
-        //REM no transactions for now; anyway, no actual db for now as well \(ツ)/
         FinanceAuditLog auditLog = new FinanceAuditLog(
                 null,
-                contract.id(),
+                contract,
                 callerId,
-                contract.royaltyPercent(),
+                contract.getRoyaltyPercent(),
                 request.newRoyaltyPercent(),
-                contract.advancePayment(),
+                contract.getAdvancePayment(),
                 request.newAdvance(),
                 request.reason(),
                 Instant.now()
         );
         financeAuditLogRepository.save(auditLog);
-        Contract updated = contractRepository.save(
-                contract.withUpdatedRoyalty(request.newRoyaltyPercent(), request.newAdvance())
-        );
+
+        BigDecimal oldRoyalty = contract.getRoyaltyPercent();
+        BigDecimal oldAdvance = contract.getAdvancePayment();
+
+        contract.setRoyaltyPercent(request.newRoyaltyPercent());
+        contract.setAdvancePayment(request.newAdvance());
+        contract.setAuthorConfirmedAt(null);
+        Contract updated = contractRepository.save(contract);
 
         logger.info(
             "Updated contract {} royalty: {} -> {}, advance: {} -> {}, by user {}",
             contractId,
-            contract.royaltyPercent(),
-            updated.royaltyPercent(),
-            contract.advancePayment(),
-            updated.advancePayment(),
+            oldRoyalty,
+            updated.getRoyaltyPercent(),
+            oldAdvance,
+            updated.getAdvancePayment(),
             callerId
         );
 
         eventPublisher.publishEvent(new ContractRoyaltyUpdatedEvent(
-                updated.id(),
-                updated.manuscriptId(),
-                updated.manuscriptTitle(),
-                updated.authorId(),
-                updated.royaltyPercent()
+                updated.getId(),
+                updated.getManuscriptId(),
+                updated.getTitle(),
+                updated.getAuthorId(),
+                updated.getRoyaltyPercent()
         ));
 
         return ContractResponse.from(updated);
     }
 
     @Override
+    @Transactional
     public ContractResponse confirmContract(UUID contractId, UUID callerId) {
         Contract contract = getContractOrThrow(contractId);
 
-        if (!contract.authorId().equals(callerId))
+        if (!contract.getAuthorId().equals(callerId))
             throw new ForbiddenActionException("Підтверджувати контракт може тільки автор рукопису");
 
-        if (contract.status() != ContractStatus.DRAFT) {
+        if (contract.getStatus() != ContractStatus.DRAFT) {
             throw new InvalidStateTransitionException(
                     "Contract",
                     contractId,
-                    contract.status(),
+                    contract.getStatus(),
                     ContractStatus.DRAFT,
-                    contract.status().allowedTransitions()
+                    contract.getStatus().allowedTransitions()
             );
         }
 
-        if (contract.authorConfirmedAt() != null) { //silent idempotency
+        if (contract.getAuthorConfirmedAt() != null) { //silent idempotency
             return ContractResponse.from(contract);
         }
 
-        Contract updated = contractRepository.save(contract.confirmedByAuthor(Instant.now()));
+        contract.setAuthorConfirmedAt(Instant.now());
+        Contract updated = contractRepository.save(contract);
 
         logger.info(
             "Updated contract {}: author {} confirmed contract",
@@ -186,10 +209,10 @@ public class ContractServiceImpl implements ContractService {
         );
 
         eventPublisher.publishEvent(new ContractConfirmedEvent(
-                updated.id(),
-                updated.manuscriptId(),
-                updated.manuscriptTitle(),
-                updated.authorId()
+                updated.getId(),
+                updated.getManuscriptId(),
+                updated.getTitle(),
+                updated.getAuthorId()
         ));
 
         return ContractResponse.from(updated);
@@ -208,13 +231,13 @@ public class ContractServiceImpl implements ContractService {
                 request.salesAmount()
         );
 
-        BigDecimal totalPayout = calculatedRoyalty.add(contract.advancePayment());
+        BigDecimal totalPayout = calculatedRoyalty.add(contract.getAdvancePayment());
 
         return new PayoutSimulationResponse(
-                contract.id(),
+                contract.getId(),
                 request.salesAmount(),
-                contract.royaltyPercent(),
-                contract.advancePayment(),
+                contract.getRoyaltyPercent(),
+                contract.getAdvancePayment(),
                 calculatedRoyalty,
                 totalPayout
         );
@@ -226,7 +249,7 @@ public class ContractServiceImpl implements ContractService {
     }
 
     private void checkViewAccess(Contract contract, UUID callerId, UserRole callerRole) {
-        boolean isOwner = contract.authorId().equals(callerId);
+        boolean isOwner = contract.getAuthorId().equals(callerId);
         boolean isPrivileged = callerRole == UserRole.ACCOUNTANT || callerRole == UserRole.ADMIN;
 
         if (!isOwner && !isPrivileged)
@@ -241,5 +264,96 @@ public class ContractServiceImpl implements ContractService {
         }
 
         return strategy;
+    }
+
+    @Override
+    @Transactional
+    public ContractResponse createContract(ContractCreateRequest request) {
+        contractRepository.findByManuscriptId(request.manuscriptId())
+                .ifPresent(c -> {
+                    throw new IllegalStateException(
+                            "Контракт для рукопису " + request.manuscriptId() + " вже існує");
+                });
+
+        ManuscriptDto manuscript = api.findById(request.manuscriptId())
+                .orElseThrow(() -> new ManuscriptNotFoundException(request.manuscriptId()));
+
+        Contract contract = new Contract(
+                null,
+                request.manuscriptId(),
+                manuscript.title(),
+                request.authorId(),
+                request.royaltyPercent(),
+                request.advancePayment(),
+                ContractStatus.DRAFT,
+                null,
+                Instant.now()
+        );
+
+        Contract saved = contractRepository.save(contract);
+        logger.info("Created contract {} for manuscript {}", saved.getId(), request.manuscriptId());
+
+        return ContractResponse.from(saved);
+    }
+
+    @Override
+    public ContractResponse getContractById(UUID id, UUID callerId, UserRole callerRole) {
+        Contract contract = getContractOrThrow(id);
+        checkViewAccess(contract, callerId, callerRole);
+        return ContractResponse.from(contract);
+    }
+
+    @Override
+    public List<ContractResponse> getAllContracts(UUID callerId, UserRole callerRole) {
+        if (callerRole != UserRole.ACCOUNTANT && callerRole != UserRole.ADMIN) {
+            throw new ForbiddenActionException("Переглядати всі контракти можуть лише бухгалтер або адміністратор");
+        }
+        return contractRepository.findAll().stream()
+                .map(ContractResponse::from)
+                .toList();
+    }
+
+    @Override
+    @Transactional
+    public ContractResponse updateContract(UUID id, UUID callerId, UserRole callerRole, ContractUpdateRequest request) {
+        if (callerRole != UserRole.ACCOUNTANT) {
+            throw new ForbiddenActionException("Оновлювати контракт може лише бухгалтер");
+        }
+
+        Contract contract = getContractOrThrow(id);
+
+        if (contract.getStatus() != ContractStatus.DRAFT) {
+            throw new InvalidStateTransitionException(
+                    "Contract", id, contract.getStatus(), ContractStatus.DRAFT,
+                    contract.getStatus().allowedTransitions()
+            );
+        }
+
+        contract.setRoyaltyPercent(request.royaltyPercent());
+        contract.setAdvancePayment(request.advancePayment());
+        contract.setAuthorConfirmedAt(null);
+
+        Contract updated = contractRepository.save(contract);
+        logger.info("Updated contract {}: royalty={}, advance={}",
+                id, updated.getRoyaltyPercent(), updated.getAdvancePayment());
+
+        return ContractResponse.from(updated);
+    }
+
+    @Override
+    @Transactional
+    public void deleteContract(UUID id, UUID callerId, UserRole callerRole) {
+        if (callerRole != UserRole.ADMIN) {
+            throw new ForbiddenActionException("Видаляти контракт може лише адміністратор");
+        }
+        Contract contract = getContractOrThrow(id);
+        if (contract.getStatus() == ContractStatus.ACTIVE) {
+            throw new InvalidStateTransitionException(
+                    "Contract", id, contract.getStatus(), ContractStatus.TERMINATED,
+                    contract.getStatus().allowedTransitions()
+            );
+        }
+        contractRepository.delete(contract);
+        logger.info("Deleted contract {} for manuscript {}", id, contract.getManuscriptId());
     }
 }

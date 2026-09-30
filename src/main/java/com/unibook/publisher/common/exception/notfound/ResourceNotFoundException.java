@@ -6,4 +6,8 @@ public class ResourceNotFoundException extends DomainException {
     public ResourceNotFoundException(String resourceName, Object id) {
         super(String.format("%s за ID: %s не знайдено", resourceName, id));
     }
+
+    public ResourceNotFoundException(String message) {
+        super(message);
+    }
 }

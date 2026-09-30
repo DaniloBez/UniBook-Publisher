@@ -56,16 +56,16 @@ public class ChapterServiceImpl implements ChapterService {
     public ChapterResponse createChapter(UUID manuscriptId, UUID authorId, ChapterCreationRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
-        if(!manuscript.authorId().equals(authorId)) {
+        if(!manuscript.getAuthorId().equals(authorId)) {
             throw new ForbiddenActionException("Автор не має прав на додавання розділів до цього рукопису");
         }
-        if(manuscript.status() != ManuscriptStatus.IN_PROGRESS) {
+        if(manuscript.getStatus() != ManuscriptStatus.IN_PROGRESS) {
             throw new InvalidStateTransitionException(
                     "Manuscript",
                     manuscriptId,
-                    manuscript.status(),
+                    manuscript.getStatus(),
                     ManuscriptStatus.IN_PROGRESS,
-                    manuscript.status().allowedTransitions()
+                    manuscript.getStatus().allowedTransitions()
             );
         }
         Chapter chapter = new Chapter(
@@ -103,18 +103,18 @@ public class ChapterServiceImpl implements ChapterService {
                 .orElseThrow(() -> new ChapterNotFoundException(chapterId));
         Manuscript manuscript = manuscriptRepository.findById(chapter.manuscriptId())
                 .orElseThrow(() -> new ManuscriptNotFoundException(chapter.manuscriptId()));
-        if(manuscript.status() != ManuscriptStatus.IN_PROGRESS) {
+        if(manuscript.getStatus() != ManuscriptStatus.IN_PROGRESS) {
             throw new InvalidStateTransitionException(
                     "Manuscript",
-                    manuscript.manuscriptId(),
-                    manuscript.status(),
+                    manuscript.getManuscriptId(),
+                    manuscript.getStatus(),
                     ManuscriptStatus.IN_PROGRESS,
-                    manuscript.status().allowedTransitions()
+                    manuscript.getStatus().allowedTransitions()
             );
         }
 
-        boolean isAuthor = manuscript.authorId().equals(userId);
-        boolean isEditor = teamAssignmentRepository.isUserAssignedToManuscript(manuscript.manuscriptId(), userId, UserRole.EDITOR);
+        boolean isAuthor = manuscript.getAuthorId().equals(userId);
+        boolean isEditor = teamAssignmentRepository.existsByManuscript_ManuscriptIdAndUserIdAndRole(manuscript.getManuscriptId(), userId, UserRole.EDITOR);
 
         if(!isAuthor && !isEditor) {
             throw new ForbiddenActionException("Користувач не має прав на завантаження ревізій для цього розділу");
@@ -146,12 +146,12 @@ public class ChapterServiceImpl implements ChapterService {
         );
 
         publisher.publishEvent(new RevisionAddedEvent(
-                manuscript.manuscriptId(),
-                manuscript.title(),
+                manuscript.getManuscriptId(),
+                manuscript.getTitle(),
                 chapter.chapterId(),
                 saved.revisionId(),
                 userId,
-                manuscript.authorId()
+                manuscript.getAuthorId()
         ));
 
         return RevisionResponse.from(saved);

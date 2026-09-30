@@ -1,10 +1,12 @@
 package com.unibook.publisher.production.entity.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.unibook.publisher.production.entity.Genre;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.Manuscript;
 
 import java.time.Instant;
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 
@@ -31,15 +33,20 @@ public record ManuscriptResponse (
         Instant submittedAt
 ) {
     public static ManuscriptResponse from(Manuscript manuscript) {
+        List<UUID> genreIds = (manuscript.getGenres() != null)
+                ? manuscript.getGenres().stream()
+                .map(Genre::getGenreId)
+                .toList() : Collections.emptyList();
+
         return new ManuscriptResponse(
-                manuscript.manuscriptId(),
-                manuscript.title(),
-                manuscript.authorId(),
-                manuscript.status(),
-                manuscript.genreIds(),
-                manuscript.annotation(),
-                manuscript.draftFileUrl(),
-                manuscript.submittedAt()
+                manuscript.getManuscriptId(),
+                manuscript.getTitle(),
+                manuscript.getAuthorId(),
+                manuscript.getStatus(),
+                genreIds,
+                manuscript.getAnnotation(),
+                manuscript.getDraftFileUrl(),
+                manuscript.getSubmittedAt()
         );
     }
 }

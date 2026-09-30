@@ -19,7 +19,7 @@ public class FlatRateRoyaltyStrategy implements RoyaltyStrategy {
     @Override
     public BigDecimal calculateRoyalty(Contract contract, BigDecimal salesAmount) {
         return salesAmount
-                .multiply(contract.royaltyPercent())
+                .multiply(contract.getRoyaltyPercent())
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
     }
 }
