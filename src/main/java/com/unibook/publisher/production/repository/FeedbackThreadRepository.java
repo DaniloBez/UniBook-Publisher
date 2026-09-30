@@ -2,38 +2,21 @@ package com.unibook.publisher.production.repository;
 
 import com.unibook.publisher.production.entity.FeedbackThread;
 import com.unibook.publisher.production.enums.ThreadStatus;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Repository
-public class FeedbackThreadRepository {
-    private final ConcurrentHashMap<UUID, FeedbackThread> threads = new ConcurrentHashMap<>();
+public interface FeedbackThreadRepository extends JpaRepository<FeedbackThread, UUID> {
+    @Query("SELECT DISTINCT t FROM FeedbackThread t LEFT JOIN FETCH t.messages WHERE t.chapter.chapterId = :chapterId ORDER BY t.createdAt")
+    List<FeedbackThread> findByChapterIdWithMessages(@Param("chapterId") UUID chapterId);
 
-    public FeedbackThread save(FeedbackThread thread) {
-        threads.put(thread.id(), thread);
-        return thread;
-    }
+    @Query("SELECT DISTINCT t FROM FeedbackThread t LEFT JOIN FETCH t.messages WHERE t.chapter.chapterId = :chapterId AND t.status = :status ORDER BY t.createdAt")
+    List<FeedbackThread> findByChapterIdAndStatusWithMessages(@Param("chapterId") UUID chapterId, @Param("status") ThreadStatus status);
 
-    public Optional<FeedbackThread> findById(UUID id) {
-        return Optional.ofNullable(threads.get(id));
-    }
-
-    public List<FeedbackThread> findByChapterId(UUID chapterId) {
-        return threads.values().stream()
-                .filter(thread -> thread.chapterId().equals(chapterId))
-                .sorted(Comparator.comparing(FeedbackThread::createdAt))
-                .toList();
-    }
-
-    public List<FeedbackThread> findByChapterIdAndStatus(UUID chapterId, ThreadStatus status) {
-        return threads.values().stream()
-                .filter(thread -> thread.chapterId().equals(chapterId) && thread.status() == status)
-                .sorted(Comparator.comparing(FeedbackThread::createdAt))
-                .toList();
-    }
+    List<FeedbackThread> findByChapter_Manuscript_ManuscriptId(UUID manuscriptId);
 }

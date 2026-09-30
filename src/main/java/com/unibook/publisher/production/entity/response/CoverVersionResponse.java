@@ -26,12 +26,12 @@ public record CoverVersionResponse(
 ) {
     public static CoverVersionResponse from(CoverVersion coverVersion) {
         return new CoverVersionResponse(
-                coverVersion.id(),
-                coverVersion.manuscriptId(),
-                coverVersion.fileUrl(),
-                coverVersion.uploadedByUserId(),
-                coverVersion.versionNumber(),
-                coverVersion.uploadedAt()
+                coverVersion.getId(),
+                coverVersion.getManuscriptId(),
+                coverVersion.getFileUrl(),
+                coverVersion.getUploadedByUserId(),
+                coverVersion.getVersionNumber(),
+                coverVersion.getUploadedAt()
         );
     }
 }

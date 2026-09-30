@@ -21,10 +21,10 @@ public record ChapterResponse(
 {
     public static ChapterResponse from(Chapter chapter) {
         return new ChapterResponse(
-                chapter.chapterId(),
-                chapter.manuscriptId(),
-                chapter.chapterTitle(),
-                chapter.chapterIndex()
+                chapter.getChapterId(),
+                chapter.getManuscriptId(),
+                chapter.getChapterTitle(),
+                chapter.getChapterIndex()
         );
     }
 }

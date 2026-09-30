@@ -16,4 +16,5 @@ public interface FeedbackThreadService {
     ThreadResponse acceptSuggestion(UUID threadId, UUID userId);
     ThreadResponse rejectSuggestion(UUID threadId, UUID userId);
     ThreadResponse resolveThread(UUID threadId, UUID userId);
+    void deleteThread(UUID threadId, UUID userId);
 }

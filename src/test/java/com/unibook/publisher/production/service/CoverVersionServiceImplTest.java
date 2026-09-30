@@ -68,7 +68,7 @@ public class CoverVersionServiceImplTest {
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
-        when(coverVersionRepository.findLatestByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
+        when(coverVersionRepository.findTopByManuscript_ManuscriptIdOrderByVersionNumberDesc(manuscriptId)).thenReturn(Optional.empty());
         when(coverVersionRepository.save(any(CoverVersion.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         CoverVersionResponse response = coverVersionService.uploadCoverVersion(manuscriptId, designerId, new CoverVersionRequest("cover.png"));
@@ -138,10 +138,11 @@ public class CoverVersionServiceImplTest {
     @DisplayName("Успішне отримання списку версій обкладинок рукопису")
     void getCoverVersions_Success() {
         UUID manuscriptId = UUID.randomUUID();
-        CoverVersion coverVersion = new CoverVersion(UUID.randomUUID(), manuscriptId, "cover.png", UUID.randomUUID(), 1, Instant.now());
+        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
+        CoverVersion coverVersion = new CoverVersion(manuscript, "cover.png", UUID.randomUUID(), 1, Instant.now());
 
-        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN)));
-        when(coverVersionRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of(coverVersion));
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(coverVersionRepository.findByManuscript_ManuscriptIdOrderByVersionNumberAsc(manuscriptId)).thenReturn(List.of(coverVersion));
 
         List<CoverVersionResponse> responses = coverVersionService.getCoverVersions(manuscriptId);
 

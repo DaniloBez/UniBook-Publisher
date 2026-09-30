@@ -30,13 +30,13 @@ public record RevisionResponse(
 ) {
     public static RevisionResponse from(Revision revision) {
         return new RevisionResponse(
-                revision.revisionId(),
-                revision.chapterId(),
-                revision.versionNumber(),
-                revision.fileUrl(),
-                revision.uploadedByUserId(),
-                revision.uploadedAt(),
-                revision.textContent()
+                revision.getRevisionId(),
+                revision.getChapterId(),
+                revision.getVersionNumber(),
+                revision.getFileUrl(),
+                revision.getUploadedByUserId(),
+                revision.getUploadedAt(),
+                revision.getTextContent()
         );
     }
 }

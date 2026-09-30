@@ -25,6 +25,7 @@ import com.unibook.publisher.production.enums.ThreadStatus;
 import com.unibook.publisher.production.repository.*;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -33,6 +34,7 @@ import java.util.Set;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     private final FeedbackThreadRepository threadRepository;
     private final ThreadMessageRepository messageRepository;
@@ -63,54 +65,41 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     }
 
     @Override
+    @Transactional
     public ThreadResponse openThread(UUID chapterId, UUID initiatorId, OpenThreadRequest request) {
         Chapter chapter = chapterRepository.findById(chapterId)
                 .orElseThrow(() -> new ChapterNotFoundException(chapterId));
 
-        Manuscript manuscript = manuscriptRepository.findById(chapter.manuscriptId())
-                .orElseThrow(() -> new ManuscriptNotFoundException(chapter.manuscriptId()));
+        Manuscript manuscript = chapter.getManuscript();
 
         validateQuote(request);
+        boolean isSuggestion = request.suggestedText() != null && !request.suggestedText().isBlank();
 
         Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscript.getManuscriptId(), UserRole.EDITOR);
         UUID recipientId = resolveOtherParty(manuscript, editor, initiatorId);
 
-        boolean isSuggestion = request.suggestedText() != null && !request.suggestedText().isBlank();
-        FeedbackThread thread = new FeedbackThread(
-                UUID.randomUUID(),
-                chapterId,
-                initiatorId,
-                ThreadStatus.OPEN,
-                isSuggestion,
-                isSuggestion ? request.suggestedText() : null,
-                isSuggestion ? SuggestionStatus.PENDING : null,
-                Instant.now(),
-                request.targetRevisionId(),
-                request.quotedText(),
-                request.positionFrom(),
-                request.positionTo()
-        );
+                FeedbackThread thread = new FeedbackThread();
+        thread.setCreatedByUserId(initiatorId);
+        thread.setStatus(ThreadStatus.OPEN);
+        thread.setSuggestion(isSuggestion);
+        thread.setSuggestedText(isSuggestion ? request.suggestedText() : null);
+        thread.setSuggestionStatus(isSuggestion ? SuggestionStatus.PENDING : null);
+        thread.setCreatedAt(Instant.now());
+        thread.setTargetRevisionId(request.targetRevisionId());
+        thread.setQuotedText(request.quotedText());
+        thread.setPositionFrom(request.positionFrom());
+        thread.setPositionTo(request.positionTo());
+        chapter.addThread(thread);
+
+        ThreadMessage message = new ThreadMessage(initiatorId, request.initialMessage(), Instant.now());
+        thread.addMessage(message);
         threadRepository.save(thread);
 
         logger.info(
-                "Created feedback thread {} for chapter {} by user {}",
-                thread.id(),
+                "Created feedback thread {} with initial message {} for chapter {} by user {}",
+                thread.getId(),
+                message.getId(),
                 chapterId,
-                initiatorId
-        );
-
-        ThreadMessage message = messageRepository.save(new ThreadMessage(
-                UUID.randomUUID(),
-                thread.id(),
-                initiatorId,
-                request.initialMessage(),
-                Instant.now()
-        ));
-
-        logger.info(
-                "Created thread message {} in thread {} by user {}",
-                message.id(),
-                thread.id(),
                 initiatorId
         );
 
@@ -118,11 +107,11 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
                 manuscript.getManuscriptId(),
                 manuscript.getTitle(),
                 ThreadType.CHAPTER,
-                thread.id(),
+                thread.getId(),
                 chapterId,
                 initiatorId,
                 recipientId,
-                chapter.chapterTitle()
+                chapter.getChapterTitle()
         ));
 
         return ThreadResponse.from(thread);
@@ -137,7 +126,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         Revision revision = revisionRepository.findById(revisionId)
                 .orElseThrow(() -> new RevisionNotFoundException(revisionId));
 
-        String textContent = revision.textContent();
+        String textContent = revision.getTextContent();
         if (textContent == null) {
             throw new EmptyRevisionTextException();
         }
@@ -160,21 +149,19 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
             throw new ChapterNotFoundException(chapterId);
 
         List<FeedbackThread> threads = statusFilter == null
-                ? threadRepository.findByChapterId(chapterId)
-                : threadRepository.findByChapterIdAndStatus(chapterId, statusFilter);
+                ? threadRepository.findByChapterIdWithMessages(chapterId)
+                : threadRepository.findByChapterIdAndStatusWithMessages(chapterId, statusFilter);
         return threads.stream().map(ThreadResponse::from).toList();
     }
 
     @Override
+    @Transactional
     public ThreadMessageResponse addMessage(UUID threadId, UUID senderId, ThreadMessageRequest request) {
         FeedbackThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
 
-        Chapter chapter = chapterRepository.findById(thread.chapterId())
-                .orElseThrow(() -> new ChapterNotFoundException(thread.chapterId()));
-
-        Manuscript manuscript = manuscriptRepository.findById(chapter.manuscriptId())
-                .orElseThrow(() -> new ManuscriptNotFoundException(chapter.manuscriptId()));
+        Chapter chapter = thread.getChapter();
+        Manuscript manuscript = chapter.getManuscript();
 
         Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscript.getManuscriptId(), UserRole.EDITOR);
 
@@ -182,19 +169,15 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
             throw new ForbiddenActionException("Відповідати в треді може лише автор або призначений редактор");
 
 
-        ThreadMessage saved = messageRepository.save(new ThreadMessage(
-                UUID.randomUUID(),
-                threadId,
-                senderId,
-                request.content(),
-                Instant.now()
-        ));
+        ThreadMessage message = new ThreadMessage(senderId, request.content(), Instant.now());
+        message.setThread(thread);
+        ThreadMessage saved = messageRepository.save(message);
 
         UUID recipientId = resolveOtherParty(manuscript, editor, senderId);
         publisher.publishEvent(new ThreadMessageAddedEvent(
                 manuscript.getManuscriptId(),
                 threadId,
-                chapter.chapterTitle(),
+                chapter.getChapterTitle(),
                 senderId,
                 recipientId,
                 request.content()
@@ -204,6 +187,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     }
 
     @Override
+    @Transactional
     public ThreadResponse acceptSuggestion(UUID threadId, UUID userId) {
         FeedbackThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
@@ -215,36 +199,24 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         if (!thread.isSuggestion())
             throw new ThreadNotASuggestionException();
 
-        if (thread.suggestionStatus() != SuggestionStatus.PENDING) {
+        if (thread.getSuggestionStatus() != SuggestionStatus.PENDING) {
             throw new InvalidStateTransitionException(
                     "Suggestion",
                     threadId,
-                    thread.suggestionStatus(),
+                    thread.getSuggestionStatus(),
                     SuggestionStatus.ACCEPTED,
                     Set.of()
             );
         }
 
-        FeedbackThread updated = new FeedbackThread(
-                thread.id(),
-                thread.chapterId(),
-                thread.createdByUserId(),
-                thread.status(),
-                thread.isSuggestion(),
-                thread.suggestedText(),
-                SuggestionStatus.ACCEPTED,
-                thread.createdAt(),
-                thread.targetRevisionId(),
-                thread.quotedText(),
-                thread.positionFrom(),
-                thread.positionTo()
-        );
-        threadRepository.save(updated);
+        SuggestionStatus oldStatus = thread.getSuggestionStatus();
+        thread.setSuggestionStatus(SuggestionStatus.ACCEPTED);
+        FeedbackThread updated = threadRepository.save(thread);
 
         logger.info(
                 "Updated suggestion status for thread {}: {} -> ACCEPTED by user {}",
                 threadId,
-                thread.suggestionStatus(),
+                oldStatus,
                 userId
         );
 
@@ -252,6 +224,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     }
 
     @Override
+    @Transactional
     public ThreadResponse rejectSuggestion(UUID threadId, UUID userId) {
         FeedbackThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
@@ -263,36 +236,24 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         if (!thread.isSuggestion())
             throw new ThreadNotASuggestionException();
 
-        if (thread.suggestionStatus() != SuggestionStatus.PENDING) {
+        if (thread.getSuggestionStatus() != SuggestionStatus.PENDING) {
             throw new InvalidStateTransitionException(
                     "Suggestion",
                     threadId,
-                    thread.suggestionStatus(),
+                    thread.getSuggestionStatus(),
                     SuggestionStatus.REJECTED,
                     Set.of()
             );
         }
 
-        FeedbackThread updated = new FeedbackThread(
-                thread.id(),
-                thread.chapterId(),
-                thread.createdByUserId(),
-                thread.status(),
-                thread.isSuggestion(),
-                thread.suggestedText(),
-                SuggestionStatus.REJECTED,
-                thread.createdAt(),
-                thread.targetRevisionId(),
-                thread.quotedText(),
-                thread.positionFrom(),
-                thread.positionTo()
-        );
-        threadRepository.save(updated);
+        SuggestionStatus oldStatus = thread.getSuggestionStatus();
+        thread.setSuggestionStatus(SuggestionStatus.REJECTED);
+        FeedbackThread updated = threadRepository.save(thread);
 
         logger.info(
                 "Updated suggestion status for thread {}: {} -> REJECTED by user {}",
                 threadId,
-                thread.suggestionStatus(),
+                oldStatus,
                 userId
         );
 
@@ -300,6 +261,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     }
 
     @Override
+    @Transactional
     public ThreadResponse resolveThread(UUID threadId, UUID userId) {
         FeedbackThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
@@ -310,7 +272,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         if (!isAuthorOrEditor(manuscript, editor, userId))
             throw new ForbiddenActionException("Закрити тред може лише автор або призначений редактор");
 
-        if (thread.status() == ThreadStatus.RESOLVED) {
+        if (thread.getStatus() == ThreadStatus.RESOLVED) {
             throw new InvalidStateTransitionException(
                     "Thread",
                     threadId,
@@ -320,26 +282,14 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
             );
         }
 
-        FeedbackThread updated = new FeedbackThread(
-                thread.id(),
-                thread.chapterId(),
-                thread.createdByUserId(),
-                ThreadStatus.RESOLVED,
-                thread.isSuggestion(),
-                thread.suggestedText(),
-                thread.suggestionStatus(),
-                thread.createdAt(),
-                thread.targetRevisionId(),
-                thread.quotedText(),
-                thread.positionFrom(),
-                thread.positionTo()
-        );
-        threadRepository.save(updated);
+        ThreadStatus oldStatus = thread.getStatus();
+        thread.setStatus(ThreadStatus.RESOLVED);
+        FeedbackThread updated = threadRepository.save(thread);
 
         logger.info(
                 "Updated thread {} status: {} -> RESOLVED by user {}",
                 threadId,
-                thread.status(),
+                oldStatus,
                 userId
         );
 
@@ -347,11 +297,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     }
 
     private Manuscript manuscriptOfThread(FeedbackThread thread) {
-        Chapter chapter = chapterRepository.findById(thread.chapterId())
-                .orElseThrow(() -> new ChapterNotFoundException(thread.chapterId()));
-
-        return manuscriptRepository.findById(chapter.manuscriptId())
-                .orElseThrow(() -> new ManuscriptNotFoundException(chapter.manuscriptId()));
+        return thread.getChapter().getManuscript();
     }
 
     private boolean isAuthorOrEditor(Manuscript manuscript, Optional<TeamAssignment> editor, UUID userId) {
@@ -364,5 +310,21 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
             return editor.map(TeamAssignment::getUserId).orElse(null);
 
         return manuscript.getAuthorId();
+    }
+
+    @Override
+    @Transactional
+    public void deleteThread(UUID threadId, UUID userId) {
+        FeedbackThread thread = threadRepository.findById(threadId)
+                .orElseThrow(() -> new ThreadNotFoundException(threadId));
+        Manuscript manuscript = manuscriptOfThread(thread);
+        Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscript.getManuscriptId(), UserRole.EDITOR);
+
+        if (!isAuthorOrEditor(manuscript, editor, userId))
+            throw new ForbiddenActionException("Видалити тред може лише автор або призначений редактор");
+
+        threadRepository.delete(thread);
+
+        logger.info("Deleted feedback thread {} by user {}", threadId, userId);
     }
 }
