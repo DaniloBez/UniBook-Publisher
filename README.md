@@ -332,11 +332,13 @@ cp .env.example .env
    - `JPA_DDL_AUTO`: режим генерації структури БД (`update`, `validate`, `create-drop`).
    - `JPA_SHOW_SQL` / `JPA_FORMAT_SQL`: логування та форматування SQL-запитів у консолі.
 
-4. **S3 Сховище (Garage / MinIO / Cloudflare R2)**:
-   - `S3_ENDPOINT`: URL точки доступу до S3 (наприклад, `http://localhost:3900`).
-   - `S3_REGION`: регіон місця проживання бакета.
-   - `S3_BUCKET`: назва робочого бакета.
-   - `S3_ACCESS_KEY` / `S3_SECRET_KEY`: ключі доступу S3 API.
+4. **S3 Сховище (MinIO / Garage / Cloudflare R2)**:
+   - `S3_PORT`: зовнішній порт для S3 REST API (за замовчуванням `9000`).
+   - `S3_CONSOLE_PORT`: зовнішній порт для веб-панелі MinIO Web Console (за замовчуванням `9001`).
+   - `S3_ENDPOINT`: URL точки доступу до S3 API (для локального MinIO: `http://localhost:9000` або порт із `S3_PORT`).
+   - `S3_REGION`: регіон сховища (за замовчуванням `us-east-1`).
+   - `S3_BUCKET`: назва робочого бакета (за замовчуванням `unibook`).
+   - `S3_ACCESS_KEY` / `S3_SECRET_KEY`: облікові дані S3 API / MinIO Root User (за замовчуванням `minioadmin` / `minioadmin`, мінімальна довжина пароля MinIO — 8 символів).
 
 ---
 
@@ -371,11 +373,42 @@ cp .env.example .env
 
 ---
 
-### 7.4. Локальний запуск та тестування
+### 7.4. Локальне S3-сховище MinIO (Docker Compose)
+
+Для локального зберігання файлів (рукописів, ревізій та обкладинок) у проєкті передбачено запуск MinIO через Docker Compose. Усі налаштування беруться безпосередньо зі змінних `S3_*` у файлі `.env`.
+
+#### Запуск сховища:
+```bash
+docker compose up -d
+```
+
+#### Що робить `docker-compose.yml`:
+1. **`minio`**: запускає контейнер MinIO (`cgr.dev/chainguard/minio:latest`):
+   - Порт **`${S3_PORT:-9000}`**: S3 REST API endpoint (відповідає порту в `S3_ENDPOINT`). Якщо стандартний порт `9000` зайнятий іншою службою, його можна змінити в `.env` через `S3_PORT` (і відповідно оновити `S3_ENDPOINT`).
+   - Порт **`${S3_CONSOLE_PORT:-9001}`**: Веб-консоль керування (MinIO Web Console). За потреби також змінюється через `S3_CONSOLE_PORT`.
+   - Користувач та пароль автоматично призначаються з `S3_ACCESS_KEY` та `S3_SECRET_KEY`.
+   - Регіон береться з `S3_REGION`.
+   - Дані зберігаються у Docker volume `minio_data`.
+2. **`minio-init`**: допоміжний контейнер (`cgr.dev/chainguard/minio-client:latest-dev`), який очікує готовності MinIO та автоматично створює робочий бакет із назвою `S3_BUCKET` (за замовчуванням `unibook`), тому вручну створювати бакет не потрібно.
+
+#### Доступ до веб-панелі MinIO:
+- **URL**: [http://localhost:9001](http://localhost:9001) (або порт із `S3_CONSOLE_PORT`)
+- **Username**: значення `S3_ACCESS_KEY` (за замовчуванням `minioadmin`)
+- **Password**: значення `S3_SECRET_KEY` (за замовчуванням `minioadmin`)
+
+#### Зупинка сховища:
+```bash
+docker compose down
+```
+
+---
+
+### 7.5. Локальний запуск та тестування
 
 #### Передумови
 - Встановлений комплект розробника JDK 25 (або вище)
 - Встановлений Git
+- Встановлений Docker та Docker Compose (для локального MinIO)
 
 #### Кроки для запуску
 
@@ -385,12 +418,22 @@ git clone https://github.com/DaniloBez/UniBook-Publisher.git
 cd publisher
 ```
 
-2. Запустити повний комплекс автоматизованих тестів (включаючи перевірку архітектурних модульних кордонів Spring Modulith):
+2. Підготувати змінні оточення (за потреби скопіювати з шаблону):
+```bash
+cp .env.example .env
+```
+
+3. Запустити локальне сховище MinIO:
+```bash
+docker compose up -d
+```
+
+4. Запустити повний комплекс автоматизованих тестів (включаючи перевірку архітектурних модульних кордонів Spring Modulith):
 ```bash
 ./gradlew test --no-daemon
 ```
 
-3. Запустити застосунок локально:
+5. Запустити застосунок локально:
 ```bash
 ./gradlew bootRun
 ```
@@ -401,8 +444,9 @@ cd publisher
 ./gradlew bootRun --args='--spring.profiles.active=postgres'
 ```
 
-4. Доступ до локальних інтерфейсів та інструментів:
+6. Доступ до локальних інтерфейсів та інструментів:
 - Web-застосунок: `http://localhost:8080`
+- MinIO Web Console: `http://localhost:9001`
 - Консоль керування базою даних H2: `http://localhost:8080/h2-console`
   - JDBC URL: `jdbc:h2:mem:unibook_db`
   - Користувач: `sa`
@@ -410,7 +454,7 @@ cd publisher
 
 ---
 
-### 7.5. Аналіз якості коду та тестового покриття (SonarCloud & JaCoCo)
+### 7.6. Аналіз якості коду та тестового покриття (SonarCloud & JaCoCo)
 
 Для забезпечення високої надійності, безпеки та чистоти коду в проєкті інтегровано зв'язку **JaCoCo + SonarCloud**.
 
