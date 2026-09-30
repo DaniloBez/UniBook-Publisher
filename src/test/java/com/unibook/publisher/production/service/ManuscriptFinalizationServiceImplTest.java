@@ -11,7 +11,6 @@ import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Chapter;
-import com.unibook.publisher.production.entity.CoverVersion;
 import com.unibook.publisher.production.entity.FeedbackThread;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
@@ -22,7 +21,6 @@ import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.entity.response.TeamAssignmentResponse;
 import com.unibook.publisher.production.enums.SuggestionStatus;
 import com.unibook.publisher.production.enums.ThreadStatus;
-import com.unibook.publisher.production.repository.ChapterRepository;
 import com.unibook.publisher.production.repository.CoverVersionRepository;
 import com.unibook.publisher.production.repository.FeedbackThreadRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
@@ -50,9 +48,6 @@ public class ManuscriptFinalizationServiceImplTest {
 
     @Mock
     private ManuscriptRepository manuscriptRepository;
-
-    @Mock
-    private ChapterRepository chapterRepository;
 
     @Mock
     private FeedbackThreadRepository threadRepository;
@@ -92,7 +87,7 @@ public class ManuscriptFinalizationServiceImplTest {
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
-        when(chapterRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of());
+        when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of());
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, editorId);
@@ -110,14 +105,19 @@ public class ManuscriptFinalizationServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
         TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
-        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
-        FeedbackThread openThread = new FeedbackThread(UUID.randomUUID(), chapterId, UUID.randomUUID(),
-                ThreadStatus.OPEN, false, null, null, Instant.now(), null, null, null, null);
+        Chapter chapter = new Chapter(manuscript, "Розділ 1", 1);
+        chapter.setChapterId(chapterId);
+        FeedbackThread openThread = new FeedbackThread();
+        openThread.setStatus(ThreadStatus.OPEN);
+        openThread.setSuggestion(false);
+        openThread.setSuggestedText(null);
+        openThread.setSuggestionStatus(null);
+        openThread.setCreatedAt(Instant.now());
+        chapter.addThread(openThread);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
-        when(chapterRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of(chapter));
-        when(threadRepository.findByChapterId(chapterId)).thenReturn(List.of(openThread));
+        when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(openThread));
 
         assertThrows(UnresolvedThreadsException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
         verify(manuscriptRepository, never()).save(any());
@@ -131,7 +131,7 @@ public class ManuscriptFinalizationServiceImplTest {
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(coverVersionRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of());
+        when(coverVersionRepository.existsByManuscript_ManuscriptId(manuscriptId)).thenReturn(false);
 
         assertThrows(MissingCoverException.class, () -> finalizationService.publish(manuscriptId, chiefEditorId));
         verify(manuscriptRepository, never()).save(any());
@@ -201,14 +201,19 @@ public class ManuscriptFinalizationServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
         TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
-        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
-        FeedbackThread suggestionThread = new FeedbackThread(UUID.randomUUID(), chapterId, UUID.randomUUID(),
-                ThreadStatus.RESOLVED, true, "новий текст", SuggestionStatus.PENDING, Instant.now(), null, null, null, null);
+        Chapter chapter = new Chapter(manuscript, "Розділ 1", 1);
+        chapter.setChapterId(chapterId);
+        FeedbackThread suggestionThread = new FeedbackThread();
+        suggestionThread.setStatus(ThreadStatus.RESOLVED);
+        suggestionThread.setSuggestion(true);
+        suggestionThread.setSuggestedText("новий текст");
+        suggestionThread.setSuggestionStatus(SuggestionStatus.PENDING);
+        suggestionThread.setCreatedAt(Instant.now());
+        chapter.addThread(suggestionThread);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
-        when(chapterRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of(chapter));
-        when(threadRepository.findByChapterId(chapterId)).thenReturn(List.of(suggestionThread));
+        when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(suggestionThread));
 
         assertThrows(UnresolvedThreadsException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
         verify(manuscriptRepository, never()).save(any());
@@ -269,10 +274,9 @@ public class ManuscriptFinalizationServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID chiefEditorId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
-        CoverVersion cover = new CoverVersion(UUID.randomUUID(), manuscriptId, "url", UUID.randomUUID(), 1, Instant.now());
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(coverVersionRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of(cover));
+        when(coverVersionRepository.existsByManuscript_ManuscriptId(manuscriptId)).thenReturn(true);
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptResponse response = finalizationService.publish(manuscriptId, chiefEditorId);

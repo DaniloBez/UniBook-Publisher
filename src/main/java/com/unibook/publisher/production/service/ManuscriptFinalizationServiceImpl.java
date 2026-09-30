@@ -10,7 +10,6 @@ import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundExcepti
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
@@ -19,21 +18,21 @@ import com.unibook.publisher.production.entity.response.ManuscriptAuditLogRespon
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.enums.SuggestionStatus;
 import com.unibook.publisher.production.enums.ThreadStatus;
-import com.unibook.publisher.production.repository.ChapterRepository;
 import com.unibook.publisher.production.repository.CoverVersionRepository;
 import com.unibook.publisher.production.repository.FeedbackThreadRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import com.unibook.publisher.production.repository.TeamAssignmentRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalizationService {
     private final ManuscriptRepository manuscriptRepository;
-    private final ChapterRepository chapterRepository;
     private final FeedbackThreadRepository threadRepository;
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final TeamAssignmentService teamAssignmentService;
@@ -44,7 +43,6 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
 
     public ManuscriptFinalizationServiceImpl(
             ManuscriptRepository manuscriptRepository,
-            ChapterRepository chapterRepository,
             FeedbackThreadRepository threadRepository,
             TeamAssignmentRepository teamAssignmentRepository,
             TeamAssignmentService teamAssignmentService,
@@ -54,7 +52,6 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
             AppLogger logger
     ) {
         this.manuscriptRepository = manuscriptRepository;
-        this.chapterRepository = chapterRepository;
         this.threadRepository = threadRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
         this.teamAssignmentService = teamAssignmentService;
@@ -65,6 +62,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
     }
 
     @Override
+    @Transactional
     public ManuscriptResponse finalizeText(UUID manuscriptId, UUID editorId) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
@@ -83,11 +81,9 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
             );
         }
 
-        boolean hasOpenWork = chapterRepository.findByManuscriptId(manuscriptId).stream()
-                .map(Chapter::chapterId)
-                .flatMap(chapterId -> threadRepository.findByChapterId(chapterId).stream())
-                .anyMatch(thread -> thread.status() == ThreadStatus.OPEN
-                        || (thread.isSuggestion() && thread.suggestionStatus() == SuggestionStatus.PENDING));
+        boolean hasOpenWork = threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId).stream()
+                .anyMatch(thread -> thread.getStatus() == ThreadStatus.OPEN
+                        || (thread.isSuggestion() && thread.getSuggestionStatus() == SuggestionStatus.PENDING));
 
         if (hasOpenWork) throw new UnresolvedThreadsException();
 
@@ -114,6 +110,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
     }
 
     @Override
+    @Transactional
     public ManuscriptResponse assignDesigner(UUID manuscriptId, UUID chiefEditorId, AssignDesignerRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
@@ -155,6 +152,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
     }
 
     @Override
+    @Transactional
     public ManuscriptResponse publish(UUID manuscriptId, UUID chiefEditorId) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
@@ -168,7 +166,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
                     manuscript.getStatus().allowedTransitions()
             );
         }
-        if (coverVersionRepository.findByManuscriptId(manuscriptId).isEmpty()) throw new MissingCoverException();
+        if (!coverVersionRepository.existsByManuscript_ManuscriptId(manuscriptId)) throw new MissingCoverException();
 
         ManuscriptStatus oldStatus = manuscript.getStatus();
         manuscript.setStatus(ManuscriptStatus.PUBLISHED);

@@ -1,6 +1,7 @@
 package com.unibook.publisher.production.controller;
 
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
+import com.unibook.publisher.production.entity.request.ChapterUpdateRequest;
 import com.unibook.publisher.production.entity.request.DiffRequest;
 import com.unibook.publisher.production.entity.request.RevisionUploadRequest;
 import com.unibook.publisher.production.entity.response.ChapterResponse;
@@ -38,6 +39,24 @@ public class ChapterController {
             @PathVariable UUID manuscriptId
     ) {
         return  ResponseEntity.ok(chapterService.getChaptersByManuscriptId(manuscriptId));
+    }
+
+    @PutMapping("/chapters/{chapterId}")
+    public ResponseEntity<ChapterResponse> updateChapter(
+            @PathVariable UUID chapterId,
+            @RequestHeader("X-User-Id") UUID authorId,
+            @Valid @RequestBody ChapterUpdateRequest request
+    ) {
+        return ResponseEntity.ok(chapterService.updateChapter(chapterId, authorId, request));
+    }
+
+    @DeleteMapping("/chapters/{chapterId}")
+    public ResponseEntity<Void> deleteChapter(
+            @PathVariable UUID chapterId,
+            @RequestHeader("X-User-Id") UUID authorId
+    ) {
+        chapterService.deleteChapter(chapterId, authorId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/chapters/{chapterId}/revisions")

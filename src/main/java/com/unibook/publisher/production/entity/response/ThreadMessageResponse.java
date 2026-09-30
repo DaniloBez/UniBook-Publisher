@@ -22,11 +22,11 @@ public record ThreadMessageResponse(
 ) {
     public static ThreadMessageResponse from(ThreadMessage message) {
         return new ThreadMessageResponse(
-                message.id(),
-                message.threadId(),
-                message.senderUserId(),
-                message.content(),
-                message.sentAt()
+                message.getId(),
+                message.getThreadId(),
+                message.getSenderUserId(),
+                message.getContent(),
+                message.getSentAt()
         );
     }
 }

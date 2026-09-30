@@ -33,14 +33,14 @@ public record ThreadResponse(
 ) {
     public static ThreadResponse from(FeedbackThread thread) {
         return new ThreadResponse(
-                thread.id(),
-                thread.chapterId(),
-                thread.createdByUserId(),
-                thread.status(),
+                thread.getId(),
+                thread.getChapterId(),
+                thread.getCreatedByUserId(),
+                thread.getStatus(),
                 thread.isSuggestion(),
-                thread.suggestedText(),
-                thread.suggestionStatus(),
-                thread.createdAt()
+                thread.getSuggestedText(),
+                thread.getSuggestionStatus(),
+                thread.getCreatedAt()
         );
     }
 }

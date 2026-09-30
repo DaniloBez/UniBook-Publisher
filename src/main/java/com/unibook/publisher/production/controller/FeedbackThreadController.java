@@ -71,4 +71,13 @@ public class FeedbackThreadController {
     ) {
         return ResponseEntity.ok(threadService.resolveThread(id, userId));
     }
+
+    @DeleteMapping("/threads/{id}")
+    public ResponseEntity<Void> deleteThread(
+            @PathVariable UUID id,
+            @RequestHeader("X-User-Id") UUID userId
+    ) {
+        threadService.deleteThread(id, userId);
+        return ResponseEntity.noContent().build();
+    }
 }

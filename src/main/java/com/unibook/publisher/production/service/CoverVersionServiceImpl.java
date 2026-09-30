@@ -17,12 +17,14 @@ import com.unibook.publisher.production.repository.ManuscriptRepository;
 import com.unibook.publisher.production.repository.TeamAssignmentRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
 @Service
+@Transactional(readOnly = true)
 public class CoverVersionServiceImpl implements CoverVersionService {
     private final CoverVersionRepository coverVersionRepository;
     private final ManuscriptRepository manuscriptRepository;
@@ -45,6 +47,7 @@ public class CoverVersionServiceImpl implements CoverVersionService {
     }
 
     @Override
+    @Transactional
     public CoverVersionResponse uploadCoverVersion(UUID manuscriptId, UUID designerId, CoverVersionRequest request) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
@@ -64,13 +67,12 @@ public class CoverVersionServiceImpl implements CoverVersionService {
             );
         }
 
-        int versionNumber = coverVersionRepository.findLatestByManuscriptId(manuscriptId)
-                .map(cv -> cv.versionNumber() + 1)
+        int versionNumber = coverVersionRepository.findTopByManuscript_ManuscriptIdOrderByVersionNumberDesc(manuscriptId)
+                .map(cv -> cv.getVersionNumber() + 1)
                 .orElse(1);
 
         CoverVersion saved = coverVersionRepository.save(new CoverVersion(
-                UUID.randomUUID(),
-                manuscriptId,
+                manuscript,
                 request.fileUrl(),
                 designerId,
                 versionNumber,
@@ -79,8 +81,8 @@ public class CoverVersionServiceImpl implements CoverVersionService {
 
         logger.info(
                 "Created cover version {} version {} for manuscript {} by designer {}",
-                saved.id(),
-                saved.versionNumber(),
+                saved.getId(),
+                saved.getVersionNumber(),
                 manuscriptId,
                 designerId
         );
@@ -88,7 +90,7 @@ public class CoverVersionServiceImpl implements CoverVersionService {
         publisher.publishEvent(new CoverVersionAddedEvent(
                 manuscript.getManuscriptId(),
                 manuscript.getTitle(),
-                saved.id(),
+                saved.getId(),
                 designerId,
                 manuscript.getAuthorId()
         ));
@@ -101,7 +103,7 @@ public class CoverVersionServiceImpl implements CoverVersionService {
         if (manuscriptRepository.findById(manuscriptId).isEmpty()) {
             throw new ManuscriptNotFoundException(manuscriptId);
         }
-        return coverVersionRepository.findByManuscriptId(manuscriptId).stream()
+        return coverVersionRepository.findByManuscript_ManuscriptIdOrderByVersionNumberAsc(manuscriptId).stream()
                 .map(CoverVersionResponse::from)
                 .toList();
     }

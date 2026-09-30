@@ -1,15 +1,59 @@
 package com.unibook.publisher.production.entity;
 
+import jakarta.persistence.*;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
+
 import java.time.Instant;
 import java.util.UUID;
 
 //версії розділу до книги
-public record Revision(
-      UUID revisionId,
-      UUID chapterId,
-      int versionNumber,
-      String fileUrl,
-      UUID uploadedByUserId,
-      Instant uploadedAt,
-      String textContent
-) {}
+@Entity
+@Table(
+        name = "revisions",
+        indexes = @Index(name = "idx_revisions_chapter_id", columnList = "chapter_id")
+)
+@NoArgsConstructor
+@Getter
+@Setter
+public class Revision {
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    @Column(name = "revision_id")
+    private UUID revisionId;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "chapter_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
+    private Chapter chapter;
+
+    @Column(name = "version_number", nullable = false)
+    private int versionNumber;
+
+    @Column(name = "file_url", nullable = false)
+    private String fileUrl;
+
+    @Column(name = "uploaded_by_user_id", nullable = false)
+    private UUID uploadedByUserId;
+
+    @Column(name = "uploaded_at", nullable = false)
+    private Instant uploadedAt;
+
+    @Column(name = "text_content", columnDefinition = "TEXT")
+    private String textContent;
+
+    public Revision(int versionNumber, String fileUrl, UUID uploadedByUserId, Instant uploadedAt, String textContent) {
+        this.versionNumber = versionNumber;
+        this.fileUrl = fileUrl;
+        this.uploadedByUserId = uploadedByUserId;
+        this.uploadedAt = uploadedAt;
+        this.textContent = textContent;
+    }
+
+    public UUID getChapterId() {
+        return chapter.getChapterId();
+    }
+}

@@ -16,6 +16,7 @@ import com.unibook.publisher.production.entity.response.DiffResponse;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.Revision;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
+import com.unibook.publisher.production.entity.request.ChapterUpdateRequest;
 import com.unibook.publisher.production.entity.request.RevisionUploadRequest;
 import com.unibook.publisher.production.entity.response.ChapterResponse;
 import com.unibook.publisher.production.entity.response.RevisionResponse;
@@ -69,6 +70,32 @@ public class ChapterServiceImplTest {
 
     @InjectMocks
     private ChapterServiceImpl chapterService;
+
+    private Manuscript manuscript(UUID manuscriptId, UUID authorId, ManuscriptStatus status) {
+        return new Manuscript(
+                manuscriptId,
+                "451 градус по Фаренгейту",
+                authorId,
+                status,
+                Set.of(),
+                "Опис до книги 451 градус по Фаренгейту",
+                "url",
+                Instant.now()
+        );
+    }
+
+    private Chapter chapter(UUID chapterId, Manuscript manuscript) {
+        Chapter chapter = new Chapter(manuscript, "Розділ 1", 1);
+        chapter.setChapterId(chapterId);
+        return chapter;
+    }
+
+    private Revision revision(UUID revisionId, Chapter chapter, int version, String text) {
+        Revision revision = new Revision(version, "url" + version, UUID.randomUUID(), Instant.now(), text);
+        revision.setRevisionId(revisionId);
+        chapter.addRevision(revision);
+        return revision;
+    }
 
     @Test
     void createChapter_Success() {
@@ -143,9 +170,10 @@ public class ChapterServiceImplTest {
     @Test
     void getChaptersByManuscriptId_Success() {
         UUID manuscriptId = UUID.randomUUID();
-        Chapter chapter = new Chapter(UUID.randomUUID(), manuscriptId, "Розділ 1", 1);
-        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(mock(Manuscript.class)));
-        when(chapterRepository.findByManuscriptId(manuscriptId)).thenReturn(List.of(chapter));
+        Manuscript manuscript = manuscript(manuscriptId, UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS);
+        Chapter chapter = chapter(UUID.randomUUID(), manuscript);
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(chapterRepository.findByManuscript_ManuscriptIdOrderByChapterIndex(manuscriptId)).thenReturn(List.of(chapter));
         List<ChapterResponse> response = chapterService.getChaptersByManuscriptId(manuscriptId);
         assertNotNull(response);
         assertEquals(1, response.size());
@@ -164,7 +192,6 @@ public class ChapterServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         UUID manuscriptId = UUID.randomUUID();
         UUID editorId = UUID.randomUUID();
-        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(
                 manuscriptId,
                 "451 градус по Фаренгейту",
@@ -176,10 +203,10 @@ public class ChapterServiceImplTest {
                 Instant.now()
         );
 
-        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter(chapterId, manuscript)));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.existsByManuscript_ManuscriptIdAndUserIdAndRole(manuscriptId, editorId, UserRole.EDITOR)).thenReturn(true);
-        when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.empty());
+        when(revisionRepository.findTopByChapter_ChapterIdOrderByVersionNumberDesc(chapterId)).thenReturn(Optional.empty());
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
         when(fileStorageService.getAsText("new_url")).thenReturn("Тестовий текст розділу");
 
@@ -197,7 +224,6 @@ public class ChapterServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
-        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(
                 manuscriptId,
                 "451 градус по Фаренгейту",
@@ -209,9 +235,9 @@ public class ChapterServiceImplTest {
                 Instant.now()
         );
 
-        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter(chapterId, manuscript)));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.empty());
+        when(revisionRepository.findTopByChapter_ChapterIdOrderByVersionNumberDesc(chapterId)).thenReturn(Optional.empty());
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
         when(fileStorageService.getAsText("new_url")).thenReturn("Тестовий текст розділу");
 
@@ -229,7 +255,6 @@ public class ChapterServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
 
-        Chapter chapter = new Chapter(chapterId, manuscriptId, "Глава 1", 1);
         Manuscript manuscript = new Manuscript(
                 manuscriptId,
                 "451 градус по Фаренгейту",
@@ -241,7 +266,7 @@ public class ChapterServiceImplTest {
                 Instant.now()
         );
 
-        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter(chapterId, manuscript)));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.existsByManuscript_ManuscriptIdAndUserIdAndRole(manuscriptId, userId, UserRole.EDITOR)).thenReturn(false);
 
@@ -251,9 +276,10 @@ public class ChapterServiceImplTest {
     @Test
     void uploadRevision_ManuscriptNotFoundException() {
         UUID chapterId = UUID.randomUUID();
-        Chapter chapter = new Chapter(chapterId, UUID.randomUUID(), "Розділ 1", 1);
+        UUID manuscriptId = UUID.randomUUID();
+        Chapter chapter = chapter(chapterId, manuscript(manuscriptId, UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
-        when(manuscriptRepository.findById(chapter.manuscriptId())).thenReturn(Optional.empty());
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
         assertThrows(ManuscriptNotFoundException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), new RevisionUploadRequest("url")));
     }
 
@@ -269,7 +295,6 @@ public class ChapterServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
-        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(
                 manuscriptId,
                 "451 градус по Фаренгейту",
@@ -280,11 +305,11 @@ public class ChapterServiceImplTest {
                 "url",
                 Instant.now()
         );
-        Revision latestRevision = new Revision(UUID.randomUUID(), chapterId, 3, "old_url", authorId, Instant.now(), null);
+        Revision latestRevision = new Revision(3, "old_url", authorId, Instant.now(), null);
 
-        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter(chapterId, manuscript)));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(revisionRepository.findLatestVersionNumberByChapterId(chapterId)).thenReturn(Optional.of(latestRevision));
+        when(revisionRepository.findTopByChapter_ChapterIdOrderByVersionNumberDesc(chapterId)).thenReturn(Optional.of(latestRevision));
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
         when(fileStorageService.getAsText("new_url")).thenReturn("Тестовий текст розділу");
 
@@ -300,7 +325,6 @@ public class ChapterServiceImplTest {
     void uploadRevision_InvalidStateTransitionException() {
         UUID chapterId = UUID.randomUUID();
         UUID manuscriptId = UUID.randomUUID();
-        Chapter chapter = new Chapter(chapterId, manuscriptId, "Розділ 1", 1);
         Manuscript manuscript = new Manuscript(
                 manuscriptId,
                 "451 градус по Фаренгейту",
@@ -311,7 +335,7 @@ public class ChapterServiceImplTest {
                 "url",
                 Instant.now()
         );
-        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter(chapterId, manuscript)));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         assertThrows(InvalidStateTransitionException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), new RevisionUploadRequest("url")));
     }
@@ -319,10 +343,11 @@ public class ChapterServiceImplTest {
     @Test
     void getRevisionsByChapterId_Success() {
         UUID chapterId = UUID.randomUUID();
-        Revision revision = new Revision(UUID.randomUUID(), chapterId, 1, "url", UUID.randomUUID(), Instant.now(), "Текст ревізії");
+        Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
+        Revision revision = revision(UUID.randomUUID(), chapter, 1, "Текст ревізії");
 
-        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(mock(Chapter.class)));
-        when(revisionRepository.findAllByChapterId(chapterId)).thenReturn(List.of(revision));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(revisionRepository.findAllByChapter_ChapterIdOrderByVersionNumberAsc(chapterId)).thenReturn(List.of(revision));
 
         List<RevisionResponse> revisions = chapterService.getRevisionsByChapterId(chapterId);
 
@@ -346,9 +371,9 @@ public class ChapterServiceImplTest {
 
         DiffRequest request = new DiffRequest(fromRevisionId, toRevisionId);
 
-        Chapter chapter = new Chapter(chapterId, UUID.randomUUID(), "Розділ 1", 1);
-        Revision fromRevision = new Revision(fromRevisionId, chapterId, 1, "url1", UUID.randomUUID(), Instant.now(), "Старий текст");
-        Revision toRevision = new Revision(toRevisionId, chapterId, 2, "url2", UUID.randomUUID(), Instant.now(), "Новий текст");
+        Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
+        Revision fromRevision = revision(fromRevisionId, chapter, 1, "Старий текст");
+        Revision toRevision = revision(toRevisionId, chapter, 2, "Новий текст");
         DiffResponse expectedResponse = new DiffResponse(fromRevisionId, toRevisionId, List.of());
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
@@ -399,9 +424,11 @@ public class ChapterServiceImplTest {
         UUID toRevisionId = UUID.randomUUID();
 
         DiffRequest request = new DiffRequest(fromRevisionId, toRevisionId);
-        Chapter chapter = new Chapter(chapterId, UUID.randomUUID(), "Розділ 1", 1);
-        Revision fromRevision = new Revision(fromRevisionId, UUID.randomUUID(), 1, "url1", UUID.randomUUID(), Instant.now(), "Старий текст");
-        Revision toRevision = new Revision(toRevisionId, chapterId, 2, "url2", UUID.randomUUID(), Instant.now(), "Новий текст");
+        Manuscript manuscript = manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS);
+        Chapter chapter = chapter(chapterId, manuscript);
+        Chapter otherChapter = chapter(UUID.randomUUID(), manuscript);
+        Revision fromRevision = revision(fromRevisionId, otherChapter, 1, "Старий текст");
+        Revision toRevision = revision(toRevisionId, chapter, 2, "Новий текст");
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(revisionRepository.findById(fromRevisionId)).thenReturn(Optional.of(fromRevision));
@@ -416,13 +443,100 @@ public class ChapterServiceImplTest {
         UUID toRevisionId = UUID.randomUUID();
 
         DiffRequest request = new DiffRequest(fromRevisionId, toRevisionId);
-        Chapter chapter = new Chapter(chapterId, UUID.randomUUID(), "Розділ 1", 1);
-        Revision fromRevision = new Revision(fromRevisionId, chapterId, 1, "url1", UUID.randomUUID(), Instant.now(), "Старий текст");
-        Revision toRevision = new Revision(toRevisionId, UUID.randomUUID(), 2, "url2", UUID.randomUUID(), Instant.now(), "Новий текст");
+        Manuscript manuscript = manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS);
+        Chapter chapter = chapter(chapterId, manuscript);
+        Chapter otherChapter = chapter(UUID.randomUUID(), manuscript);
+        Revision fromRevision = revision(fromRevisionId, chapter, 1, "Старий текст");
+        Revision toRevision = revision(toRevisionId, otherChapter, 2, "Новий текст");
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(revisionRepository.findById(fromRevisionId)).thenReturn(Optional.of(fromRevision));
         when(revisionRepository.findById(toRevisionId)).thenReturn(Optional.of(toRevision));
         assertThrows(BusinessRuleViolationException.class, () -> chapterService.getDiffChapter(chapterId, request));
+    }
+
+    @Test
+    void updateChapter_Success() {
+        UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), authorId, ManuscriptStatus.IN_PROGRESS));
+
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        when(chapterRepository.save(any(Chapter.class))).thenAnswer(i -> i.getArgument(0));
+
+        ChapterResponse response = chapterService.updateChapter(chapterId, authorId, new ChapterUpdateRequest("Новий розділ", 5));
+
+        assertNotNull(response);
+        assertEquals("Новий розділ", response.chapterTitle());
+        assertEquals(5, response.chapterIndex());
+        assertEquals("Новий розділ", chapter.getChapterTitle());
+        assertEquals(5, chapter.getChapterIndex());
+        verify(chapterRepository, times(1)).save(chapter);
+    }
+
+    @Test
+    void updateChapter_ChapterNotFoundException() {
+        UUID chapterId = UUID.randomUUID();
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.updateChapter(chapterId, UUID.randomUUID(), new ChapterUpdateRequest("Розділ", 1)));
+        verify(chapterRepository, never()).save(any());
+    }
+
+    @Test
+    void updateChapter_ForbiddenActionException() {
+        UUID chapterId = UUID.randomUUID();
+        Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        assertThrows(ForbiddenActionException.class, () -> chapterService.updateChapter(chapterId, UUID.randomUUID(), new ChapterUpdateRequest("Розділ", 1)));
+        verify(chapterRepository, never()).save(any());
+    }
+
+    @Test
+    void updateChapter_InvalidStateTransitionException() {
+        UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), authorId, ManuscriptStatus.SUBMITTED));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.updateChapter(chapterId, authorId, new ChapterUpdateRequest("Розділ", 1)));
+        verify(chapterRepository, never()).save(any());
+    }
+
+    @Test
+    void deleteChapter_Success() {
+        UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), authorId, ManuscriptStatus.IN_PROGRESS));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+
+        chapterService.deleteChapter(chapterId, authorId);
+
+        verify(chapterRepository, times(1)).delete(chapter);
+    }
+
+    @Test
+    void deleteChapter_ChapterNotFoundException() {
+        UUID chapterId = UUID.randomUUID();
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.deleteChapter(chapterId, UUID.randomUUID()));
+        verify(chapterRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteChapter_ForbiddenActionException() {
+        UUID chapterId = UUID.randomUUID();
+        Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        assertThrows(ForbiddenActionException.class, () -> chapterService.deleteChapter(chapterId, UUID.randomUUID()));
+        verify(chapterRepository, never()).delete(any());
+    }
+
+    @Test
+    void deleteChapter_InvalidStateTransitionException() {
+        UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), authorId, ManuscriptStatus.SUBMITTED));
+        when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.deleteChapter(chapterId, authorId));
+        verify(chapterRepository, never()).delete(any());
     }
 }
