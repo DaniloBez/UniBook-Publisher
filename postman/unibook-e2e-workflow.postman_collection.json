@@ -1,0 +1,485 @@
+{
+  "info": {
+    "name": "UniBook Publisher - E2E Workflow",
+    "description": "End-to-end workflow: author submits -> chief editor approves + assigns editor -> author adds and updates chapter -> editor finalizes text -> chief editor assigns designer -> designer uploads cover -> chief editor publishes -> author gets contract (polling) -> author verifies contract.\n\nRun with Newman from the folder that contains cover.png (a 1x1 PNG):\n  newman run unibook-e2e-workflow.postman_collection.json --working-dir .\n\nCreate cover.png with:\n  echo 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > cover.png\n\nOverride the base URL with: --env-var baseUrl=http://host:port",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "chiefEditorId", "value": "00000000-0000-0000-0000-000000000002" },
+    { "key": "editorId", "value": "00000000-0000-0000-0000-000000000003" },
+    { "key": "designerId", "value": "00000000-0000-0000-0000-000000000004" },
+    { "key": "authorId", "value": "00000000-0000-0000-0000-000000000005" },
+    { "key": "genreId", "value": "" },
+    { "key": "manuscriptId", "value": "" },
+    { "key": "chapterId", "value": "" },
+    { "key": "contractId", "value": "" },
+    { "key": "contractAttempt", "value": "0" }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Generate a unique timestamp once per run so the collection can be re-run safely",
+          "if (!pm.collectionVariables.get('ts')) {",
+          "    pm.collectionVariables.set('ts', String(Date.now()));",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Create genre",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"genreName\": \"E2E Genre {{ts}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/genres",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "genres"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 201 Created', function () {",
+              "    pm.response.to.have.status(201);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test('genre_id is not empty', function () {",
+              "    pm.expect(body.genre_id).to.be.a('string').and.not.empty;",
+              "});",
+              "// Save genre id for the next step",
+              "pm.collectionVariables.set('genreId', body.genre_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Author submits manuscript",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Id", "value": "{{authorId}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"title\": \"E2E Manuscript {{ts}}\",\n  \"annotation\": \"Integration test manuscript\",\n  \"draft_file_url\": \"https://storage.example.com/drafts/e2e-{{ts}}.docx\",\n  \"genre_ids\": [\"{{genreId}}\"]\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/manuscripts",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test('manuscript_id is not empty', function () {",
+              "    pm.expect(body.manuscript_id).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.test('status is SUBMITTED', function () {",
+              "    pm.expect(body.status).to.eql('SUBMITTED');",
+              "});",
+              "pm.test('author_id matches the author', function () {",
+              "    pm.expect(body.author_id).to.eql(pm.collectionVariables.get('authorId'));",
+              "});",
+              "// Save manuscript id for all following steps",
+              "pm.collectionVariables.set('manuscriptId', body.manuscript_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Chief editor approves manuscript",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Id", "value": "{{chiefEditorId}}" },
+          { "key": "X-User-Role", "value": "CHIEF_EDITOR" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"editor_id\": \"{{editorId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/approve",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "approve"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('status is IN_PROGRESS', function () {",
+              "    pm.expect(pm.response.json().status).to.eql('IN_PROGRESS');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Author creates chapter",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Id", "value": "{{authorId}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"chapterTitle\": \"Chapter 1. The Beginning\",\n  \"chapterIndex\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/chapters",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "chapters"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test('chapter_id is not empty', function () {",
+              "    pm.expect(body.chapter_id).to.be.a('string').and.not.empty;",
+              "});",
+              "pm.test('chapter_title is correct', function () {",
+              "    pm.expect(body.chapter_title).to.eql('Chapter 1. The Beginning');",
+              "});",
+              "pm.test('chapter_index is 1', function () {",
+              "    pm.expect(String(body.chapter_index)).to.eql('1');",
+              "});",
+              "// Save chapter id for the update step",
+              "pm.collectionVariables.set('chapterId', body.chapter_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Author updates chapter",
+      "request": {
+        "method": "PUT",
+        "header": [
+          { "key": "X-User-Id", "value": "{{authorId}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"chapterTitle\": \"Chapter 1. The New Beginning\",\n  \"chapterIndex\": 1\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/chapters/{{chapterId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "chapters", "{{chapterId}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('chapter_title was updated', function () {",
+              "    pm.expect(pm.response.json().chapter_title).to.eql('Chapter 1. The New Beginning');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Editor finalizes text",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Id", "value": "{{editorId}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/finalize-text",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "finalize-text"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('status is TEXT_APPROVED', function () {",
+              "    pm.expect(pm.response.json().status).to.eql('TEXT_APPROVED');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Chief editor assigns designer",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Id", "value": "{{chiefEditorId}}" },
+          { "key": "X-User-Role", "value": "CHIEF_EDITOR" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"designer_id\": \"{{designerId}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/assign-designer",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "assign-designer"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('status is IN_DESIGN', function () {",
+              "    pm.expect(pm.response.json().status).to.eql('IN_DESIGN');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Designer uploads cover",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Id", "value": "{{designerId}}" }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "cover.png",
+              "contentType": "image/png"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/cover-versions",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "cover-versions"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "pm.test('version_number is 1', function () {",
+              "    pm.expect(String(body.version_number)).to.eql('1');",
+              "});",
+              "pm.test('uploaded_by_user_id matches the designer', function () {",
+              "    pm.expect(body.uploaded_by_user_id).to.eql(pm.collectionVariables.get('designerId'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Chief editor publishes manuscript",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-User-Id", "value": "{{chiefEditorId}}" },
+          { "key": "X-User-Role", "value": "CHIEF_EDITOR" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/publish",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "publish"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "pm.test('status is PUBLISHED', function () {",
+              "    pm.expect(pm.response.json().status).to.eql('PUBLISHED');",
+              "});",
+              "// Reset the polling state before the contract lookup step",
+              "pm.collectionVariables.set('contractAttempt', '0');",
+              "pm.collectionVariables.set('contractId', '');"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Author gets contract (polling)",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Id", "value": "{{authorId}}" },
+          { "key": "X-User-Role", "value": "AUTHOR" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/contracts?manuscriptId={{manuscriptId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "contracts"],
+          "query": [
+            { "key": "manuscriptId", "value": "{{manuscriptId}}" }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const attempt = parseInt(pm.collectionVariables.get('contractAttempt') || '0', 10);",
+              "if (attempt > 0) {",
+              "    const end = Date.now() + 1000;",
+              "    while (Date.now() < end) { /* busy wait */ }",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const MAX_ATTEMPTS = 15;",
+              "const attempt = parseInt(pm.collectionVariables.get('contractAttempt') || '0', 10) + 1;",
+              "pm.collectionVariables.set('contractAttempt', String(attempt));",
+              "",
+              "pm.test('Status is 200 OK (attempt ' + attempt + ')', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "",
+              "let contractId = '';",
+              "try {",
+              "    const body = pm.response.json();",
+              "    const contract = Array.isArray(body) ? body[0] : body;",
+              "    contractId = (contract && contract.contract_id) || '';",
+              "} catch (e) {",
+              "    contractId = '';",
+              "}",
+              "",
+              "if (contractId) {",
+              "    // Contract found: store it and continue with the next request",
+              "    pm.collectionVariables.set('contractId', contractId);",
+              "    pm.test('contract_id is not empty', function () {",
+              "        pm.expect(contractId).to.be.a('string').and.not.empty;",
+              "    });",
+              "} else if (attempt < MAX_ATTEMPTS) {",
+              "    // Contract not created yet: run this same request again",
+              "    postman.setNextRequest('9. Author gets contract (polling)');",
+              "} else {",
+              "    // Out of attempts: fail the run explicitly",
+              "    pm.test('contract_id found within ' + MAX_ATTEMPTS + ' attempts', function () {",
+              "        pm.expect.fail('Contract was not created in time');",
+              "    });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Author fetches contract",
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "X-User-Id", "value": "{{authorId}}" },
+          { "key": "X-User-Role", "value": "AUTHOR" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/contracts/{{contractId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "contracts", "{{contractId}}"]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "const body = pm.response.json();",
+              "// Verify the contract belongs to this manuscript and author",
+              "pm.test('contract.manuscript_id matches the manuscript', function () {",
+              "    pm.expect(body.manuscript_id).to.eql(pm.collectionVariables.get('manuscriptId'));",
+              "});",
+              "pm.test('contract.author_id matches the author', function () {",
+              "    pm.expect(body.author_id).to.eql(pm.collectionVariables.get('authorId'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
