@@ -97,17 +97,13 @@ public class EditorialDataSeeder implements ApplicationRunner {
 
         // Розділ 1 має 3 версії: базова та дві з правками редактора
         createRevision(SeedConstants.REVISION_IN_PROGRESS_1_V1_ID, SeedConstants.CHAPTER_IN_PROGRESS_1_ID, 1,
-                "https://localhost:8080/revisions/in-progress-ch1-v1.txt", SeedConstants.AUTHOR_2_ID, now.minus(5, ChronoUnit.DAYS),
-                PROLOGUE_V1);
+                "https://localhost:8080/revisions/in-progress-ch1-v1.txt", SeedConstants.AUTHOR_2_ID, now.minus(5, ChronoUnit.DAYS));
         createRevision(SeedConstants.REVISION_IN_PROGRESS_1_V2_ID, SeedConstants.CHAPTER_IN_PROGRESS_1_ID, 2,
-                "https://localhost:8080/revisions/in-progress-ch1-v2.txt", SeedConstants.EDITOR_ID, now.minus(3, ChronoUnit.DAYS),
-                PROLOGUE_V2);
+                "https://localhost:8080/revisions/in-progress-ch1-v2.txt", SeedConstants.EDITOR_ID, now.minus(3, ChronoUnit.DAYS));
         createRevision(SeedConstants.REVISION_IN_PROGRESS_1_V3_ID, SeedConstants.CHAPTER_IN_PROGRESS_1_ID, 3,
-                "https://localhost:8080/revisions/in-progress-ch1-v3.txt", SeedConstants.AUTHOR_2_ID, now.minus(1, ChronoUnit.DAYS),
-                PROLOGUE_V3);
+                "https://localhost:8080/revisions/in-progress-ch1-v3.txt", SeedConstants.AUTHOR_2_ID, now.minus(1, ChronoUnit.DAYS));
         createRevision(SeedConstants.REVISION_IN_PROGRESS_2_V1_ID, SeedConstants.CHAPTER_IN_PROGRESS_2_ID, 1,
-                "https://localhost:8080/revisions/in-progress-ch2-v1.txt", SeedConstants.AUTHOR_2_ID, now.minus(2, ChronoUnit.DAYS),
-                "Вона побачила його вперше біля старого мосту. Він тримав у руках потертий компас.");
+                "https://localhost:8080/revisions/in-progress-ch2-v1.txt", SeedConstants.AUTHOR_2_ID, now.minus(2, ChronoUnit.DAYS));
     }
 
     private void seedThreads() {
@@ -147,10 +143,10 @@ public class EditorialDataSeeder implements ApplicationRunner {
         );
     }
 
-    private void createRevision(UUID id, UUID chapterId, int versionNumber, String fileUrl, UUID uploadedBy, Instant uploadedAt, String text) {
+    private void createRevision(UUID id, UUID chapterId, int versionNumber, String fileUrl,UUID uploadedBy, Instant uploadedAt) {
         jdbcTemplate.update(
-                "INSERT INTO revisions (revision_id, chapter_id, version_number, file_url, uploaded_by_user_id, uploaded_at, text_content) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                id, chapterId, versionNumber, fileUrl, uploadedBy, Timestamp.from(uploadedAt), text
+                "INSERT INTO revisions (revision_id, chapter_id, version_number, file_url, uploaded_by_user_id, uploaded_at) VALUES (?, ?, ?, ?, ?, ?)",
+                id, chapterId, versionNumber, fileUrl, uploadedBy, Timestamp.from(uploadedAt)
         );
     }
 
@@ -178,16 +174,6 @@ public class EditorialDataSeeder implements ApplicationRunner {
                 id, manuscriptId, fileUrl, uploadedBy, versionNumber, Timestamp.from(uploadedAt)
         );
     }
-
-    private static final String PROLOGUE_V1 = """
-            Ніч була темна. Над полем віяв тихий вітер, і десь далеко гавкав собака.
-            Вона йшла додому і не знала, що скоро все зміниться.
-            """;
-
-    private static final String PROLOGUE_V2 = """
-            Ніч була темною. Над полем віяв тихий вітер, і десь далеко гавкав собака.
-            Вона поверталася додому і не здогадувалася, що скоро все зміниться.
-            """;
 
     private static final String PROLOGUE_V3 = """
             Ніч була темною та безмісячною. Над полем віяв тихий вітер, і десь далеко гавкав собака.
