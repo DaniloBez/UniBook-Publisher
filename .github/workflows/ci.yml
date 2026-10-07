@@ -23,7 +23,14 @@ jobs:
         with:
           java-version: '25'
           distribution: 'temurin'
-          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@0f4528296b4bc09e8ae0fc7be30185a4ab435545
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
 
       - name: Cache SonarCloud packages
         uses: actions/cache@v4
@@ -35,6 +42,11 @@ jobs:
       - name: Make Gradle Wrapper Executable
         run: chmod +x ./gradlew
 
+      - name: Start Infrastructure & Create Bucket
+        run: |
+          docker compose up -d minio
+          docker compose up minio-init
+
       - name: Run Check & Tests with Coverage
         run: ./gradlew check jacocoTestReport
 
@@ -43,3 +55,39 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: ./gradlew sonar --info
+
+      - name: Build Application JAR
+        run: ./gradlew bootJar
+
+      - name: Install Newman & Extra Reporter
+        run: npm install -g --ignore-scripts newman@6.2.2 newman-reporter-htmlextra@1.23.1
+
+      - name: Run Spring Boot & Newman E2E Tests
+        env:
+          S3_ENDPOINT: http://localhost:9000
+          S3_REGION: us-east-1
+          S3_BUCKET: unibook
+          S3_ACCESS_KEY: minioadmin
+          S3_SECRET_KEY: minioadmin
+          FILE_STORAGE_ENABLED: "true"
+          FILE_STORAGE_TYPE: "S3"
+        run: |
+          java -jar build/libs/*.jar > app.log 2>&1 &
+          
+          echo "Очікування запуску Spring Boot на порту 8080..."
+          timeout 60s bash -c 'until curl -s http://localhost:8080/h2-console > /dev/null; do sleep 2; done' || (echo "=== Помилка запуску Spring Boot. Логи: ===" && cat app.log && exit 1)
+          
+          mkdir -p postman/results
+          newman run postman/unibook-e2e-workflow.postman_collection.json \
+            --working-dir postman \
+            --reporters cli,junit,htmlextra \
+            --reporter-junit-export postman/results/newman-report.xml \
+            --reporter-htmlextra-export postman/results/newman-report.html \
+            --bail
+
+      - name: Upload Test Reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-test-results
+          path: postman/results/
