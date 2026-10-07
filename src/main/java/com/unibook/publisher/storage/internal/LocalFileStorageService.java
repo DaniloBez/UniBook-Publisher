@@ -41,6 +41,7 @@ public class LocalFileStorageService implements FileStorageService {
         try {
             return Files.newInputStream(file);
         } catch (IOException e) {
+            logger.error("Помилка при читанні файлу {}", fileUrl, e);
             throw new FileStorageException(fileUrl);
         }
     }

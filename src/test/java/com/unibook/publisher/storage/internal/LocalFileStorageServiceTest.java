@@ -84,7 +84,7 @@ public class LocalFileStorageServiceTest {
     }
 
     @Test
-    void exists_NotExists() throws IOException {
+    void exists_NotExists() {
         String path = "missing/file.txt";
         assertFalse(storageService.exists(path));
     }
