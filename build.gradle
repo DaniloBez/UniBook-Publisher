@@ -42,7 +42,7 @@ def coverageExcludes = [
 sonar {
 	properties {
 		property 'sonar.projectKey', 'DaniloBez_UniBook-Publisher'
-		property 'sonar.organization',  'danilobez'
+		property 'sonar.organization', 'danilobez'
 		property 'sonar.host.url', 'https://sonarcloud.io'
 		property 'sonar.java.coveragePlugin', 'jacoco'
 		property 'sonar.coverage.jacoco.xmlReportPaths', "${layout.buildDirectory.get()}/reports/jacoco/test/jacocoTestReport.xml"

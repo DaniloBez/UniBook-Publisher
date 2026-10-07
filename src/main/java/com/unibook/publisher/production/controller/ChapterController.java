@@ -1,9 +1,9 @@
 package com.unibook.publisher.production.controller;
 
+import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
 import com.unibook.publisher.production.entity.request.ChapterUpdateRequest;
 import com.unibook.publisher.production.entity.request.DiffRequest;
-import com.unibook.publisher.production.entity.request.RevisionUploadRequest;
 import com.unibook.publisher.production.entity.response.ChapterResponse;
 import com.unibook.publisher.production.entity.response.DiffResponse;
 import com.unibook.publisher.production.entity.response.RevisionResponse;
@@ -11,7 +11,9 @@ import com.unibook.publisher.production.service.ChapterService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -63,10 +65,21 @@ public class ChapterController {
     public ResponseEntity<RevisionResponse> uploadRevision(
             @PathVariable UUID chapterId,
             @RequestHeader("X-User-Id") UUID userId,
-            @Valid @RequestBody RevisionUploadRequest request
+            @RequestParam MultipartFile file
     ) {
-        RevisionResponse response = chapterService.uploadRevision(chapterId, userId, request);
-        return ResponseEntity.ok(response);
+        try {
+            return ResponseEntity.ok(chapterService.uploadRevision(
+                    chapterId,
+                    userId,
+                    file.getInputStream(),
+                    file.getSize(),
+                    file.getContentType(),
+                    file.getOriginalFilename()
+            ));
+        } catch (IOException _) {
+            System.out.printf("Проблема читання файлу " + file.getOriginalFilename());
+            throw new FileReadException(file.getOriginalFilename());
+        }
     }
 
     @GetMapping("/chapters/{chapterId}/revisions")

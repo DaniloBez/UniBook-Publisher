@@ -1,7 +1,6 @@
 package com.unibook.publisher.finance.controller;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.finance.entity.request.ContractCreateRequest;
 import com.unibook.publisher.finance.entity.request.ContractUpdateRequest;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
@@ -59,13 +58,6 @@ public class ContractController {
             @RequestBody @Valid PayoutSimulationRequest request
     ) {
         return ResponseEntity.ok(contractService.simulatePayout(id, userId, userRole, request));
-    }
-
-    @PostMapping
-    public ResponseEntity<ContractResponse> createContract(
-            @Valid @RequestBody ContractCreateRequest request
-    ) {
-        return ResponseEntity.status(201).body(contractService.createContract(request));
     }
 
     @GetMapping("/{id}")

@@ -1,6 +1,6 @@
 @org.springframework.modulith.ApplicationModule(
         displayName = "Production & Editorial",
-        allowedDependencies = { "common" }
+        allowedDependencies = { "common", "storage"}
 )
 
 package com.unibook.publisher.production;

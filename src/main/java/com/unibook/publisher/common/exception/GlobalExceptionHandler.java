@@ -1,12 +1,16 @@
 package com.unibook.publisher.common.exception;
 
+import com.unibook.publisher.common.exception.badrequest.BadRequestException;
 import com.unibook.publisher.common.exception.business.BusinessRuleViolationException;
+import com.unibook.publisher.common.exception.business.FileUploadException;
 import com.unibook.publisher.common.exception.conflict.DuplicateResourceException;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
 import com.unibook.publisher.common.exception.notfound.FileNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.exception.storage.FileReadException;
+import com.unibook.publisher.common.exception.storage.FileStorageException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -83,13 +87,13 @@ public class GlobalExceptionHandler {
         return detail;
     }
 
-    // @ExceptionHandler(FileStorageException.class)
-    // public ProblemDetail handleNotFound(FileStorageException exception) {
-    //     ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
-    //     detail.setTitle("Файл не знайдено");
-    //     detail.setProperty("timestamp", Instant.now());
-    //     return detail;
-    // }
+     @ExceptionHandler(FileStorageException.class)
+     public ProblemDetail handleNotFound(FileStorageException exception) {
+         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+         detail.setTitle("Файл не знайдено");
+         detail.setProperty("timestamp", Instant.now());
+         return detail;
+     }
 
     @ExceptionHandler(InvalidStateTransitionException.class)
     public ProblemDetail handleInvalidState(InvalidStateTransitionException exception) {
@@ -131,17 +135,41 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(ForbiddenActionException.class)
-    public ProblemDetail handleForbidden(ForbiddenActionException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, ex.getMessage());
+    public ProblemDetail handleForbidden(ForbiddenActionException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
         problem.setTitle("Заборонена дія");
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }
 
     @ExceptionHandler(InvalidCredentialsException.class)
-    public ProblemDetail handleInvalidCredentials(InvalidCredentialsException ex) {
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, ex.getMessage());
+    public ProblemDetail handleInvalidCredentials(InvalidCredentialsException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, exception.getMessage());
         problem.setTitle("Помилка автентифікації");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(BadRequestException.class)
+    public ProblemDetail handleFileNotFound(FileNotFoundException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        problem.setTitle("Поганий запит на завантаження файлу");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(FileReadException.class)
+    public ProblemDetail handleFileRead(FileReadException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
+        problem.setTitle("Помилка читання файлу");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(FileUploadException.class)
+    public ProblemDetail handleCoverVersionUpload(FileUploadException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getCause().getMessage());
+        problem.setTitle(exception.getMessage());
         problem.setProperty("timestamp", Instant.now());
         return problem;
     }

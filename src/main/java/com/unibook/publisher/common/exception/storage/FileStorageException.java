@@ -1,7 +1,9 @@
 package com.unibook.publisher.common.exception.storage;
 
-public class FileStorageException extends RuntimeException {
+import com.unibook.publisher.common.exception.DomainException;
+
+public class FileStorageException extends DomainException {
     public FileStorageException(String url) {
-        super("Помилка при спробі доступу до сховища для файлу/директорії " + url);
+        super("Помилка при спробі доступу до сховища для файлу " + url);
     }
 }

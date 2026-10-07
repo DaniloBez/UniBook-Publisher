@@ -10,7 +10,6 @@ import org.hibernate.annotations.OnDeleteAction;
 import java.time.Instant;
 import java.util.UUID;
 
-//версії розділу до книги
 @Entity
 @Table(
         name = "revisions",
@@ -42,15 +41,11 @@ public class Revision {
     @Column(name = "uploaded_at", nullable = false)
     private Instant uploadedAt;
 
-    @Column(name = "text_content", columnDefinition = "TEXT")
-    private String textContent;
-
-    public Revision(int versionNumber, String fileUrl, UUID uploadedByUserId, Instant uploadedAt, String textContent) {
+    public Revision(int versionNumber, String fileUrl, UUID uploadedByUserId, Instant uploadedAt) {
         this.versionNumber = versionNumber;
         this.fileUrl = fileUrl;
         this.uploadedByUserId = uploadedByUserId;
         this.uploadedAt = uploadedAt;
-        this.textContent = textContent;
     }
 
     public UUID getChapterId() {

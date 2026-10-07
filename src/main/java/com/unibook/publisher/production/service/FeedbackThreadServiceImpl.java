@@ -9,11 +9,11 @@ import com.unibook.publisher.common.exception.business.InvalidQuoteException;
 import com.unibook.publisher.common.exception.business.InvalidQuotePositionException;
 import com.unibook.publisher.common.exception.business.ThreadNotASuggestionException;
 import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
-import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.notfound.RevisionNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ThreadNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.*;
 import com.unibook.publisher.production.entity.request.OpenThreadRequest;
@@ -23,10 +23,14 @@ import com.unibook.publisher.production.entity.response.ThreadResponse;
 import com.unibook.publisher.production.enums.SuggestionStatus;
 import com.unibook.publisher.production.enums.ThreadStatus;
 import com.unibook.publisher.production.repository.*;
+import com.unibook.publisher.storage.FileStorageService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
@@ -40,8 +44,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     private final ThreadMessageRepository messageRepository;
     private final ChapterRepository chapterRepository;
     private final RevisionRepository revisionRepository;
-    private final ManuscriptRepository manuscriptRepository;
     private final TeamAssignmentRepository teamAssignmentRepository;
+    private final FileStorageService fileStorageService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
@@ -49,8 +53,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
             FeedbackThreadRepository threadRepository,
             ThreadMessageRepository messageRepository,
             ChapterRepository chapterRepository, RevisionRepository revisionRepository,
-            ManuscriptRepository manuscriptRepository,
             TeamAssignmentRepository teamAssignmentRepository,
+            FileStorageService fileStorageService,
             ApplicationEventPublisher publisher,
             AppLogger logger
     ) {
@@ -58,8 +62,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         this.messageRepository = messageRepository;
         this.chapterRepository = chapterRepository;
         this.revisionRepository = revisionRepository;
-        this.manuscriptRepository = manuscriptRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
+        this.fileStorageService = fileStorageService;
         this.publisher = publisher;
         this.logger = logger;
     }
@@ -73,22 +77,20 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         Manuscript manuscript = chapter.getManuscript();
 
         validateQuote(request);
-        boolean isSuggestion = request.suggestedText() != null && !request.suggestedText().isBlank();
 
         Optional<TeamAssignment> editor = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscript.getManuscriptId(), UserRole.EDITOR);
         UUID recipientId = resolveOtherParty(manuscript, editor, initiatorId);
 
-                FeedbackThread thread = new FeedbackThread();
-        thread.setCreatedByUserId(initiatorId);
-        thread.setStatus(ThreadStatus.OPEN);
-        thread.setSuggestion(isSuggestion);
-        thread.setSuggestedText(isSuggestion ? request.suggestedText() : null);
-        thread.setSuggestionStatus(isSuggestion ? SuggestionStatus.PENDING : null);
-        thread.setCreatedAt(Instant.now());
-        thread.setTargetRevisionId(request.targetRevisionId());
-        thread.setQuotedText(request.quotedText());
-        thread.setPositionFrom(request.positionFrom());
-        thread.setPositionTo(request.positionTo());
+        FeedbackThread thread = new FeedbackThread(
+                initiatorId,
+                request.suggestedText(),
+                request.targetRevisionId(),
+                request.quotedText(),
+                request.positionFrom(),
+                request.positionTo()
+        );
+
+        thread.setChapter(chapter);
         chapter.addThread(thread);
 
         ThreadMessage message = new ThreadMessage(initiatorId, request.initialMessage(), Instant.now());
@@ -118,28 +120,33 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     }
 
     private void validateQuote(OpenThreadRequest request) {
-        if (request.targetRevisionId() == null || request.quotedText() == null) {
+        if (request.targetRevisionId() == null || request.quotedText() == null)
             return;
-        }
 
         UUID revisionId = request.targetRevisionId();
         Revision revision = revisionRepository.findById(revisionId)
                 .orElseThrow(() -> new RevisionNotFoundException(revisionId));
 
-        String textContent = revision.getTextContent();
-        if (textContent == null) {
+        String textContent = readRevisionContent(revision.getFileUrl());
+        if (textContent.isEmpty())
             throw new EmptyRevisionTextException();
-        }
 
         Integer from = request.positionFrom();
         Integer to = request.positionTo();
-        if (from == null || to == null || from < 0 || to > textContent.length() || from >= to) {
+        if (from == null || to == null || from < 0 || to > textContent.length() || from >= to)
             throw new InvalidQuotePositionException();
-        }
 
         String quote = textContent.substring(from, to);
-        if (!quote.equals(request.quotedText())) {
+        if (!quote.equals(request.quotedText()))
             throw new InvalidQuoteException(request.quotedText());
+    }
+
+    private String readRevisionContent(String fileUrl) {
+        try (InputStream inputStream = fileStorageService.get(fileUrl)) {
+            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            logger.error("Не вдалося прочитати файл ревізії: {}", fileUrl, e);
+            throw new FileReadException(fileUrl);
         }
     }
 

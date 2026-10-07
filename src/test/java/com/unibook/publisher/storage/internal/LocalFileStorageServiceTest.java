@@ -1,4 +1,4 @@
-package com.unibook.publisher.storage;
+package com.unibook.publisher.storage.internal;
 
 import com.unibook.publisher.common.exception.notfound.FileNotFoundException;
 import com.unibook.publisher.common.exception.storage.FileStorageException;

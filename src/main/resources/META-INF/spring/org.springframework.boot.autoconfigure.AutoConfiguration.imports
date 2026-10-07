@@ -1,1 +1,1 @@
-com.unibook.publisher.storage.FileStorageAutoConfiguration
+com.unibook.publisher.storage.internal.FileStorageAutoConfiguration

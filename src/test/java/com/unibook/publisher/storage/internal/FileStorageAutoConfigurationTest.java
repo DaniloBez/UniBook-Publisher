@@ -1,6 +1,7 @@
-package com.unibook.publisher.storage;
+package com.unibook.publisher.storage.internal;
 
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.storage.FileStorageService;
 import io.minio.MinioClient;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -24,7 +25,6 @@ class FileStorageAutoConfigurationTest {
                             .isInstanceOf(LocalFileStorageService.class);}
                 );
     }
-
 
     @Test
     void shouldRegisterS3StorageService() {

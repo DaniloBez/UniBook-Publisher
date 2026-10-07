@@ -1,4 +1,4 @@
-package com.unibook.publisher.storage;
+package com.unibook.publisher.storage.internal;
 
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;

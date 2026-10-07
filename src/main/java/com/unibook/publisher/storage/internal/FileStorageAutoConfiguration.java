@@ -1,6 +1,7 @@
-package com.unibook.publisher.storage;
+package com.unibook.publisher.storage.internal;
 
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.storage.FileStorageService;
 import io.minio.MinioClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

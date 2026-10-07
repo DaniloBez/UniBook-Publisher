@@ -1,8 +1,9 @@
-package com.unibook.publisher.storage;
+package com.unibook.publisher.storage.internal;
 
 import com.unibook.publisher.common.exception.storage.FileStorageException;
 import com.unibook.publisher.common.exception.notfound.FileNotFoundException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.storage.FileStorageService;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -11,7 +12,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 
-public class LocalFileStorageService implements FileStorageService{
+public class LocalFileStorageService implements FileStorageService {
     private final AppLogger logger;
     private final FileStorageProperties properties;
     private final Path root;
