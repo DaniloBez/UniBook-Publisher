@@ -1,12 +1,14 @@
 package com.unibook.publisher.production.controller;
 
-import com.unibook.publisher.production.entity.request.CoverVersionRequest;
+import com.unibook.publisher.common.exception.badrequest.FileIsEmptyException;
+import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.production.entity.response.CoverVersionResponse;
 import com.unibook.publisher.production.service.CoverVersionService;
-import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,9 +25,24 @@ public class CoverVersionController {
     public ResponseEntity<CoverVersionResponse> uploadCoverVersion(
             @PathVariable UUID id,
             @RequestHeader("X-User-Id") UUID designerId,
-            @Valid @RequestBody CoverVersionRequest request
+            @RequestParam MultipartFile file
     ) {
-        return ResponseEntity.ok(coverVersionService.uploadCoverVersion(id, designerId, request));
+        if (file.isEmpty())
+            throw new FileIsEmptyException();
+
+        try {
+            return ResponseEntity.ok(coverVersionService.uploadCoverVersion(
+                    id,
+                    designerId,
+                    file.getInputStream(),
+                    file.getSize(),
+                    file.getContentType(),
+                    file.getOriginalFilename()
+            ));
+        } catch (IOException exception) {
+            System.out.printf("Проблема читання файлу " + file.getOriginalFilename());
+            throw new FileReadException(file.getOriginalFilename());
+        }
     }
 
     @GetMapping("/{id}/cover-versions")

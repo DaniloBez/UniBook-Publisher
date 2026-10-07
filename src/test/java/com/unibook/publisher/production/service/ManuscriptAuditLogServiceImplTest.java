@@ -1,5 +1,6 @@
 package com.unibook.publisher.production.service;
 
+import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.ManuscriptAuditLog;
@@ -82,7 +83,43 @@ public class ManuscriptAuditLogServiceImplTest {
         List<ManuscriptAuditLogResponse> result = auditLogService.getAuditLog(manuscriptId);
 
         assertEquals(1, result.size());
-        assertEquals(ManuscriptStatus.SUBMITTED, result.get(0).oldStatus());
-        assertEquals(ManuscriptStatus.IN_PROGRESS, result.get(0).newStatus());
+        assertEquals(ManuscriptStatus.SUBMITTED, result.getFirst().oldStatus());
+        assertEquals(ManuscriptStatus.IN_PROGRESS, result.getFirst().newStatus());
+    }
+
+    @Test
+    @DisplayName("Помилка запису аудиту, якщо рукопис не знайдено")
+    void recordStatusChange_ManuscriptNotFound_ThrowsException() {
+        UUID manuscriptId = UUID.randomUUID();
+        UUID changedByUserId = UUID.randomUUID();
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
+
+        assertThrows(
+                ManuscriptNotFoundException.class,
+                () -> auditLogService.recordStatusChange(
+                        manuscriptId,
+                        changedByUserId,
+                        ManuscriptStatus.IN_PROGRESS,
+                        ManuscriptStatus.TEXT_APPROVED
+                )
+        );
+
+        verify(auditLogRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Помилка отримання аудиту, якщо рукопис не знайдено")
+    void getAuditLog_ManuscriptNotFound_ThrowsException() {
+        UUID manuscriptId = UUID.randomUUID();
+
+        when(manuscriptRepository.existsById(manuscriptId)).thenReturn(false);
+
+        assertThrows(
+                ManuscriptNotFoundException.class,
+                () -> auditLogService.getAuditLog(manuscriptId)
+        );
+
+        verify(auditLogRepository, never()).findByManuscriptId(any());
     }
 }

@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -25,18 +26,18 @@ public class DiffServiceTest {
     void compare_Equal() {
         UUID fromId = UUID.randomUUID();
         UUID toId = UUID.randomUUID();
-        String oldText = "Перший рядок\nДругий рядок";
-        String newText = "Перший рядок\nДругий рядок";
+        List<String> oldLines = List.of("Перший рядок", "Другий рядок");
+        List<String> newLines = List.of("Перший рядок", "Другий рядок");
 
-        DiffResponse response = diffService.compare(fromId, toId, oldText, newText);
+        DiffResponse response = diffService.compare(fromId, toId, oldLines, newLines);
 
         assertNotNull(response);
         assertEquals(fromId, response.fromRevisionId());
         assertEquals(toId, response.toRevisionId());
         assertEquals(2, response.lines().size());
 
-        assertEquals(DiffStatus.EQUAL, response.lines().get(0).status());
-        assertEquals("Перший рядок", response.lines().get(0).content());
+        assertEquals(DiffStatus.EQUAL, response.lines().getFirst().status());
+        assertEquals("Перший рядок", response.lines().getFirst().content());
         assertEquals(1, response.lines().get(0).oldLineIndex());
         assertEquals(1, response.lines().get(0).newLineIndex());
 
@@ -48,10 +49,10 @@ public class DiffServiceTest {
     void compare_Inserted() {
         UUID fromId = UUID.randomUUID();
         UUID toId = UUID.randomUUID();
-        String oldText = "Перший рядок";
-        String newText = "Перший рядок\nДругий рядок";
+        List<String> oldLines = List.of("Перший рядок");
+        List<String> newLines = List.of("Перший рядок", "Другий рядок");
 
-        DiffResponse response = diffService.compare(fromId, toId, oldText, newText);
+        DiffResponse response = diffService.compare(fromId, toId, oldLines, newLines);
 
         assertEquals(2, response.lines().size());
         assertEquals(DiffStatus.EQUAL, response.lines().get(0).status());
@@ -65,10 +66,10 @@ public class DiffServiceTest {
     void compare_Deleted() {
         UUID fromId = UUID.randomUUID();
         UUID toId = UUID.randomUUID();
-        String oldText = "Перший рядок\nДругий рядок";
-        String newText = "Перший рядок";
+        List<String> oldLines = List.of("Перший рядок", "Другий рядок");
+        List<String> newLines = List.of("Перший рядок");
 
-        DiffResponse response = diffService.compare(fromId, toId, oldText, newText);
+        DiffResponse response = diffService.compare(fromId, toId, oldLines, newLines);
 
         assertEquals(2, response.lines().size());
         assertEquals(DiffStatus.EQUAL, response.lines().get(0).status());
@@ -82,10 +83,10 @@ public class DiffServiceTest {
     void compare_Changed() {
         UUID fromId = UUID.randomUUID();
         UUID toId = UUID.randomUUID();
-        String oldText = "Старий текст";
-        String newText = "Новий текст";
+        List<String> oldLines = List.of("Старий текст");
+        List<String> newLines = List.of("Новий текст");
 
-        DiffResponse response = diffService.compare(fromId, toId, oldText, newText);
+        DiffResponse response = diffService.compare(fromId, toId, oldLines, newLines);
 
         assertEquals(2, response.lines().size());
         assertEquals(DiffStatus.DELETED, response.lines().get(0).status());
@@ -95,11 +96,11 @@ public class DiffServiceTest {
     }
 
     @Test
-    void compare_NullText() {
+    void compare_EmptyLists() {
         UUID fromId = UUID.randomUUID();
         UUID toId = UUID.randomUUID();
 
-        DiffResponse response = diffService.compare(fromId, toId, null, null);
+        DiffResponse response = diffService.compare(fromId, toId, List.of(), List.of());
 
         assertNotNull(response);
         assertTrue(response.lines().isEmpty());

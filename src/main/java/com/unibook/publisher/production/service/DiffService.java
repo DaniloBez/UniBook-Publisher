@@ -14,10 +14,7 @@ import java.util.UUID;
 @Service
 public class DiffService {
 
-    public DiffResponse compare(UUID fromRevisionId, UUID toRevisionId, String oldText, String newText) {
-        List<String> oldLines = oldText != null ? List.of(oldText.split("\\r?\\n")) : List.of();
-        List<String> newLines = newText != null ? List.of(newText.split("\\r?\\n")) : List.of();
-
+    public DiffResponse compare(UUID fromRevisionId, UUID toRevisionId, List<String> oldLines, List<String> newLines) {
         Patch<String> patch = DiffUtils.diff(oldLines, newLines);
         List<DiffLine> lines = new ArrayList<>();
 
