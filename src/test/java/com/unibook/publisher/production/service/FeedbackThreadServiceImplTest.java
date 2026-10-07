@@ -26,6 +26,7 @@ import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.enums.SuggestionStatus;
 import com.unibook.publisher.production.enums.ThreadStatus;
 import com.unibook.publisher.production.repository.*;
+import com.unibook.publisher.storage.FileStorageService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

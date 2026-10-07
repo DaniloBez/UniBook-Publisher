@@ -1,4 +1,4 @@
-package com.unibook.publisher.production.service;
+package com.unibook.publisher.storage;
 
 import java.io.InputStream;
 

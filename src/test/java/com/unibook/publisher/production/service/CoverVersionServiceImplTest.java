@@ -16,6 +16,7 @@ import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.repository.CoverVersionRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import com.unibook.publisher.production.repository.TeamAssignmentRepository;
+import com.unibook.publisher.storage.FileStorageService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

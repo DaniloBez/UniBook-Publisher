@@ -1,22 +1,21 @@
-package com.unibook.publisher.production.service;
+package com.unibook.publisher.storage.internal;
 
 import com.unibook.publisher.common.exception.notfound.FileNotFoundException;
 import com.unibook.publisher.common.exception.storage.FileStorageException;
 import com.unibook.publisher.common.logging.AppLogger;
 
+import com.unibook.publisher.storage.FileStorageService;
 import io.minio.*;
 import io.minio.errors.ErrorResponseException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
+
 import java.io.InputStream;
 import java.util.concurrent.TimeUnit;
 
-@Service
 public class S3FileStorageService implements FileStorageService {
 
     private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
     private static final long UNKNOWN_SIZE_PART_SIZE = 10L * 1024 * 1024;
-
 
     private final AppLogger logger;
     private final MinioClient client;

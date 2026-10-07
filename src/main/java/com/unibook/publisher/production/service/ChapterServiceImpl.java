@@ -26,6 +26,7 @@ import com.unibook.publisher.production.repository.ChapterRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import com.unibook.publisher.production.repository.RevisionRepository;
 import com.unibook.publisher.production.repository.TeamAssignmentRepository;
+import com.unibook.publisher.storage.FileStorageService;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

@@ -26,6 +26,7 @@ import com.unibook.publisher.production.repository.ChapterRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import com.unibook.publisher.production.repository.RevisionRepository;
 import com.unibook.publisher.production.repository.TeamAssignmentRepository;
+import com.unibook.publisher.storage.FileStorageService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;

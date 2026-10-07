@@ -1,6 +1,6 @@
 package com.unibook.publisher.production.controller;
 
-import com.unibook.publisher.production.service.FileStorageService;
+import com.unibook.publisher.storage.FileStorageService;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
