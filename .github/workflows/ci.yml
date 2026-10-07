@@ -42,18 +42,10 @@ jobs:
       - name: Make Gradle Wrapper Executable
         run: chmod +x ./gradlew
 
-      - name: Start Infrastructure (Docker Compose)
-        run: docker compose up -d minio
-
-      - name: Wait for MinIO & Create Bucket
+      - name: Start Infrastructure & Create Bucket
         run: |
-          docker run --network host --rm --entrypoint /bin/sh minio/mc -c "
-            until mc alias set myminio http://localhost:9000 minioadmin minioadmin; do
-              echo 'Waiting for MinIO...'
-              sleep 2
-            done
-            mc mb myminio/unibook --ignore-existing
-          "
+          docker compose up -d minio
+          docker compose up minio-init
 
       - name: Run Check & Tests with Coverage
         run: ./gradlew check jacocoTestReport
