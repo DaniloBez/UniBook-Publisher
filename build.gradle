@@ -33,6 +33,7 @@ def coverageExcludes = [
 	'**/enums/**',
 	'**/event/**',
 	'**/exception/**',
+	'**/openapi/**',
 	'**/controller/**',
 	'**/*Strategy.*',
 	'**/*FileStorage*',
@@ -59,6 +60,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.modulith:spring-modulith-starter-core'
 	implementation 'org.springframework.modulith:spring-modulith-starter-jpa'
+  implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'
 	implementation 'org.thymeleaf.extras:thymeleaf-extras-springsecurity6'
 	implementation 'io.github.java-diff-utils:java-diff-utils:4.12'
 	implementation 'io.minio:minio:9.0.3'
