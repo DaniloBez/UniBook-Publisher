@@ -54,19 +54,6 @@ public class LocalFileStorageServiceTest {
         assertEquals(content, Files.readString(saved));
     }
 
-//    @Test
-//    void put_FileStorageException() {
-//        String path = "../outside/file.txt";
-//        assertThrows(FileStorageException.class, () ->
-//                storageService.put(
-//                        path,
-//                        new ByteArrayInputStream("test".getBytes()),
-//                        4,
-//                        "text/plain"
-//                )
-//        );
-//    }
-
     @Test
     void get_Success() throws IOException {
         String path = "file.txt";
