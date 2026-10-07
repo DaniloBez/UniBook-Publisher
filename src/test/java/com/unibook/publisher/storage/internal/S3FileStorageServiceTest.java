@@ -36,7 +36,8 @@ class S3FileStorageServiceTest {
 
     @Test
     void put_Success() throws Exception {
-        when(client.putObject(any(PutObjectArgs.class))).thenReturn(mock(ObjectWriteResponse.class));
+        ObjectWriteResponse response = mock(ObjectWriteResponse.class);
+        when(client.putObject(any(PutObjectArgs.class))).thenReturn(response);
 
         String result = storageService.put(
                 "file.txt",
@@ -49,7 +50,8 @@ class S3FileStorageServiceTest {
 
     @Test
     void put_DefaultContentType_Success() throws Exception {
-        when(client.putObject(any(PutObjectArgs.class))).thenReturn(mock(ObjectWriteResponse.class));
+        ObjectWriteResponse response = mock(ObjectWriteResponse.class);
+        when(client.putObject(any(PutObjectArgs.class))).thenReturn(response);
 
         String result = storageService.put(
                 "file.txt",
