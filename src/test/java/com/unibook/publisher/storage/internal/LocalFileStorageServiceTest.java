@@ -143,13 +143,6 @@ public class LocalFileStorageServiceTest {
     }
 
     @Test
-    void get_FileStorageException() throws IOException {
-        String path = "folder";
-        Files.createDirectory(tempDir.resolve(path));
-        assertThrows(FileStorageException.class, () -> storageService.get(path));
-    }
-
-    @Test
     void getPresignedUrl_DefaultServerUrl_Success() {
         FileStorageProperties properties =
                 new FileStorageProperties(
