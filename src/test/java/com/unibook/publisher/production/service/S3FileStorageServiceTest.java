@@ -1,11 +1,12 @@
 package com.unibook.publisher.production.service;
 
-import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.common.exception.notfound.FileNotFoundException;
 import com.unibook.publisher.common.exception.storage.FileStorageException;
-
+import com.unibook.publisher.common.logging.AppLogger;
 import io.minio.*;
+import io.minio.errors.ErrorResponseException;
+import io.minio.messages.ErrorResponse;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -41,122 +42,113 @@ class S3FileStorageServiceTest {
         );
     }
 
-
     @Test
-    void putText_ShouldUploadTextAndReturnUrl() throws Exception {
-        String path = "test/file.txt";
-        String content = "Hello S3";
+    @DisplayName("Успішне завантаження потоку в MinIO та повернення шляху")
+    void put_ShouldUploadStreamAndReturnPath() throws Exception {
+        String path = "authorId/manuscriptId/covers/cover.png";
+        byte[] content = "fake-image-content".getBytes(StandardCharsets.UTF_8);
+        InputStream inputStream = new ByteArrayInputStream(content);
 
-        String url = fileStorageService.putText(path, content);
-
-        assertEquals(
-                bucket + "/" + path,
-                url
+        String result = fileStorageService.put(
+                path,
+                inputStream,
+                content.length,
+                "image/png"
         );
 
-        verify(minioClient)
-                .putObject(any(PutObjectArgs.class));
+        assertEquals(bucket + "/" + path, result);
+        verify(minioClient).putObject(any(PutObjectArgs.class));
     }
 
-
     @Test
-    void put_ShouldUploadBytesAndReturnUrl() throws Exception {
-        byte[] content = "Hello".getBytes(StandardCharsets.UTF_8);
-
-        String url = fileStorageService.put(
-                "test/file.bin",
-                new ByteArrayInputStream(content),
-                content.length
-        );
-
-        assertEquals(
-                bucket + "/test/file.bin",
-                url
-        );
-
-        verify(minioClient)
-                .putObject(any(PutObjectArgs.class));
-    }
-
-
-    @Test
-    void putTextWithoutPath_ShouldGenerateRandomTextFileUrl() throws Exception {
-        String url = fileStorageService.put("Hello world");
-
-        assertTrue(
-                url.startsWith(bucket + "/")
-        );
-
-        assertTrue(
-                url.endsWith(".txt")
-        );
-
-        verify(minioClient)
-                .putObject(any(PutObjectArgs.class));
-    }
-
-
-    @Test
+    @DisplayName("Успішне отримання потоку файлу з MinIO")
     void get_ShouldReturnFileStream() throws Exception {
-    GetObjectResponse response = mock(GetObjectResponse.class);
+        String path = "authorId/manuscriptId/chapters/ch1/rev1.md";
+        GetObjectResponse response = mock(GetObjectResponse.class);
 
-    when(response.readAllBytes()).thenReturn("content".getBytes(StandardCharsets.UTF_8));
+        when(response.readAllBytes()).thenReturn("content".getBytes(StandardCharsets.UTF_8));
+        when(minioClient.getObject(any(GetObjectArgs.class))).thenReturn(response);
 
-    when(minioClient.getObject(any(GetObjectArgs.class))).thenReturn(response);
+        InputStream result = fileStorageService.get(path);
 
-        InputStream result = fileStorageService.get(
-                bucket + "/file.txt"
-        );
-
+        assertNotNull(result);
         assertEquals(
                 "content",
-                new String(
-                        result.readAllBytes(),
-                        StandardCharsets.UTF_8
-                )
+                new String(result.readAllBytes(), StandardCharsets.UTF_8)
         );
 
-        verify(minioClient)
-                .getObject(any(GetObjectArgs.class));
+        verify(minioClient).getObject(any(GetObjectArgs.class));
     }
 
+    @Test
+    @DisplayName("Успішна генерація Presigned URL для відображення файлу")
+    void getPresignedUrl_ShouldReturnGeneratedUrlForDisplay() throws Exception {
+        String path = "authorId/manuscriptId/covers/cover.png";
+        String expectedPresignedUrl = "http://localhost:9000/bucket/authorId/manuscriptId/covers/cover.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=...";
+
+        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+                .thenReturn(expectedPresignedUrl);
+
+        String actualUrl = fileStorageService.getPresignedUrl(path);
+
+        assertNotNull(actualUrl);
+        assertEquals(expectedPresignedUrl, actualUrl);
+        verify(minioClient).getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class));
+    }
 
     @Test
+    @DisplayName("Повертає true, якщо файл існує у сховищі")
     void exists_WhenFileExists_ShouldReturnTrue() throws Exception {
-        when(minioClient.statObject(any(StatObjectArgs.class)))
-                .thenReturn(null);
+        String path = "file.txt";
 
-        boolean result = fileStorageService.exists(
-                bucket + "/file.txt"
-        );
+        when(minioClient.statObject(any(StatObjectArgs.class))).thenReturn(null);
+
+        boolean result = fileStorageService.exists(path);
 
         assertTrue(result);
-
         verify(minioClient).statObject(any(StatObjectArgs.class));
     }
 
+    @Test
+    @DisplayName("Повертає false, якщо файл відсутній у сховищі (NoSuchKey)")
+    void exists_WhenFileNotFound_ShouldReturnFalse() throws Exception {
+        String path = "missing_file.txt";
+
+        ErrorResponse errorResponse = mock(ErrorResponse.class);
+        when(errorResponse.code()).thenReturn("NoSuchKey");
+
+        ErrorResponseException exception = mock(ErrorResponseException.class);
+        when(exception.errorResponse()).thenReturn(errorResponse);
+
+        when(minioClient.statObject(any(StatObjectArgs.class))).thenThrow(exception);
+
+        boolean result = fileStorageService.exists(path);
+
+        assertFalse(result);
+        verify(minioClient).statObject(any(StatObjectArgs.class));
+    }
 
     @Test
-    void exists_WhenStorageThrowsException_ShouldThrowException() throws Exception {
+    @DisplayName("Кидає FileStorageException у разі помилки підключення до MinIO")
+    void exists_WhenStorageThrowsGeneralException_ShouldThrowFileStorageException() throws Exception {
+        String path = "file.txt";
+
         when(minioClient.statObject(any(StatObjectArgs.class)))
-                .thenThrow(new FileStorageException("missing_file"));
+                .thenThrow(new RuntimeException("MinIO connection failed"));
 
         assertThrows(
                 FileStorageException.class,
-                () -> fileStorageService.exists(
-                        bucket + "/file.txt"
-                )
+                () -> fileStorageService.exists(path)
         );
     }
 
-
     @Test
+    @DisplayName("Успішне видалення файлу з MinIO")
     void delete_ShouldRemoveFile() throws Exception {
-        fileStorageService.delete(
-                bucket + "/file.txt"
-        );
+        String path = "file.txt";
 
-        verify(minioClient)
-                .removeObject(any(RemoveObjectArgs.class));
+        fileStorageService.delete(path);
+
+        verify(minioClient).removeObject(any(RemoveObjectArgs.class));
     }
 }

@@ -337,4 +337,63 @@ public class ManuscriptFinalizationServiceImplTest {
         assertThrows(ManuscriptNotFoundException.class, () -> finalizationService.getAuditLog(manuscriptId));
         verify(manuscriptAuditLogService, never()).getAuditLog(any());
     }
+
+    @Test
+    @DisplayName("Успішна фіналізація тексту, якщо всі звичайні треди закриті (RESOLVED, isSuggestion = false)")
+    void finalizeText_SuccessWhenOnlyResolvedNonSuggestionThreadsExist() {
+        UUID manuscriptId = UUID.randomUUID();
+        UUID editorId = UUID.randomUUID();
+        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
+        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
+
+        FeedbackThread resolvedThread = new FeedbackThread(
+                UUID.randomUUID(),
+                null,
+                null,
+                null,
+                null,
+                null
+        );
+        resolvedThread.setStatus(ThreadStatus.RESOLVED);
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
+        when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(resolvedThread));
+        when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, editorId);
+
+        assertEquals(ManuscriptStatus.TEXT_APPROVED, response.status());
+        verify(manuscriptRepository, times(1)).save(any());
+    }
+
+    @Test
+    @DisplayName("Успішна фіналізація тексту, якщо всі пропозиції вже оброблені (ACCEPTED або REJECTED)")
+    void finalizeText_SuccessWhenOnlyProcessedSuggestionThreadsExist() {
+        UUID manuscriptId = UUID.randomUUID();
+        UUID editorId = UUID.randomUUID();
+        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
+        TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
+
+        FeedbackThread acceptedSuggestion = new FeedbackThread(
+                UUID.randomUUID(),
+                "запропонований текст",
+                null,
+                null,
+                null,
+                null
+        );
+        acceptedSuggestion.setStatus(ThreadStatus.RESOLVED);
+        acceptedSuggestion.setSuggestionStatus(SuggestionStatus.ACCEPTED);
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
+        when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(acceptedSuggestion));
+        when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, editorId);
+
+        assertEquals(ManuscriptStatus.TEXT_APPROVED, response.status());
+        verify(manuscriptRepository, times(1)).save(any());
+    }
 }

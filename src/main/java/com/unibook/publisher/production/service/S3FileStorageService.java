@@ -3,26 +3,20 @@ package com.unibook.publisher.production.service;
 import com.unibook.publisher.common.exception.notfound.FileNotFoundException;
 import com.unibook.publisher.common.exception.storage.FileStorageException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.production.entity.MediaStream;
 
 import io.minio.*;
 import io.minio.errors.ErrorResponseException;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
-import org.springframework.http.MediaTypeFactory;
 import org.springframework.stereotype.Service;
-
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
-import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class S3FileStorageService implements FileStorageService {
 
     private static final String DEFAULT_CONTENT_TYPE = "application/octet-stream";
     private static final long UNKNOWN_SIZE_PART_SIZE = 10L * 1024 * 1024;
+
 
     private final AppLogger logger;
     private final MinioClient client;
@@ -44,70 +38,26 @@ public class S3FileStorageService implements FileStorageService {
     }
 
     @Override
-    public MediaStream getMedia(String fileUrl) {
-        GetObjectResponse response = fetch(fileUrl);
-
-        String contentType = response.headers().get("Content-Type");
-        String length = response.headers().get("Content-Length");
-
-        return new MediaStream(
-                response,
-                contentType != null ? contentType : DEFAULT_CONTENT_TYPE,
-                length != null ? Long.parseLong(length) : -1L
-        );
-    }
-
-    @Override
-    public String getAsText(String fileUrl) {
-        try (InputStream inputStream = get(fileUrl)) {
-            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            logger.error("Failed to read file {}", e, fileUrl);
-            throw new FileStorageException(fileUrl);
+    public String getPresignedUrl(String path) {
+        try {
+            return client.getPresignedObjectUrl(
+                    GetPresignedObjectUrlArgs.builder()
+                            .method(Http.Method.GET)
+                            .bucket(bucket)
+                            .object(extractObjectKey(path))
+                            .expiry(30, TimeUnit.MINUTES)
+                            .build()
+            );
+        } catch (Exception e) {
+            System.out.println("Не вдалося створити попередньо підписану URL-адресу для файлу" + path);
+            throw resolveStorageException(path, e);
         }
     }
 
     @Override
-    public String put(String path, InputStream content, long size) {
-        return upload(path, content, size, DEFAULT_CONTENT_TYPE);
-    }
-
-    @Override
-    public String put(InputStream content, long size) {
-        return put(
-                UUID.randomUUID().toString(),
-                content,
-                size
-        );
-    }
-
-    @Override
-    public String putMedia(String path, InputStream content, long size) {
-        String contentType = MediaTypeFactory.getMediaType(path)
-                .map(MediaType::toString)
-                .orElse(DEFAULT_CONTENT_TYPE);
-
-        return upload(path, content, size, contentType);
-    }
-
-    @Override
-    public String putText(String path, String content) {
-        byte[] bytes = content.getBytes(StandardCharsets.UTF_8);
-
-        return upload(
-                path,
-                new ByteArrayInputStream(bytes),
-                bytes.length,
-                DEFAULT_CONTENT_TYPE
-        );
-    }
-
-    @Override
-    public String put(String content) {
-        return putText(
-                UUID.randomUUID().toString() + ".txt",
-                content
-        );
+    public String put(String path, InputStream content, long size, String contentType) {
+        String resolvedContentType = contentType != null ? contentType : DEFAULT_CONTENT_TYPE;
+        return upload(path, content, size, resolvedContentType);
     }
 
     @Override

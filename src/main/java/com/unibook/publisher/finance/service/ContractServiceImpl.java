@@ -9,13 +9,11 @@ import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
 import com.unibook.publisher.common.exception.business.UnsupportedRoyaltyStrategyException;
 import com.unibook.publisher.common.exception.notfound.ContractNotFoundException;
-import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.finance.entity.Contract;
 import com.unibook.publisher.finance.entity.FinanceAuditLog;
-import com.unibook.publisher.finance.entity.request.ContractCreateRequest;
 import com.unibook.publisher.finance.entity.request.ContractUpdateRequest;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
@@ -24,8 +22,6 @@ import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
 import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
-import com.unibook.publisher.production.api.ManuscriptApi;
-import com.unibook.publisher.production.api.ManuscriptDto;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,21 +39,19 @@ import java.util.stream.Collectors;
 public class ContractServiceImpl implements ContractService {
     private final ContractRepository contractRepository;
     private final FinanceAuditLogRepository financeAuditLogRepository;
-    private final ManuscriptApi api;
     private final ApplicationEventPublisher eventPublisher;
     private final AppLogger logger;
     private final Map<RoyaltyStrategyType, RoyaltyStrategy> strategies;
 
     public ContractServiceImpl(
             ContractRepository contractRepository,
-            FinanceAuditLogRepository financeAuditLogRepository, ManuscriptApi api,
+            FinanceAuditLogRepository financeAuditLogRepository,
             ApplicationEventPublisher eventPublisher,
             AppLogger logger,
             List<RoyaltyStrategy> strategyList
     ) {
         this.contractRepository = contractRepository;
         this.financeAuditLogRepository = financeAuditLogRepository;
-        this.api = api;
         this.eventPublisher = eventPublisher;
         this.logger = logger;
         this.strategies = strategyList.stream().collect(Collectors.toMap(RoyaltyStrategy::getType, Function.identity()));
@@ -66,13 +60,10 @@ public class ContractServiceImpl implements ContractService {
     @Override
     @Transactional
     public void createContractForApprovedManuscript(ManuscriptApprovedEvent event) {
-        ManuscriptDto manuscript = api.findById(event.manuscriptId())
-                .orElseThrow(() -> new ManuscriptNotFoundException(event.manuscriptId()));
-
         Contract contract = new Contract(
                 null,
-                manuscript.manuscriptId(),
-                manuscript.title(),
+                event.manuscriptId(),
+                event.manuscriptTitle(),
                 event.authorId(),
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
@@ -264,36 +255,6 @@ public class ContractServiceImpl implements ContractService {
         }
 
         return strategy;
-    }
-
-    @Override
-    @Transactional
-    public ContractResponse createContract(ContractCreateRequest request) {
-        contractRepository.findByManuscriptId(request.manuscriptId())
-                .ifPresent(c -> {
-                    throw new IllegalStateException(
-                            "Контракт для рукопису " + request.manuscriptId() + " вже існує");
-                });
-
-        ManuscriptDto manuscript = api.findById(request.manuscriptId())
-                .orElseThrow(() -> new ManuscriptNotFoundException(request.manuscriptId()));
-
-        Contract contract = new Contract(
-                null,
-                request.manuscriptId(),
-                manuscript.title(),
-                request.authorId(),
-                request.royaltyPercent(),
-                request.advancePayment(),
-                ContractStatus.DRAFT,
-                null,
-                Instant.now()
-        );
-
-        Contract saved = contractRepository.save(contract);
-        logger.info("Created contract {} for manuscript {}", saved.getId(), request.manuscriptId());
-
-        return ContractResponse.from(saved);
     }
 
     @Override

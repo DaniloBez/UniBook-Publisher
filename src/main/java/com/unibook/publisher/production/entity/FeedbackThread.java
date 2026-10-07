@@ -68,6 +68,29 @@ public class FeedbackThread {
     @OrderBy("sentAt ASC")
     private List<ThreadMessage> messages = new ArrayList<>();
 
+    public FeedbackThread(
+            UUID createdByUserId,
+            String suggestedText,
+            UUID targetRevisionId,
+            String quotedText,
+            Integer positionFrom,
+            Integer positionTo
+    ) {
+        this.createdByUserId = createdByUserId;
+        this.status = ThreadStatus.OPEN;
+        this.createdAt = Instant.now();
+
+        boolean hasSuggestion = suggestedText != null && !suggestedText.isBlank();
+        this.isSuggestion = hasSuggestion;
+        this.suggestedText = hasSuggestion ? suggestedText : null;
+        this.suggestionStatus = hasSuggestion ? SuggestionStatus.PENDING : null;
+
+        this.targetRevisionId = targetRevisionId;
+        this.quotedText = quotedText;
+        this.positionFrom = positionFrom;
+        this.positionTo = positionTo;
+    }
+
     public UUID getChapterId() {
         return chapter.getChapterId();
     }

@@ -23,10 +23,7 @@ public record RevisionResponse(
         UUID uploadedByUserId,
 
         @JsonProperty("uploaded_at")
-        Instant uploadedAt,
-
-        @JsonProperty("text_content")
-        String textContent
+        Instant uploadedAt
 ) {
     public static RevisionResponse from(Revision revision) {
         return new RevisionResponse(
@@ -35,8 +32,7 @@ public record RevisionResponse(
                 revision.getVersionNumber(),
                 revision.getFileUrl(),
                 revision.getUploadedByUserId(),
-                revision.getUploadedAt(),
-                revision.getTextContent()
+                revision.getUploadedAt()
         );
     }
 }

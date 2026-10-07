@@ -212,6 +212,11 @@ com.unibook.publisher.common.exception/
 ├── DomainException.java                                # Базовий абстрактний клас
 ├── GlobalExceptionHandler.java                         # Централізований обробник винятків
 │
+├── badrequest/                                         # HTTP 400 BAD REQUEST
+│   ├── BadRequestException.java                        # Базовий клас некоректного запиту
+│   ├── InvalidFileTypeException.java                   # Непідтримуване розширення чи Content-Type файлу
+│   └── FileIsEmptyException.java                       # Передано порожній файл
+│
 ├── notfound/                                           # HTTP 404 NOT FOUND
 │   ├── ResourceNotFoundException.java                  # Базовий клас для відсутніх ресурсів
 │   ├── ManuscriptNotFoundException.java
@@ -227,6 +232,7 @@ com.unibook.publisher.common.exception/
 │
 ├── business/                                           # HTTP 422 UNPROCESSABLE ENTITY
 │   ├── BusinessRuleViolationException.java             # Базовий клас порушення бізнес-правил
+│   ├── FileUploadException.java                        # Помилка збереження файлу в сховище / DB
 │   ├── UnresolvedThreadsException.java                 # Наявність незакритих тредів перед фіналізацією
 │   ├── MissingCoverException.java                      # Спроба публікації без затвердженої обкладинки
 │   ├── ContractNotActiveException.java                 # Спроба нарахування для неактивного контракту
@@ -235,6 +241,10 @@ com.unibook.publisher.common.exception/
 │   ├── EmptyRevisionTextException.java                 # Порожній або відсутній текст ревізії для цитування
 │   ├── UnsupportedRoyaltyStrategyException.java        # Непідтримувана стратегія розрахунку роялті
 │   └── ThreadNotASuggestionException.java              # Операції з правками над звичайним тредом
+│
+├── storage/                                            # HTTP 500 INTERNAL SERVER ERROR / STORAGE
+│   ├── FileStorageException.java                       # Базовий клас помилок MinIO / S3
+│   └── FileReadException.java                          # Помилка зчитування файлу зі сховища
 │
 ├── conflict/                                           # HTTP 409 CONFLICT
 │   ├── DuplicateResourceException.java                 # Базовий клас конфліктів даних

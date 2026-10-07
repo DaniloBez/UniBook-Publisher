@@ -8,14 +8,12 @@ import com.unibook.publisher.common.event.ManuscriptApprovedEvent;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
 import com.unibook.publisher.common.exception.business.UnsupportedRoyaltyStrategyException;
 import com.unibook.publisher.common.exception.notfound.ContractNotFoundException;
-import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.finance.entity.Contract;
 import com.unibook.publisher.common.enums.ContractStatus;
-import com.unibook.publisher.finance.entity.request.ContractCreateRequest;
 import com.unibook.publisher.finance.entity.request.ContractUpdateRequest;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
@@ -24,8 +22,6 @@ import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
 import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
-import com.unibook.publisher.production.api.ManuscriptApi;
-import com.unibook.publisher.production.api.ManuscriptDto;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -58,9 +54,6 @@ class ContractServiceImplTest {
     private FinanceAuditLogRepository financeAuditLogRepository;
 
     @Mock
-    private ManuscriptApi api;
-
-    @Mock
     private ApplicationEventPublisher eventPublisher;
 
     @Mock
@@ -85,7 +78,6 @@ class ContractServiceImplTest {
         contractService = new ContractServiceImpl(
                 contractRepository,
                 financeAuditLogRepository,
-                api,
                 eventPublisher,
                 logger,
                 List.of(
@@ -139,7 +131,6 @@ class ContractServiceImplTest {
                     authorId
             );
 
-            when(api.findById(manuscriptId)).thenReturn(Optional.of(new ManuscriptDto(manuscriptId, manuscriptTitle)));
             when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
             contractService.createContractForApprovedManuscript(event);
@@ -476,7 +467,6 @@ class ContractServiceImplTest {
             ContractServiceImpl serviceWithMissingStrategy = new ContractServiceImpl(
                     contractRepository,
                     financeAuditLogRepository,
-                    api,
                     eventPublisher,
                     logger,
                     List.of(flatRateRoyaltyStrategy, tieredVolumeRoyaltyStrategy)
@@ -486,62 +476,6 @@ class ContractServiceImplTest {
 
             assertThatThrownBy(() -> serviceWithMissingStrategy.simulatePayout(contractId, authorId, UserRole.AUTHOR, request))
                     .isInstanceOf(UnsupportedRoyaltyStrategyException.class);
-        }
-    }
-
-    @Nested
-    class CreateContractTests {
-        @Test
-        void createContract_Success() {
-            ContractCreateRequest request = new ContractCreateRequest(
-                    manuscriptId,
-                    authorId,
-                    new BigDecimal("12.5"),
-                    new BigDecimal("1000.0")
-            );
-
-            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
-            when(api.findById(manuscriptId)).thenReturn(Optional.of(new ManuscriptDto(manuscriptId, manuscriptTitle)));
-            when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-            ContractResponse response = contractService.createContract(request);
-
-            assertThat(response.manuscriptId()).isEqualTo(manuscriptId);
-            assertThat(response.authorId()).isEqualTo(authorId);
-            assertThat(response.royaltyPercent()).isEqualByComparingTo("12.5");
-            assertThat(response.advancePayment()).isEqualByComparingTo("1000.0");
-            assertThat(response.status()).isEqualTo(ContractStatus.DRAFT);
-            assertThat(response.authorConfirmedAt()).isNull();
-
-            ArgumentCaptor<Contract> captor = ArgumentCaptor.forClass(Contract.class);
-            verify(contractRepository).save(captor.capture());
-            assertThat(captor.getValue().getTitle()).isEqualTo(manuscriptTitle);
-        }
-
-        @Test
-        void createContract_AlreadyExists_ThrowsException() {
-            ContractCreateRequest request = new ContractCreateRequest(
-                    manuscriptId, authorId,
-                    new BigDecimal("12.5"), new BigDecimal("1000.0")
-            );
-
-            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
-            assertThrows(IllegalStateException.class, () -> contractService.createContract(request));
-            verify(contractRepository, never()).save(any());
-            verifyNoInteractions(api);
-        }
-
-        @Test
-        void createContract_ManuscriptNotFound_ThrowsException() {
-            ContractCreateRequest request = new ContractCreateRequest(
-                    manuscriptId, authorId,
-                    new BigDecimal("12.5"), new BigDecimal("1000.0")
-            );
-
-            when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
-            when(api.findById(manuscriptId)).thenReturn(Optional.empty());
-            assertThrows(ManuscriptNotFoundException.class, () -> contractService.createContract(request));
-            verify(contractRepository, never()).save(any());
         }
     }
 
