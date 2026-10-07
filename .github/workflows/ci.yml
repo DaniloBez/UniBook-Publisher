@@ -25,7 +25,7 @@ jobs:
           distribution: 'temurin'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@0f4528296b4bc09e8ae0fc7be30185a4ab435545
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -60,7 +60,7 @@ jobs:
         run: ./gradlew bootJar
 
       - name: Install Newman & Extra Reporter
-        run: npm install -g newman newman-reporter-htmlextra
+        run: npm install -g --ignore-scripts newman@6.2.2 newman-reporter-htmlextra@1.23.1
 
       - name: Run Spring Boot & Newman E2E Tests
         env:
