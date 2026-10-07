@@ -39,7 +39,7 @@ public class CoverVersionController {
                     file.getContentType(),
                     file.getOriginalFilename()
             ));
-        } catch (IOException exception) {
+        } catch (IOException _) {
             System.out.printf("Проблема читання файлу " + file.getOriginalFilename());
             throw new FileReadException(file.getOriginalFilename());
         }

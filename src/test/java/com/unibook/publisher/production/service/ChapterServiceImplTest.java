@@ -364,6 +364,7 @@ public class ChapterServiceImplTest {
     @Test
     @DisplayName("Помилка завантаження ревізії, якщо рукопис не знайдено")
     void uploadRevision_ManuscriptNotFoundException() {
+        UUID userId = UUID.randomUUID();
         UUID chapterId = UUID.randomUUID();
         UUID manuscriptId = UUID.randomUUID();
         Chapter chapter = chapter(chapterId, manuscript(manuscriptId, UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
@@ -372,23 +373,25 @@ public class ChapterServiceImplTest {
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
-        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), fileStream, 10L, "text/markdown", "chapter.md"));
+        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.uploadRevision(chapterId, userId, fileStream, 10L, "text/markdown", "chapter.md"));
     }
 
     @Test
     @DisplayName("Помилка завантаження ревізії, якщо розділ не знайдено")
     void uploadRevision_ChapterNotFoundException() {
+        UUID userId = UUID.randomUUID();
         UUID chapterId = UUID.randomUUID();
         InputStream fileStream = new ByteArrayInputStream("Текст".getBytes(StandardCharsets.UTF_8));
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
 
-        assertThrows(ChapterNotFoundException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), fileStream, 10L, "text/markdown", "chapter.md"));
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.uploadRevision(chapterId, userId, fileStream, 10L, "text/markdown", "chapter.md"));
     }
 
     @Test
     @DisplayName("Заборонено завантажувати ревізію у неприпустимому статусі рукопису")
     void uploadRevision_InvalidStateTransitionException() {
+        UUID userId = UUID.randomUUID();
         UUID chapterId = UUID.randomUUID();
         UUID manuscriptId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, UUID.randomUUID(), ManuscriptStatus.SUBMITTED);
@@ -397,7 +400,7 @@ public class ChapterServiceImplTest {
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter(chapterId, manuscript)));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
 
-        assertThrows(InvalidStateTransitionException.class, () -> chapterService.uploadRevision(chapterId, UUID.randomUUID(), fileStream, 10L, "text/markdown", "chapter.md"));
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.uploadRevision(chapterId, userId, fileStream, 10L, "text/markdown", "chapter.md"));
     }
 
     @Test

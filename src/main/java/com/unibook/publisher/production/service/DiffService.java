@@ -21,7 +21,7 @@ public class DiffService {
         int oldIndex = 0;
         int newIndex = 0;
 
-        for(var delta : patch.getDeltas()) {
+        for (var delta : patch.getDeltas()) {
             while (oldIndex < delta.getSource().getPosition()) {
                 lines.add(new DiffLine(oldLines.get(oldIndex), DiffStatus.EQUAL, oldIndex + 1, newIndex + 1));
                 oldIndex++;
@@ -29,35 +29,37 @@ public class DiffService {
             }
 
             switch (delta.getType()) {
-                case DELETE -> {
-                    for(String line : delta.getSource().getLines()) {
-                        lines.add(new DiffLine(line, DiffStatus.DELETED, oldIndex + 1, null));
-                        oldIndex++;
-                    }
-                }
-                case INSERT -> {
-                    for(String line : delta.getTarget().getLines()) {
-                        lines.add(new DiffLine(line, DiffStatus.INSERTED, null, newIndex + 1));
-                        newIndex++;
-                    }
-                }
+                case DELETE -> oldIndex = appendDeletedLines(lines, delta.getSource().getLines(), oldIndex);
+                case INSERT -> newIndex = appendInsertedLines(lines, delta.getTarget().getLines(), newIndex);
                 case CHANGE -> {
-                    for(String line : delta.getSource().getLines()) {
-                        lines.add(new DiffLine(line, DiffStatus.DELETED, oldIndex + 1, null));
-                        oldIndex++;
-                    }
-                    for(String line : delta.getTarget().getLines()) {
-                        lines.add(new DiffLine(line, DiffStatus.INSERTED, null, newIndex + 1));
-                        newIndex++;
-                    }
+                    oldIndex = appendDeletedLines(lines, delta.getSource().getLines(), oldIndex);
+                    newIndex = appendInsertedLines(lines, delta.getTarget().getLines(), newIndex);
                 }
             }
         }
+
         while (oldIndex < oldLines.size()) {
             lines.add(new DiffLine(oldLines.get(oldIndex), DiffStatus.EQUAL, oldIndex + 1, newIndex + 1));
             oldIndex++;
             newIndex++;
         }
+
         return new DiffResponse(fromRevisionId, toRevisionId, lines);
+    }
+
+    private int appendDeletedLines(List<DiffLine> lines, List<String> sourceLines, int oldIndex) {
+        for (String line : sourceLines) {
+            lines.add(new DiffLine(line, DiffStatus.DELETED, oldIndex + 1, null));
+            oldIndex++;
+        }
+        return oldIndex;
+    }
+
+    private int appendInsertedLines(List<DiffLine> lines, List<String> targetLines, int newIndex) {
+        for (String line : targetLines) {
+            lines.add(new DiffLine(line, DiffStatus.INSERTED, null, newIndex + 1));
+            newIndex++;
+        }
+        return newIndex;
     }
 }
