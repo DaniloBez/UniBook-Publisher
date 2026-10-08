@@ -258,7 +258,7 @@ public class ChapterServiceImpl implements ChapterService {
             return reader.lines().toList();
         } catch (UncheckedIOException | IOException e) {
             logger.error("Не вдалося прочитати файл ревізії зі сховища: {}", fileUrl, e);
-            throw new FileReadException(fileUrl);
+            throw new FileReadException(fileUrl, e);
         }
     }
 

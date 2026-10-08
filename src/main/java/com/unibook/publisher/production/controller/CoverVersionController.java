@@ -58,9 +58,9 @@ public class CoverVersionController {
                     file.getContentType(),
                     file.getOriginalFilename()
             ));
-        } catch (IOException _) {
-            logger.warn("Проблема читання файлу {}", file.getOriginalFilename());
-            throw new FileReadException(file.getOriginalFilename());
+        } catch (IOException e) {
+            logger.warn("Проблема читання файлу {}", file.getOriginalFilename(), e);
+            throw new FileReadException(file.getOriginalFilename(), e);
         }
     }
 

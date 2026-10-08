@@ -76,9 +76,11 @@ public class S3FileStorageService implements FileStorageService {
                 return false;
             }
 
+            logger.error("Failed to check file {}", fileUrl, e);
             throw resolveStorageException(fileUrl, e);
 
         } catch (Exception e) {
+            logger.error("Failed to check file {}", fileUrl, e);
             throw resolveStorageException(fileUrl, e);
         }
     }
@@ -136,7 +138,7 @@ public class S3FileStorageService implements FileStorageService {
 
         } catch (Exception e) {
             logger.error("Failed to put file {}", path, e);
-            throw new FileStorageException(path);
+            throw new FileStorageException(path, e);
         }
     }
 
@@ -147,7 +149,7 @@ public class S3FileStorageService implements FileStorageService {
             }
         }
 
-        return new FileStorageException(fileUrl);
+        return new FileStorageException(fileUrl, e);
     }
 
     private String buildUrl(String object) {
