@@ -94,7 +94,7 @@ public class S3FileStorageService implements FileStorageService {
             );
 
         } catch (Exception e) {
-            logger.error("Failed to delete file {}", e, fileUrl);
+            logger.error("Failed to delete file {}", fileUrl, e);
             throw resolveStorageException(fileUrl, e);
         }
     }
@@ -109,7 +109,7 @@ public class S3FileStorageService implements FileStorageService {
             );
 
         } catch (Exception e) {
-            logger.error("Failed to get file {}", e, fileUrl);
+            logger.error("Failed to get file {}", fileUrl, e);
             throw resolveStorageException(fileUrl, e);
         }
     }
@@ -135,7 +135,7 @@ public class S3FileStorageService implements FileStorageService {
             return buildUrl(path);
 
         } catch (Exception e) {
-            logger.error("Failed to put file {}", e, path);
+            logger.error("Failed to put file {}", path, e);
             throw new FileStorageException(path);
         }
     }

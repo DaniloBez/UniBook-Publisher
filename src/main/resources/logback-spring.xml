@@ -41,6 +41,7 @@
 
     <springProfile name="!prod">
         <logger name="com.unibook.publisher" level="DEBUG"/>
+        <logger name="org.hibernate.SQL" level="DEBUG"/>
         <root level="INFO">
             <appender-ref ref="CONSOLE"/>
             <appender-ref ref="ASYNC_FILE"/>
