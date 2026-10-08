@@ -6,6 +6,7 @@ import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
+import com.unibook.publisher.common.logging.AppLogger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,7 +34,7 @@ class GlobalExceptionHandlerTest {
 
     @BeforeEach
     void setUp() {
-        handler = new GlobalExceptionHandler();
+        handler = new GlobalExceptionHandler(mock(AppLogger.class));
     }
 
     @Test

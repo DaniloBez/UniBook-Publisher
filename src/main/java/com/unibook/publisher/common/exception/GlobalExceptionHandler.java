@@ -11,6 +11,7 @@ import com.unibook.publisher.common.exception.security.InvalidCredentialsExcepti
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.exception.storage.FileStorageException;
+import com.unibook.publisher.common.logging.AppLogger;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -29,6 +30,12 @@ import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private final AppLogger logger;
+
+    public GlobalExceptionHandler(AppLogger logger) {
+        this.logger = logger;
+    }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException exception) {
@@ -160,6 +167,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(FileReadException.class)
     public ProblemDetail handleFileRead(FileReadException exception) {
+        logger.error("Помилка читання файлу: {}", exception.getMessage(), exception);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
         problem.setTitle("Помилка читання файлу");
         problem.setProperty("timestamp", Instant.now());
@@ -168,6 +176,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(FileUploadException.class)
     public ProblemDetail handleCoverVersionUpload(FileUploadException exception) {
+        logger.warn("Помилка завантаження файлу: {}", exception.getMessage(), exception);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getCause().getMessage());
         problem.setTitle(exception.getMessage());
         problem.setProperty("timestamp", Instant.now());
@@ -192,6 +201,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(RuntimeException.class)
     public ProblemDetail handleServerSideException(RuntimeException exception) {
+        logger.error("Необроблений виняток: {}", exception.getMessage(), exception);
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
         detail.setTitle("Помилка сервера");
         detail.setProperty("timestamp", Instant.now());
