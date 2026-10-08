@@ -18,7 +18,7 @@ public final class LogMasker {
     private LogMasker() {
     }
 
-    public static String mask(String message) {
+    public static String getMask(String message) {
         if (message == null || message.isEmpty())
             return message;
 

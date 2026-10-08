@@ -20,10 +20,10 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
     public static final String REQUEST_ID_HEADER = "X-Request-Id";
     public static final String REQUEST_ID_KEY = "requestId";
 
-    private final AppLogger logger;
+    private final AppLogger appLogger;
 
-    public RequestLoggingFilter(AppLogger logger) {
-        this.logger = logger;
+    public RequestLoggingFilter(AppLogger appLogger) {
+        this.appLogger = appLogger;
     }
 
     @Override
@@ -43,11 +43,11 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             String message = "{} {} -> {} ({} ms)";
 
             if (status >= 500)
-                logger.error(message, request.getMethod(), request.getRequestURI(), status, durationMs);
+                appLogger.error(message, request.getMethod(), request.getRequestURI(), status, durationMs);
             else if (status >= 400)
-                logger.warn(message, request.getMethod(), request.getRequestURI(), status, durationMs);
+                appLogger.warn(message, request.getMethod(), request.getRequestURI(), status, durationMs);
             else
-                logger.info(message, request.getMethod(), request.getRequestURI(), status, durationMs);
+                appLogger.info(message, request.getMethod(), request.getRequestURI(), status, durationMs);
 
             MDC.remove(REQUEST_ID_KEY);
         }
