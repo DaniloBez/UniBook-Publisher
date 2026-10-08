@@ -27,7 +27,7 @@ public class LocalFileStorageService implements FileStorageService {
             Files.createDirectories(this.root);
         } catch (IOException e) {
             logger.error("Помилка при створенні директорії локального сховища {}", location, e);
-            throw new FileStorageException(location);
+            throw new FileStorageException(location, e);
         }
         logger.info("Ініціалізація LocalFileStorageService за шляхом {}", this.root);
     }
@@ -42,7 +42,7 @@ public class LocalFileStorageService implements FileStorageService {
             return Files.newInputStream(file);
         } catch (IOException e) {
             logger.error("Помилка при читанні файлу {}", fileUrl, e);
-            throw new FileStorageException(fileUrl);
+            throw new FileStorageException(fileUrl, e);
         }
     }
 
@@ -61,7 +61,7 @@ public class LocalFileStorageService implements FileStorageService {
             return path;
         } catch (IOException e) {
             logger.error("Помилка при збереженні файлу {}", path, e);
-            throw new FileStorageException(path);
+            throw new FileStorageException(path, e);
         }
     }
 
@@ -76,7 +76,7 @@ public class LocalFileStorageService implements FileStorageService {
             Files.deleteIfExists(resolve(fileUrl));
         } catch (IOException e) {
             logger.error("Помилка при видаленні файлу {}", fileUrl, e);
-            throw new FileStorageException(fileUrl);
+            throw new FileStorageException(fileUrl, e);
         }
     }
 

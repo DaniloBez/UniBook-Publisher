@@ -8,6 +8,6 @@ public class LoggingConfig {
 
     @Bean
     public AppLogger appLogger() {
-        return new SystemOutAppLogger();
+        return new Slf4jAppLogger();
     }
 }

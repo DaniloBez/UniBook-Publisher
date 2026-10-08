@@ -48,7 +48,7 @@ public class S3FileStorageService implements FileStorageService {
                             .build()
             );
         } catch (Exception e) {
-            System.out.println("Не вдалося створити попередньо підписану URL-адресу для файлу" + path);
+            logger.error("Не вдалося створити попередньо підписану URL-адресу для файлу {}", path, e);
             throw resolveStorageException(path, e);
         }
     }
@@ -76,9 +76,11 @@ public class S3FileStorageService implements FileStorageService {
                 return false;
             }
 
+            logger.error("Failed to check file {}", fileUrl, e);
             throw resolveStorageException(fileUrl, e);
 
         } catch (Exception e) {
+            logger.error("Failed to check file {}", fileUrl, e);
             throw resolveStorageException(fileUrl, e);
         }
     }
@@ -94,7 +96,7 @@ public class S3FileStorageService implements FileStorageService {
             );
 
         } catch (Exception e) {
-            logger.error("Failed to delete file {}", e, fileUrl);
+            logger.error("Failed to delete file {}", fileUrl, e);
             throw resolveStorageException(fileUrl, e);
         }
     }
@@ -109,7 +111,7 @@ public class S3FileStorageService implements FileStorageService {
             );
 
         } catch (Exception e) {
-            logger.error("Failed to get file {}", e, fileUrl);
+            logger.error("Failed to get file {}", fileUrl, e);
             throw resolveStorageException(fileUrl, e);
         }
     }
@@ -135,8 +137,8 @@ public class S3FileStorageService implements FileStorageService {
             return buildUrl(path);
 
         } catch (Exception e) {
-            logger.error("Failed to put file {}", e, path);
-            throw new FileStorageException(path);
+            logger.error("Failed to put file {}", path, e);
+            throw new FileStorageException(path, e);
         }
     }
 
@@ -147,7 +149,7 @@ public class S3FileStorageService implements FileStorageService {
             }
         }
 
-        return new FileStorageException(fileUrl);
+        return new FileStorageException(fileUrl, e);
     }
 
     private String buildUrl(String object) {

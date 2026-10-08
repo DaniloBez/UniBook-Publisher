@@ -186,7 +186,7 @@ public class ChapterServiceImpl implements ChapterService {
             try {
                 fileStorageService.delete(uploadedPath);
             } catch (Exception cleanupException) {
-                System.out.println("Не вдалося видалити файл " + uploadedPath + " з MinIO під час відкату: " + cleanupException.getMessage());
+                logger.warn("Не вдалося видалити файл {} з MinIO під час відкату", uploadedPath, cleanupException);
             }
 
             throw new FileUploadException(
@@ -258,7 +258,7 @@ public class ChapterServiceImpl implements ChapterService {
             return reader.lines().toList();
         } catch (UncheckedIOException | IOException e) {
             logger.error("Не вдалося прочитати файл ревізії зі сховища: {}", fileUrl, e);
-            throw new FileReadException(fileUrl);
+            throw new FileReadException(fileUrl, e);
         }
     }
 

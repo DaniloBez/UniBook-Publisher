@@ -146,7 +146,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
             return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
         } catch (IOException e) {
             logger.error("Не вдалося прочитати файл ревізії: {}", fileUrl, e);
-            throw new FileReadException(fileUrl);
+            throw new FileReadException(fileUrl, e);
         }
     }
 

@@ -2,6 +2,7 @@ package com.unibook.publisher.production.controller;
 
 import com.unibook.publisher.common.exception.badrequest.FileIsEmptyException;
 import com.unibook.publisher.common.exception.storage.FileReadException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.response.CoverVersionResponse;
 import com.unibook.publisher.production.service.CoverVersionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,9 +25,11 @@ import java.util.UUID;
 @Tag(name = "Cover versions", description = "Cover design versions uploaded by the assigned designer")
 public class CoverVersionController {
     private final CoverVersionService coverVersionService;
+    private final AppLogger logger;
 
-    public CoverVersionController(CoverVersionService coverVersionService) {
+    public CoverVersionController(CoverVersionService coverVersionService, AppLogger logger) {
         this.coverVersionService = coverVersionService;
+        this.logger = logger;
     }
 
     @PostMapping("/{id}/cover-versions")
@@ -55,9 +58,9 @@ public class CoverVersionController {
                     file.getContentType(),
                     file.getOriginalFilename()
             ));
-        } catch (IOException _) {
-            System.out.printf("Проблема читання файлу " + file.getOriginalFilename());
-            throw new FileReadException(file.getOriginalFilename());
+        } catch (IOException e) {
+            logger.warn("Проблема читання файлу {}", file.getOriginalFilename(), e);
+            throw new FileReadException(file.getOriginalFilename(), e);
         }
     }
 
