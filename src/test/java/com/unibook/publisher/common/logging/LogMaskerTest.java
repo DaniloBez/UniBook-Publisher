@@ -11,13 +11,13 @@ class LogMaskerTest {
     @Test
     @DisplayName("Маскує пароль у форматі key=value")
     void masksPasswordKeyValue() {
-        assertEquals("login user=a password=****", LogMasker.mask("login user=a password=secret123"));
+        assertEquals("login user=a password=****", LogMasker.getMask("login user=a password=secret123"));
     }
 
     @Test
     @DisplayName("Маскує пароль і токен у JSON")
     void masksJsonFields() {
-        String masked = LogMasker.mask("{\"email\":\"a@b.c\",\"password\":\"p@ss w0rd\",\"token\":\"abc.def\"}");
+        String masked = LogMasker.getMask("{\"email\":\"a@b.c\",\"password\":\"p@ss w0rd\",\"token\":\"abc.def\"}");
 
         assertEquals("{\"email\":\"a@b.c\",\"password\":****,\"token\":****}", masked);
     }
@@ -25,31 +25,31 @@ class LogMaskerTest {
     @Test
     @DisplayName("Маскує Bearer-токен")
     void masksAuthorization() {
-        assertEquals("Authorization: ****", LogMasker.mask("Authorization: Bearer eyJhbGciOi.abc"));
+        assertEquals("Authorization: ****", LogMasker.getMask("Authorization: Bearer eyJhbGciOi.abc"));
     }
 
     @Test
     @DisplayName("Маскує номер картки (Luhn), залишаючи останні 4 цифри")
     void masksCardNumber() {
-        assertEquals("card ************1111", LogMasker.mask("card 4111 1111 1111 1111"));
+        assertEquals("card ************1111", LogMasker.getMask("card 4111 1111 1111 1111"));
     }
 
     @Test
     @DisplayName("Не чіпає довгі числа, що не є картками, і UUID")
     void keepsNonCardNumbers() {
         String text = "id 1234567890123 uuid 550e8400-e29b-41d4-a716-446655440000";
-        assertEquals(text, LogMasker.mask(text));
+        assertEquals(text, LogMasker.getMask(text));
     }
 
     @Test
     @DisplayName("Маскує IBAN")
     void masksIban() {
-        assertEquals("to ****", LogMasker.mask("to UA213223130000026007233566001"));
+        assertEquals("to ****", LogMasker.getMask("to UA213223130000026007233566001"));
     }
 
     @Test
     @DisplayName("null лишається null")
     void nullSafe() {
-        assertNull(LogMasker.mask(null));
+        assertNull(LogMasker.getMask(null));
     }
 }
