@@ -1,6 +1,7 @@
 package com.unibook.publisher.production.controller;
 
 import com.unibook.publisher.common.exception.storage.FileReadException;
+import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
 import com.unibook.publisher.production.entity.request.ChapterUpdateRequest;
 import com.unibook.publisher.production.entity.request.DiffRequest;
@@ -29,9 +30,11 @@ import java.util.UUID;
 @Tag(name = "Chapters", description = "Manuscript chapters and their text revisions")
 public class ChapterController {
     private final ChapterService chapterService;
+    private final AppLogger logger;
 
-    public ChapterController(ChapterService chapterService) {
+    public ChapterController(ChapterService chapterService, AppLogger logger) {
         this.chapterService = chapterService;
+        this.logger = logger;
     }
 
     @PostMapping("/manuscripts/{manuscriptId}/chapters")
@@ -120,7 +123,7 @@ public class ChapterController {
                     file.getOriginalFilename()
             ));
         } catch (IOException _) {
-            System.out.printf("Проблема читання файлу " + file.getOriginalFilename());
+            logger.warn("Проблема читання файлу {}", file.getOriginalFilename());
             throw new FileReadException(file.getOriginalFilename());
         }
     }

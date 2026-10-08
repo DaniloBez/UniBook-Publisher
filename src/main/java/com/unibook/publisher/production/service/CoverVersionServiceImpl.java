@@ -135,7 +135,7 @@ public class CoverVersionServiceImpl implements CoverVersionService {
             try {
                 fileStorageService.delete(uploadedPath);
             } catch (Exception cleanupException) {
-                System.out.println("Не вдалося видалити файл " + uploadedPath + " з MinIO під час відкату: " + cleanupException.getMessage());
+                logger.warn("Не вдалося видалити файл {} з MinIO під час відкату", uploadedPath, cleanupException);
             }
 
             throw new FileUploadException(

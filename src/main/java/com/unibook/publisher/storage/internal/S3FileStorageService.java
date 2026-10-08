@@ -48,7 +48,7 @@ public class S3FileStorageService implements FileStorageService {
                             .build()
             );
         } catch (Exception e) {
-            System.out.println("Не вдалося створити попередньо підписану URL-адресу для файлу" + path);
+            logger.error("Не вдалося створити попередньо підписану URL-адресу для файлу {}", path, e);
             throw resolveStorageException(path, e);
         }
     }
