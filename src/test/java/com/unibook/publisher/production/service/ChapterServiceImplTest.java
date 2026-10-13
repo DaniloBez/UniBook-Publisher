@@ -655,8 +655,9 @@ public class ChapterServiceImplTest {
     void deleteChapter_ForbiddenActionException() {
         UUID chapterId = UUID.randomUUID();
         Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
+        UUID randomUserId = UUID.randomUUID();
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
-        assertThrows(ForbiddenActionException.class, () -> chapterService.deleteChapter(chapterId, UUID.randomUUID()));
+        assertThrows(ForbiddenActionException.class, () -> chapterService.deleteChapter(chapterId, randomUserId));
         verify(chapterRepository, never()).delete(any());
     }
 

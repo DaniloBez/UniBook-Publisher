@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -274,7 +274,7 @@ public class UserServiceImplTest {
 
             List<UserResponse> result = userService.getUsers(UserRole.EDITOR);
 
-            assertThat(result.size()).isEqualTo(1);
+            assertThat(result).hasSize(1);
             assertThat(result.getFirst().role()).isEqualTo(UserRole.EDITOR);
             assertThat(result.getFirst().displayName()).isEqualTo("Editor John");
 
@@ -288,8 +288,7 @@ public class UserServiceImplTest {
 
             List<UserResponse> result = userService.getUsers(UserRole.ADMIN);
 
-            assertThat(result).isNotNull();
-            assertThat(result.isEmpty()).isTrue();
+            assertThat(result).isNotNull().isEmpty();
         }
 
         @Test
@@ -302,7 +301,7 @@ public class UserServiceImplTest {
 
             List<UserResponse> result = userService.getUsers(null);
 
-            assertThat(result.size()).isEqualTo(1);
+            assertThat(result).hasSize(1);
             assertThat(result.getFirst().displayName()).isEqualTo("Author One");
 
             verify(userRepository, times(1)).findAllWithProfile();

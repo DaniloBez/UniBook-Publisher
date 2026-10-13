@@ -12,7 +12,6 @@ import com.unibook.publisher.production.entity.request.*;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.repository.GenreRepository;
-import com.unibook.publisher.production.repository.ManuscriptAuditLogRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
@@ -30,15 +29,13 @@ import java.util.stream.Collectors;
 public class ManuscriptServiceImpl implements ManuscriptService {
 
     private final ManuscriptRepository manuscriptRepository;
-    private final ManuscriptAuditLogRepository manuscriptAuditLogRepository;
     private final GenreRepository genreRepository;
     private final TeamAssignmentService teamAssignmentService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
-    public ManuscriptServiceImpl(ManuscriptRepository manuscriptRepository, ManuscriptAuditLogRepository manuscriptAuditLogRepository, GenreRepository genreRepository, TeamAssignmentService teamAssignmentService, ApplicationEventPublisher publisher, AppLogger logger) {
+    public ManuscriptServiceImpl(ManuscriptRepository manuscriptRepository, GenreRepository genreRepository, TeamAssignmentService teamAssignmentService, ApplicationEventPublisher publisher, AppLogger logger) {
         this.manuscriptRepository = manuscriptRepository;
-        this.manuscriptAuditLogRepository = manuscriptAuditLogRepository;
         this.genreRepository = genreRepository;
         this.teamAssignmentService = teamAssignmentService;
         this.publisher = publisher;

@@ -3,7 +3,6 @@ package com.unibook.publisher.production.entity.request;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.Size;
 
 import java.util.Set;
 import java.util.UUID;
