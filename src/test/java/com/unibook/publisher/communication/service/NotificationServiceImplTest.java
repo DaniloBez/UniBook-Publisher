@@ -195,8 +195,7 @@ class NotificationServiceImplTest {
 
             List<NotificationResponse> result = notificationService.getUserNotifications(userId, false);
 
-            assertThat(result).isNotNull();
-            assertThat(result).isEmpty();
+            assertThat(result).isNotNull().isEmpty();
         }
     }
 
