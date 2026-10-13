@@ -71,8 +71,9 @@ public class TeamAssignmentServiceImplTest {
     @DisplayName("Рукопис не знайдено")
     void assign_ResourceNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ManuscriptNotFoundException.class, () -> teamAssignmentService.assign(manuscriptId, UUID.randomUUID(), UserRole.EDITOR));
+        assertThrows(ManuscriptNotFoundException.class, () -> teamAssignmentService.assign(manuscriptId, randomUserId, UserRole.EDITOR));
         verify(teamAssignmentRepository, never()).save(any());
     }
 }

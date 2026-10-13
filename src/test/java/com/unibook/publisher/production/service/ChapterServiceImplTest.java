@@ -129,10 +129,13 @@ public class ChapterServiceImplTest {
     @DisplayName("Помилка створення розділу, якщо рукопис не знайдено")
     void createChapter_ManuscriptNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
+
+        ChapterCreationRequest request = new ChapterCreationRequest("Розділ", 1);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
-        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.createChapter(manuscriptId, UUID.randomUUID(), new ChapterCreationRequest("Розділ", 1)));
+        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.createChapter(manuscriptId, randomUserId, request));
     }
 
     @Test
@@ -142,10 +145,11 @@ public class ChapterServiceImplTest {
         UUID authorId = UUID.randomUUID();
         UUID userId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, authorId, ManuscriptStatus.IN_PROGRESS);
+        ChapterCreationRequest request = new ChapterCreationRequest("Розділ", 1);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
 
-        assertThrows(ForbiddenActionException.class, () -> chapterService.createChapter(manuscriptId, userId, new ChapterCreationRequest("Розділ", 1)));
+        assertThrows(ForbiddenActionException.class, () -> chapterService.createChapter(manuscriptId, userId, request));
     }
 
     @Test
@@ -154,9 +158,10 @@ public class ChapterServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, authorId, ManuscriptStatus.SUBMITTED);
+        ChapterCreationRequest request = new ChapterCreationRequest("Розділ", 1);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(InvalidStateTransitionException.class, () -> chapterService.createChapter(manuscriptId, authorId, new ChapterCreationRequest("Розділ", 1)));
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.createChapter(manuscriptId, authorId, request));
     }
 
     @Test
@@ -569,10 +574,12 @@ public class ChapterServiceImplTest {
         UUID authorId = UUID.randomUUID();
         Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), authorId, ManuscriptStatus.IN_PROGRESS));
 
+        ChapterUpdateRequest request = new ChapterUpdateRequest("Новий розділ", 5);
+
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(chapterRepository.save(any(Chapter.class))).thenAnswer(i -> i.getArgument(0));
 
-        ChapterResponse response = chapterService.updateChapter(chapterId, authorId, new ChapterUpdateRequest("Новий розділ", 5));
+        ChapterResponse response = chapterService.updateChapter(chapterId, authorId, request);
 
         assertNotNull(response);
         assertEquals("Новий розділ", response.chapterTitle());
@@ -586,8 +593,11 @@ public class ChapterServiceImplTest {
     @DisplayName("Помилка оновлення розділу, якщо розділ не знайдено")
     void updateChapter_ChapterNotFoundException() {
         UUID chapterId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
+        ChapterUpdateRequest request = new ChapterUpdateRequest("Розділ", 1);
+
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
-        assertThrows(ChapterNotFoundException.class, () -> chapterService.updateChapter(chapterId, UUID.randomUUID(), new ChapterUpdateRequest("Розділ", 1)));
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.updateChapter(chapterId, randomUserId, request));
         verify(chapterRepository, never()).save(any());
     }
 
@@ -595,9 +605,12 @@ public class ChapterServiceImplTest {
     @DisplayName("Заборонено оновлювати розділ користувачу, який не є автором")
     void updateChapter_ForbiddenActionException() {
         UUID chapterId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
         Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
+        ChapterUpdateRequest request = new ChapterUpdateRequest("Розділ", 1);
+
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
-        assertThrows(ForbiddenActionException.class, () -> chapterService.updateChapter(chapterId, UUID.randomUUID(), new ChapterUpdateRequest("Розділ", 1)));
+        assertThrows(ForbiddenActionException.class, () -> chapterService.updateChapter(chapterId, randomUserId, request));
         verify(chapterRepository, never()).save(any());
     }
 
@@ -607,8 +620,10 @@ public class ChapterServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), authorId, ManuscriptStatus.SUBMITTED));
+        ChapterUpdateRequest request = new ChapterUpdateRequest("Розділ", 1);
+
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
-        assertThrows(InvalidStateTransitionException.class, () -> chapterService.updateChapter(chapterId, authorId, new ChapterUpdateRequest("Розділ", 1)));
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.updateChapter(chapterId, authorId, request));
         verify(chapterRepository, never()).save(any());
     }
 
@@ -629,8 +644,9 @@ public class ChapterServiceImplTest {
     @DisplayName("Помилка видалення розділу, якщо розділ не знайдено")
     void deleteChapter_ChapterNotFoundException() {
         UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
-        assertThrows(ChapterNotFoundException.class, () -> chapterService.deleteChapter(chapterId, UUID.randomUUID()));
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.deleteChapter(chapterId, authorId));
         verify(chapterRepository, never()).delete(any());
     }
 

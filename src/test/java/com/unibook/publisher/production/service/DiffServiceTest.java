@@ -1,16 +1,23 @@
 package com.unibook.publisher.production.service;
 
+import com.github.difflib.DiffUtils;
+import com.github.difflib.patch.Chunk;
+import com.github.difflib.patch.AbstractDelta;
+import com.github.difflib.patch.DeltaType;
+import com.github.difflib.patch.Patch;
 import com.unibook.publisher.production.entity.response.DiffResponse;
 import com.unibook.publisher.production.enums.DiffStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class DiffServiceTest {
@@ -104,5 +111,34 @@ public class DiffServiceTest {
 
         assertNotNull(response);
         assertTrue(response.lines().isEmpty());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void compare_UnsupportedDeltaType_ThrowsIllegalArgumentException() {
+        UUID fromId = UUID.randomUUID();
+        UUID toId = UUID.randomUUID();
+        Chunk<String> mockChunk = mock(Chunk.class);
+        when(mockChunk.getPosition()).thenReturn(0);
+        AbstractDelta<String> mockDelta = mock(AbstractDelta.class);
+        when(mockDelta.getType()).thenReturn(DeltaType.EQUAL);
+        when(mockDelta.getSource()).thenReturn(mockChunk);
+
+        Patch<String> mockPatch = new Patch<>();
+        mockPatch.addDelta(mockDelta);
+
+        try (MockedStatic<DiffUtils> diffUtilsMock = mockStatic(DiffUtils.class)) {
+            diffUtilsMock.when(() -> DiffUtils.diff(anyList(), anyList())).thenReturn(mockPatch);
+
+            List<String> oldLines = List.of("old");
+            List<String> newLines = List.of("new");
+
+            IllegalArgumentException exception = assertThrows(
+                    IllegalArgumentException.class,
+                    () -> diffService.compare(fromId, toId, oldLines, newLines)
+            );
+
+            assertTrue(exception.getMessage().contains("Unsupported delta type"));
+        }
     }
 }
