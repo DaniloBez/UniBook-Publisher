@@ -130,9 +130,12 @@ public class DiffServiceTest {
         try (MockedStatic<DiffUtils> diffUtilsMock = mockStatic(DiffUtils.class)) {
             diffUtilsMock.when(() -> DiffUtils.diff(anyList(), anyList())).thenReturn(mockPatch);
 
+            List<String> oldLines = List.of("old");
+            List<String> newLines = List.of("new");
+
             IllegalArgumentException exception = assertThrows(
                     IllegalArgumentException.class,
-                    () -> diffService.compare(fromId, toId, List.of("old"), List.of("new"))
+                    () -> diffService.compare(fromId, toId, oldLines, newLines)
             );
 
             assertTrue(exception.getMessage().contains("Unsupported delta type"));

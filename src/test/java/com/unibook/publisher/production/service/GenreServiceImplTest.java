@@ -40,7 +40,7 @@ public class GenreServiceImplTest {
         List<GenreResponse> genres = genreService.getAllGenres();
 
         assertThat(genres).hasSize(1);
-        assertThat(genres.get(0).genreName()).isEqualTo("Фантастика");
+        assertThat(genres.getFirst().genreName()).isEqualTo("Фантастика");
     }
 
     @Test

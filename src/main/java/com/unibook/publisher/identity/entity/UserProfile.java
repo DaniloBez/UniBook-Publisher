@@ -1,11 +1,10 @@
 package com.unibook.publisher.identity.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.util.UUID;
 
 @Entity
@@ -14,7 +13,10 @@ import java.util.UUID;
 @AllArgsConstructor
 @Getter
 @Setter
-public class UserProfile {
+public class UserProfile implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

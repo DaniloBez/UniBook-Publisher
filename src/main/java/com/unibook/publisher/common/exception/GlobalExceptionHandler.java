@@ -33,7 +33,7 @@ public class GlobalExceptionHandler {
 
     private final AppLogger logger;
     
-    private final String TIMESTAMP_FIELD = "timestamp";
+    private static final String TIMESTAMP_FIELD = "timestamp";
 
     public GlobalExceptionHandler(AppLogger logger) {
         this.logger = logger;

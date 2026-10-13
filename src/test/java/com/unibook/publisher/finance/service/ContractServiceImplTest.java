@@ -205,11 +205,11 @@ class ContractServiceImplTest {
         @Test
         @DisplayName("Сторонній автор не може переглянути чужий контракт")
         void getContract_AsForeignAuthor_ThrowsException() {
+            UUID randomAuthorId = UUID.randomUUID();
+
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
-            UUID authorId = UUID.randomUUID();
-
-            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, authorId, UserRole.AUTHOR)) //REM I would die of laughing if that random UUID would match author id and that would fail the correct scenario. I swear, this will happen before the most important deploy to production
+            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, randomAuthorId, UserRole.AUTHOR)) //REM I would die of laughing if that random UUID would match author id and that would fail the correct scenario. I swear, this will happen before the most important deploy to production
                     .isInstanceOf(ForbiddenActionException.class);
         }
 

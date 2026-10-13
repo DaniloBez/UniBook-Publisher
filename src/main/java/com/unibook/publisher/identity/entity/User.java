@@ -1,5 +1,6 @@
 package com.unibook.publisher.identity.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.unibook.publisher.common.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -12,6 +13,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.io.Serial;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -23,6 +25,9 @@ import java.util.UUID;
 @Getter
 @Setter
 public class User implements UserDetails {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

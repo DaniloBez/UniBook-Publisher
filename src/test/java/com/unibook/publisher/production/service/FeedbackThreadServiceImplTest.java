@@ -13,11 +13,7 @@ import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.production.entity.Chapter;
-import com.unibook.publisher.production.entity.FeedbackThread;
-import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.entity.Revision;
-import com.unibook.publisher.production.entity.TeamAssignment;
+import com.unibook.publisher.production.entity.*;
 import com.unibook.publisher.production.entity.request.OpenThreadRequest;
 import com.unibook.publisher.production.entity.request.ThreadMessageRequest;
 import com.unibook.publisher.production.entity.response.ThreadMessageResponse;
@@ -142,10 +138,11 @@ public class FeedbackThreadServiceImplTest {
         Manuscript manuscript = new Manuscript(manuscriptId, "Дюна", UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS, Set.of(), "Анотація", "url", Instant.now());
         Chapter chapter = chapter(chapterId, manuscript);
         chapter.addThread(thread);
+        UUID randomUserId = UUID.randomUUID();
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
 
-        assertThrows(ForbiddenActionException.class, () -> threadService.acceptSuggestion(threadId, UUID.randomUUID()));
+        assertThrows(ForbiddenActionException.class, () -> threadService.acceptSuggestion(threadId, randomUserId));
         verify(threadRepository, never()).save(any());
     }
 
@@ -173,11 +170,12 @@ public class FeedbackThreadServiceImplTest {
     void openThread_ChapterNotFound() {
         UUID chapterId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
+        OpenThreadRequest request = new OpenThreadRequest("Погляньте на цей абзац", null, null, null, null, null);
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
 
         assertThrows(ChapterNotFoundException.class,
-                () -> threadService.openThread(chapterId, authorId, new OpenThreadRequest("Погляньте на цей абзац", null, null, null, null, null)));
+                () -> threadService.openThread(chapterId, authorId, request));
         verify(threadRepository, never()).save(any());
     }
 
@@ -321,11 +319,13 @@ public class FeedbackThreadServiceImplTest {
         Chapter chapter = chapter(chapterId, manuscript);
         chapter.addThread(thread);
 
+        ThreadMessageRequest request = new ThreadMessageRequest("Хтось сторонній");
+
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenActionException.class,
-                () -> threadService.addMessage(threadId, randomUserId, new ThreadMessageRequest("Хтось стороннiй")));
+                () -> threadService.addMessage(threadId, randomUserId, request));
         verify(messageRepository, never()).save(any());
     }
 
@@ -334,11 +334,12 @@ public class FeedbackThreadServiceImplTest {
     void addMessage_ThreadNotFound() {
         UUID threadId = UUID.randomUUID();
         UUID randomUserId = UUID.randomUUID();
+        ThreadMessageRequest request = new ThreadMessageRequest("Текст");
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.empty());
 
         assertThrows(ThreadNotFoundException.class,
-                () -> threadService.addMessage(threadId, randomUserId, new ThreadMessageRequest("Текст")));
+                () -> threadService.addMessage(threadId, randomUserId, request));
     }
 
     @Test
