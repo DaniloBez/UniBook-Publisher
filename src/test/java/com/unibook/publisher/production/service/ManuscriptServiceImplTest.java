@@ -145,6 +145,7 @@ public class ManuscriptServiceImplTest {
     @Test
     void approveManuscript_InvalidStateException() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
         Manuscript manuscript = new Manuscript(
                 manuscriptId,
                 "Аліса",
@@ -155,14 +156,15 @@ public class ManuscriptServiceImplTest {
                 "url", Instant.now()
         );
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.approveManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptApprovalRequest(UUID.randomUUID())));
+        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.approveManuscript(manuscriptId, randomUserId, new ManuscriptApprovalRequest(randomUserId)));
     }
 
     @Test
     void approveManuscript_ResourceNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.approveManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptApprovalRequest(UUID.randomUUID())));
+        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.approveManuscript(manuscriptId, randomUserId, new ManuscriptApprovalRequest(randomUserId)));
         verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
     }
@@ -236,15 +238,17 @@ public class ManuscriptServiceImplTest {
                 "url",
                 Instant.now()
         );
+        UUID randomUserId = UUID.randomUUID();
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.rejectManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptRejectionRequest("Причина")));
+        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.rejectManuscript(manuscriptId, randomUserId, new ManuscriptRejectionRequest("Причина")));
     }
 
     @Test
     void rejectManuscript_ResourceNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.rejectManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptRejectionRequest("Причина")));
+        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.rejectManuscript(manuscriptId, randomUserId, new ManuscriptRejectionRequest("Причина")));
         verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
     }
@@ -290,15 +294,17 @@ public class ManuscriptServiceImplTest {
                 "url",
                 Instant.now()
         );
+        UUID randomUserId = UUID.randomUUID();
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.postponeManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptPostponementRequest("Коментар")));
+        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.postponeManuscript(manuscriptId, randomUserId, new ManuscriptPostponementRequest("Коментар")));
     }
 
     @Test
     void postponeManuscript_ResourceNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.postponeManuscript(manuscriptId, UUID.randomUUID(), new ManuscriptPostponementRequest("Коментар")));
+        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.postponeManuscript(manuscriptId, randomUserId, new ManuscriptPostponementRequest("Коментар")));
         verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
         verify(publisher, never()).publishEvent(any());
@@ -384,7 +390,7 @@ public class ManuscriptServiceImplTest {
         List<ManuscriptResponse> manuscripts = manuscriptService.getManuscripts(ManuscriptStatus.SUBMITTED);
         assertNotNull(manuscripts);
         assertEquals(1, manuscripts.size());
-        assertEquals("Аліса", manuscripts.get(0).title());
+        assertEquals("Аліса", manuscripts.getFirst().title());
 
         verify(repository, times(1)).findByStatusWithGenres(ManuscriptStatus.SUBMITTED);
     }

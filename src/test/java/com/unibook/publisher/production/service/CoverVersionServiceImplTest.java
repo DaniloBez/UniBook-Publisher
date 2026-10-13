@@ -205,6 +205,7 @@ public class CoverVersionServiceImplTest {
     @DisplayName("Заборонено завантажувати обкладинку не призначеному дизайнеру")
     void uploadCoverVersion_ForbiddenWhenNotAssignedDesigner() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID notDesignerId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
         TeamAssignment designerAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, UUID.randomUUID(), UserRole.DESIGNER, Instant.now());
         InputStream fileStream = new ByteArrayInputStream("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
@@ -213,7 +214,7 @@ public class CoverVersionServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
 
         assertThrows(ForbiddenActionException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, UUID.randomUUID(), fileStream, 1024L, "image/png", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, notDesignerId, fileStream, 1024L, "image/png", "cover.png"));
         verify(coverVersionRepository, never()).save(any());
     }
 
@@ -238,12 +239,13 @@ public class CoverVersionServiceImplTest {
     @DisplayName("Помилка, якщо рукопис не знайдено при завантаженні обкладинки")
     void uploadCoverVersion_ManuscriptNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID notDesignerId = UUID.randomUUID();
         InputStream fileStream = new ByteArrayInputStream("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
         assertThrows(ManuscriptNotFoundException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, UUID.randomUUID(), fileStream, 1024L, "image/png", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, notDesignerId, fileStream, 1024L, "image/png", "cover.png"));
         verify(coverVersionRepository, never()).save(any());
     }
 
@@ -251,6 +253,7 @@ public class CoverVersionServiceImplTest {
     @DisplayName("Заборонено завантажувати обкладинку, якщо дизайнера взагалі не призначено")
     void uploadCoverVersion_ForbiddenWhenNoDesignerAssigned() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID notDesignerId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
         InputStream fileStream = new ByteArrayInputStream("fake-image-bytes".getBytes(StandardCharsets.UTF_8));
 
@@ -258,7 +261,7 @@ public class CoverVersionServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenActionException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, UUID.randomUUID(), fileStream, 1024L, "image/png", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, notDesignerId, fileStream, 1024L, "image/png", "cover.png"));
         verify(coverVersionRepository, never()).save(any());
     }
 

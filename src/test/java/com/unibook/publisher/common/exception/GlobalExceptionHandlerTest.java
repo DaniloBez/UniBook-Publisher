@@ -1,5 +1,6 @@
 package com.unibook.publisher.common.exception;
 
+import com.unibook.publisher.common.enums.ContractStatus;
 import com.unibook.publisher.common.exception.business.BusinessRuleViolationException;
 import com.unibook.publisher.common.exception.conflict.DuplicateResourceException;
 import com.unibook.publisher.common.exception.notfound.ResourceNotFoundException;
@@ -42,7 +43,7 @@ class GlobalExceptionHandlerTest {
     void handleInvalidStateTransitionException() {
         UUID id = UUID.randomUUID();
         InvalidStateTransitionException ex = new InvalidStateTransitionException(
-                "Manuscript", id, "IN_PROGRESS", "PUBLISHED", Set.of("TEXT_APPROVED")
+                "Manuscript", id, ContractStatus.TERMINATED, ContractStatus.ACTIVE, Set.of()
         );
 
         ProblemDetail detail = handler.handleInvalidState(ex);
@@ -52,9 +53,9 @@ class GlobalExceptionHandlerTest {
         assert detail.getProperties() != null;
         assertEquals("Manuscript", detail.getProperties().get("entityName"));
         assertEquals(id, detail.getProperties().get("entityId"));
-        assertEquals("IN_PROGRESS", detail.getProperties().get("currentStatus"));
-        assertEquals("PUBLISHED", detail.getProperties().get("targetStatus"));
-        assertEquals(Set.of("TEXT_APPROVED"), detail.getProperties().get("allowedTransitions"));
+        assertEquals(ContractStatus.TERMINATED, detail.getProperties().get("currentStatus"));
+        assertEquals(ContractStatus.ACTIVE, detail.getProperties().get("targetStatus"));
+        assertEquals(Set.of(), detail.getProperties().get("allowedTransitions"));
     }
 
     @Test

@@ -35,6 +35,7 @@ public class DiffService {
                     oldIndex = appendDeletedLines(lines, delta.getSource().getLines(), oldIndex);
                     newIndex = appendInsertedLines(lines, delta.getTarget().getLines(), newIndex);
                 }
+                default -> throw new IllegalArgumentException("Unsupported delta type: " + delta.getType());
             }
         }
 

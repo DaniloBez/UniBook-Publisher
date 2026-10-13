@@ -32,6 +32,8 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private final AppLogger logger;
+    
+    private final String TIMESTAMP_FIELD = "timestamp";
 
     public GlobalExceptionHandler(AppLogger logger) {
         this.logger = logger;
@@ -54,7 +56,7 @@ public class GlobalExceptionHandler {
                 ));
 
         detail.setProperty("errors", errors);
-        detail.setProperty("timestamp", Instant.now());
+        detail.setProperty(TIMESTAMP_FIELD, Instant.now());
         return detail;
     }
 
@@ -66,7 +68,7 @@ public class GlobalExceptionHandler {
         );
 
         detail.setTitle("Malformed JSON Request");
-        detail.setProperty("timestamp", Instant.now());
+        detail.setProperty(TIMESTAMP_FIELD, Instant.now());
 
         Throwable cause = exception.getCause();
 
@@ -90,7 +92,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleNotFound(ResourceNotFoundException exception) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
         detail.setTitle("Ресурс не знайдено");
-        detail.setProperty("timestamp", Instant.now());
+        detail.setProperty(TIMESTAMP_FIELD, Instant.now());
         return detail;
     }
 
@@ -98,7 +100,7 @@ public class GlobalExceptionHandler {
      public ProblemDetail handleNotFound(FileStorageException exception) {
          ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
          detail.setTitle("Файл не знайдено");
-         detail.setProperty("timestamp", Instant.now());
+         detail.setProperty(TIMESTAMP_FIELD, Instant.now());
          return detail;
      }
 
@@ -106,22 +108,14 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleInvalidState(InvalidStateTransitionException exception) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
         detail.setTitle("Недопустимий перехід між станами");
-        if (exception.getEntityName() != null)
-            detail.setProperty("entityName", exception.getEntityName());
 
-        if (exception.getEntityId() != null)
-            detail.setProperty("entityId", exception.getEntityId());
+        detail.setProperty("entityName", exception.getEntityName());
+        detail.setProperty("entityId", exception.getEntityId());
+        detail.setProperty("currentStatus", exception.getCurrentStatus());
+        detail.setProperty("targetStatus", exception.getTargetStatus());
+        detail.setProperty("allowedTransitions", exception.getAllowedTransitions());
 
-        if (exception.getCurrentStatus() != null)
-            detail.setProperty("currentStatus", exception.getCurrentStatus());
-
-        if (exception.getTargetStatus() != null)
-            detail.setProperty("targetStatus", exception.getTargetStatus());
-
-        if (exception.getAllowedTransitions() != null && !exception.getAllowedTransitions().isEmpty())
-            detail.setProperty("allowedTransitions", exception.getAllowedTransitions());
-
-        detail.setProperty("timestamp", Instant.now());
+        detail.setProperty(TIMESTAMP_FIELD, Instant.now());
         return detail;
     }
 
@@ -129,7 +123,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleBusinessRuleViolation(BusinessRuleViolationException exception) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.UNPROCESSABLE_CONTENT, exception.getMessage());
         detail.setTitle("Порушення бізнес-правила");
-        detail.setProperty("timestamp", Instant.now());
+        detail.setProperty(TIMESTAMP_FIELD, Instant.now());
         return detail;
     }
 
@@ -137,7 +131,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleDuplicateResource(DuplicateResourceException exception) {
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
         detail.setTitle("Конфлікт даних");
-        detail.setProperty("timestamp", Instant.now());
+        detail.setProperty(TIMESTAMP_FIELD, Instant.now());
         return detail;
     }
 
@@ -145,7 +139,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleForbidden(ForbiddenActionException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
         problem.setTitle("Заборонена дія");
-        problem.setProperty("timestamp", Instant.now());
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now());
         return problem;
     }
 
@@ -153,7 +147,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleInvalidCredentials(InvalidCredentialsException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, exception.getMessage());
         problem.setTitle("Помилка автентифікації");
-        problem.setProperty("timestamp", Instant.now());
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now());
         return problem;
     }
 
@@ -161,7 +155,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleFileNotFound(FileNotFoundException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
         problem.setTitle("Поганий запит на завантаження файлу");
-        problem.setProperty("timestamp", Instant.now());
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now());
         return problem;
     }
 
@@ -170,7 +164,7 @@ public class GlobalExceptionHandler {
         logger.error("Помилка читання файлу: {}", exception.getMessage(), exception);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
         problem.setTitle("Помилка читання файлу");
-        problem.setProperty("timestamp", Instant.now());
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now());
         return problem;
     }
 
@@ -179,7 +173,7 @@ public class GlobalExceptionHandler {
         logger.warn("Помилка завантаження файлу: {}", exception.getMessage(), exception);
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getCause().getMessage());
         problem.setTitle(exception.getMessage());
-        problem.setProperty("timestamp", Instant.now());
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now());
         return problem;
     }
 
@@ -187,7 +181,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleDomainException(DomainException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
         problem.setTitle("Доменна помилка");
-        problem.setProperty("timestamp", Instant.now());
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now());
         return problem;
     }
 
@@ -195,7 +189,7 @@ public class GlobalExceptionHandler {
     public ProblemDetail handleIllegalArgumentException(IllegalArgumentException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
         problem.setTitle(exception.getMessage());
-        problem.setProperty("timestamp", Instant.now());
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now());
         return problem;
     }
 
@@ -204,7 +198,9 @@ public class GlobalExceptionHandler {
         logger.error("Необроблений виняток: {}", exception.getMessage(), exception);
         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.INTERNAL_SERVER_ERROR, exception.getMessage());
         detail.setTitle("Помилка сервера");
-        detail.setProperty("timestamp", Instant.now());
+        detail.setProperty(TIMESTAMP_FIELD, Instant.now());
         return detail;
     }
+
+
 }

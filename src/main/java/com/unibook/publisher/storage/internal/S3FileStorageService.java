@@ -143,11 +143,8 @@ public class S3FileStorageService implements FileStorageService {
     }
 
     private RuntimeException resolveStorageException(String fileUrl, Exception e) {
-        if (e instanceof ErrorResponseException error) {
-            if ("NoSuchKey".equals(error.errorResponse().code())) {
-                return new FileNotFoundException(fileUrl);
-            }
-        }
+        if (e instanceof ErrorResponseException error && "NoSuchKey".equals(error.errorResponse().code()))
+            return new FileNotFoundException(fileUrl);
 
         return new FileStorageException(fileUrl, e);
     }

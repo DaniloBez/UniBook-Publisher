@@ -207,7 +207,9 @@ class ContractServiceImplTest {
         void getContract_AsForeignAuthor_ThrowsException() {
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
-            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, UUID.randomUUID(), UserRole.AUTHOR)) //REM I would die of laughing if that random UUID would match author id and that would fail the correct scenario. I swear, this will happen before the most important deploy to production
+            UUID authorId = UUID.randomUUID();
+
+            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, authorId, UserRole.AUTHOR)) //REM I would die of laughing if that random UUID would match author id and that would fail the correct scenario. I swear, this will happen before the most important deploy to production
                     .isInstanceOf(ForbiddenActionException.class);
         }
 
@@ -230,7 +232,7 @@ class ContractServiceImplTest {
         void getContract_ContractNotFound_ThrowsException() {
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, UUID.randomUUID(), UserRole.ACCOUNTANT))
+            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, authorId, UserRole.ACCOUNTANT))
                     .isInstanceOf(ContractNotFoundException.class);
         }
     }
@@ -250,7 +252,7 @@ class ContractServiceImplTest {
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(confirmed));
             when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-            ContractResponse response = contractService.updateRoyalty(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT, request);
+            ContractResponse response = contractService.updateRoyalty(contractId, authorId, UserRole.ACCOUNTANT, request);
 
             assertThat(response.royaltyPercent()).isEqualByComparingTo("12.5");
             assertThat(response.advancePayment()).isEqualByComparingTo("5000.0");
@@ -267,7 +269,7 @@ class ContractServiceImplTest {
                     new BigDecimal("12.5"), new BigDecimal("5000.0"), "Причина"
             );
 
-            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, UUID.randomUUID(), UserRole.EDITOR, request))
+            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorId, UserRole.EDITOR, request))
                     .isInstanceOf(ForbiddenActionException.class);
 
             verifyNoInteractions(contractRepository, financeAuditLogRepository, eventPublisher);
@@ -283,7 +285,8 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
 
-            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT, request))
+
+            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorId, UserRole.ACCOUNTANT, request))
                     .isInstanceOf(InvalidStateTransitionException.class);
 
             verify(financeAuditLogRepository, never()).save(any());
@@ -299,7 +302,8 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT, request))
+
+            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorId, UserRole.ACCOUNTANT, request))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
     }
@@ -328,9 +332,11 @@ class ContractServiceImplTest {
         @DisplayName("Помилка, якщо підтверджує не автор-власник")
         void confirmContract_NotOwner_ThrowsException() {
             Contract draft = draftContract();
+            UUID notAuthorId = UUID.randomUUID();
+
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draft));
 
-            assertThatThrownBy(() -> contractService.confirmContract(contractId, UUID.randomUUID()))
+            assertThatThrownBy(() -> contractService.confirmContract(contractId, notAuthorId))
                     .isInstanceOf(ForbiddenActionException.class);
 
             verify(contractRepository, never()).save(any());
@@ -341,6 +347,7 @@ class ContractServiceImplTest {
         @DisplayName("Помилка, якщо контракт вже ACTIVE")
         void confirmContract_AlreadyActive_ThrowsException() {
             Contract active = activeContract(draftContract());
+
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
 
             assertThatThrownBy(() -> contractService.confirmContract(contractId, authorId))
@@ -437,10 +444,11 @@ class ContractServiceImplTest {
         void simulatePayout_Forbidden_ThrowsException() {
             Contract contract = draftContract();
             PayoutSimulationRequest request = new PayoutSimulationRequest(new BigDecimal("10000.0"), RoyaltyStrategyType.FLAT_RATE);
+            UUID notAuthorId = UUID.randomUUID();
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
 
-            assertThatThrownBy(() -> contractService.simulatePayout(contractId, UUID.randomUUID(), UserRole.EDITOR, request))
+            assertThatThrownBy(() -> contractService.simulatePayout(contractId, notAuthorId, UserRole.EDITOR, request))
                     .isInstanceOf(ForbiddenActionException.class);
         }
 
@@ -498,14 +506,18 @@ class ContractServiceImplTest {
 
         @Test
         void getContractById_AsForeignAuthor_ThrowsException() {
+            UUID notAuthorId = UUID.randomUUID();
+
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draftContract()));
-            assertThrows(ForbiddenActionException.class, () -> contractService.getContractById(contractId, UUID.randomUUID(), UserRole.AUTHOR));
+            assertThrows(ForbiddenActionException.class, () -> contractService.getContractById(contractId, notAuthorId, UserRole.AUTHOR));
         }
 
         @Test
         void getContractById_NotFound_ThrowsException() {
+            UUID notAuthorId = UUID.randomUUID();
+
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
-            assertThrows(ContractNotFoundException.class, () -> contractService.getContractById(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT));
+            assertThrows(ContractNotFoundException.class, () -> contractService.getContractById(contractId, notAuthorId, UserRole.ACCOUNTANT));
         }
     }
 
@@ -534,7 +546,7 @@ class ContractServiceImplTest {
 
         @Test
         void getAllContracts_AsEditor_ThrowsException() {
-            assertThrows(ForbiddenActionException.class, () -> contractService.getAllContracts(UUID.randomUUID(), UserRole.EDITOR));
+            assertThrows(ForbiddenActionException.class, () -> contractService.getAllContracts(authorId, UserRole.EDITOR));
         }
     }
 
@@ -561,7 +573,7 @@ class ContractServiceImplTest {
         @Test
         void updateContract_NotAccountant_ThrowsException() {
             ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
-            assertThrows(ForbiddenActionException.class, () -> contractService.updateContract(contractId, UUID.randomUUID(), UserRole.ADMIN, request));
+            assertThrows(ForbiddenActionException.class, () -> contractService.updateContract(contractId, authorId, UserRole.ADMIN, request));
         }
 
         @Test
@@ -569,7 +581,7 @@ class ContractServiceImplTest {
             Contract active = activeContract(draftContract());
             ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
-            assertThrows(InvalidStateTransitionException.class, () -> contractService.updateContract(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT, request));
+            assertThrows(InvalidStateTransitionException.class, () -> contractService.updateContract(contractId, authorId, UserRole.ACCOUNTANT, request));
             verify(contractRepository, never()).save(any());
         }
 
@@ -578,7 +590,7 @@ class ContractServiceImplTest {
             ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
-            assertThrows(ContractNotFoundException.class, () -> contractService.updateContract(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT, request));
+            assertThrows(ContractNotFoundException.class, () -> contractService.updateContract(contractId, authorId, UserRole.ACCOUNTANT, request));
             verify(contractRepository, never()).save(any());
         }
     }
@@ -604,21 +616,21 @@ class ContractServiceImplTest {
 
         @Test
         void deleteContract_NotAdmin_ThrowsException() {
-            assertThrows(ForbiddenActionException.class, () -> contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT));
+            assertThrows(ForbiddenActionException.class, () -> contractService.deleteContract(contractId, authorId, UserRole.ACCOUNTANT));
         }
 
         @Test
         void deleteContract_Active_ThrowsException() {
             Contract active = activeContract(draftContract());
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
-            assertThrows(InvalidStateTransitionException.class, () -> contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ADMIN));
+            assertThrows(InvalidStateTransitionException.class, () -> contractService.deleteContract(contractId, authorId, UserRole.ADMIN));
             verify(contractRepository, never()).delete(any());
         }
 
         @Test
         void deleteContract_NotFound_ThrowsException() {
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
-            assertThrows(ContractNotFoundException.class, () -> contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ADMIN));
+            assertThrows(ContractNotFoundException.class, () -> contractService.deleteContract(contractId, authorId, UserRole.ADMIN));
             verify(contractRepository, never()).delete(any());
         }
     }

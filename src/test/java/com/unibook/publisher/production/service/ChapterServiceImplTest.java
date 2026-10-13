@@ -129,10 +129,11 @@ public class ChapterServiceImplTest {
     @DisplayName("Помилка створення розділу, якщо рукопис не знайдено")
     void createChapter_ManuscriptNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
-        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.createChapter(manuscriptId, UUID.randomUUID(), new ChapterCreationRequest("Розділ", 1)));
+        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.createChapter(manuscriptId, randomUserId, new ChapterCreationRequest("Розділ", 1)));
     }
 
     @Test
@@ -586,8 +587,9 @@ public class ChapterServiceImplTest {
     @DisplayName("Помилка оновлення розділу, якщо розділ не знайдено")
     void updateChapter_ChapterNotFoundException() {
         UUID chapterId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
-        assertThrows(ChapterNotFoundException.class, () -> chapterService.updateChapter(chapterId, UUID.randomUUID(), new ChapterUpdateRequest("Розділ", 1)));
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.updateChapter(chapterId, randomUserId, new ChapterUpdateRequest("Розділ", 1)));
         verify(chapterRepository, never()).save(any());
     }
 
@@ -595,9 +597,10 @@ public class ChapterServiceImplTest {
     @DisplayName("Заборонено оновлювати розділ користувачу, який не є автором")
     void updateChapter_ForbiddenActionException() {
         UUID chapterId = UUID.randomUUID();
+        UUID randomUserId = UUID.randomUUID();
         Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
-        assertThrows(ForbiddenActionException.class, () -> chapterService.updateChapter(chapterId, UUID.randomUUID(), new ChapterUpdateRequest("Розділ", 1)));
+        assertThrows(ForbiddenActionException.class, () -> chapterService.updateChapter(chapterId, randomUserId, new ChapterUpdateRequest("Розділ", 1)));
         verify(chapterRepository, never()).save(any());
     }
 
@@ -629,8 +632,9 @@ public class ChapterServiceImplTest {
     @DisplayName("Помилка видалення розділу, якщо розділ не знайдено")
     void deleteChapter_ChapterNotFoundException() {
         UUID chapterId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
-        assertThrows(ChapterNotFoundException.class, () -> chapterService.deleteChapter(chapterId, UUID.randomUUID()));
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.deleteChapter(chapterId, authorId));
         verify(chapterRepository, never()).delete(any());
     }
 

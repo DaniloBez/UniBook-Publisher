@@ -54,8 +54,10 @@ public class IdentityDataSeeder implements ApplicationRunner {
         logger.info("Seeding identity data...");
 
         String defaultPassword = passwordEncoder.encode(SeedConstants.DEFAULT_PASSWORD);
-
         logger.info("Example of password hash: {}", defaultPassword);
+
+        String uaLocale = "uk-UA";
+        String enLocale = "en-US";
 
         createUser(
                 SeedConstants.ADMIN_ID,
@@ -65,7 +67,7 @@ public class IdentityDataSeeder implements ApplicationRunner {
                 "Модератор",
                 "Системний адміністратор платформи UniBook",
                 "https://api.dicebear.com/10.x/lorelei/svg?seed=admin",
-                "uk-UA"
+                uaLocale
         );
 
         createUser(
@@ -76,7 +78,7 @@ public class IdentityDataSeeder implements ApplicationRunner {
                 "Головний редактор",
                 "Головний редактор видавництва, модерація нових рукописів",
                 "https://api.dicebear.com/10.x/lorelei/svg?seed=chief",
-                "uk-UA"
+                uaLocale
         );
 
         createUser(
@@ -87,7 +89,7 @@ public class IdentityDataSeeder implements ApplicationRunner {
                 "Редактор",
                 "Провідна літературна редакторка художньої прози",
                 "https://api.dicebear.com/10.x/lorelei/svg?seed=editor",
-                "uk-UA"
+                uaLocale
         );
 
         createUser(
@@ -98,7 +100,7 @@ public class IdentityDataSeeder implements ApplicationRunner {
                 "Дизайнер",
                 "Книжковий ілюстратор та концепт-художник обкладинок",
                 "https://api.dicebear.com/10.x/lorelei/svg?seed=designer",
-                "uk-UA"
+                uaLocale
         );
 
         createUser(
@@ -109,7 +111,7 @@ public class IdentityDataSeeder implements ApplicationRunner {
                 "Перший автор на платформі",
                 "Письменник наукової фантастики та космічних пригод",
                 "https://api.dicebear.com/10.x/lorelei/svg?seed=author1",
-                "uk-UA"
+                uaLocale
         );
 
         createUser(
@@ -120,7 +122,7 @@ public class IdentityDataSeeder implements ApplicationRunner {
                 "Second author on the platform",
                 "An author of urban and dark fantasy",
                 "https://api.dicebear.com/10.x/lorelei/svg?seed=author2",
-                "en-US"
+                enLocale
         );
 
         createUser(
@@ -131,7 +133,7 @@ public class IdentityDataSeeder implements ApplicationRunner {
                 "Бухгалтер",
                 "",
                 "https://api.dicebear.com/10.x/lorelei/svg?seed=accountant",
-                "uk-UA"
+                uaLocale
         );
 
         logger.info("Identity seeding complete.");
