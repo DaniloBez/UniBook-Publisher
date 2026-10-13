@@ -55,6 +55,8 @@ public class IdentityDataSeeder implements ApplicationRunner {
 
         String defaultPassword = passwordEncoder.encode(SeedConstants.DEFAULT_PASSWORD);
 
+        logger.info("Example of password hash: {}", defaultPassword);
+
         createUser(
                 SeedConstants.ADMIN_ID,
                 "admin@unibook-demo.local",
