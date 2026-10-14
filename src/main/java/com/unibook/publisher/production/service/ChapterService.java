@@ -1,5 +1,6 @@
 package com.unibook.publisher.production.service;
 
+import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
 import com.unibook.publisher.production.entity.request.ChapterUpdateRequest;
 import com.unibook.publisher.production.entity.request.DiffRequest;
@@ -12,17 +13,17 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ChapterService {
-    ChapterResponse createChapter(UUID manuscriptId, UUID authorId, ChapterCreationRequest request);
+    ChapterResponse createChapter(UUID manuscriptId, User currentUser, ChapterCreationRequest request);
 
-    ChapterResponse updateChapter(UUID chapterId, UUID authorId, ChapterUpdateRequest request);
+    ChapterResponse updateChapter(UUID chapterId, User currentUser, ChapterUpdateRequest request);
 
-    void deleteChapter(UUID chapterId, UUID authorId);
+    void deleteChapter(UUID chapterId, User currentUser);
 
     List<ChapterResponse> getChaptersByManuscriptId(UUID manuscriptId);
 
     RevisionResponse uploadRevision(
             UUID chapterId,
-            UUID userId,
+            User currentUser,
             InputStream fileStream,
             long size,
             String contentType,

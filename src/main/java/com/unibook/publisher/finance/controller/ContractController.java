@@ -1,12 +1,12 @@
 package com.unibook.publisher.finance.controller;
 
-import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.finance.entity.request.ContractUpdateRequest;
 import com.unibook.publisher.finance.entity.request.PayoutSimulationRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
 import com.unibook.publisher.finance.entity.response.ContractResponse;
 import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.service.ContractService;
+import com.unibook.publisher.identity.entity.User;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -16,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -37,14 +38,11 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "The caller is not allowed to view this contract", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "404", description = "Contract for the given manuscript not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<ContractResponse> getContract(
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "ACCOUNTANT")
-            @RequestHeader("X-User-Role") UserRole userRole,
+            @AuthenticationPrincipal User currentUser,
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @RequestParam UUID manuscriptId
     ) {
-        return ResponseEntity.ok(contractService.getContractByManuscriptId(manuscriptId, userId, userRole));
+        return ResponseEntity.ok(contractService.getContractByManuscriptId(manuscriptId, currentUser));
     }
 
     @PatchMapping("/{id}/royalty")
@@ -55,15 +53,12 @@ public class ContractController {
         @ApiResponse(responseCode = "404", description = "Contract not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "422", description = "The contract is not in DRAFT status", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<ContractResponse> updateRoyalty(
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "ACCOUNTANT")
-            @RequestHeader("X-User-Role") UserRole userRole,
+            @AuthenticationPrincipal User currentUser,
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
             @RequestBody @Valid RoyaltyUpdateRequest request
     ) {
-        return ResponseEntity.ok(contractService.updateRoyalty(id, userId, userRole, request));
+        return ResponseEntity.ok(contractService.updateRoyalty(id, currentUser, request));
     }
 
     @PostMapping("/{id}/confirm")
@@ -73,12 +68,11 @@ public class ContractController {
         @ApiResponse(responseCode = "404", description = "Contract not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "422", description = "The contract is not in DRAFT status", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<ContractResponse> confirmContract(
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
+            @AuthenticationPrincipal User currentUser,
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id
     ) {
-        return ResponseEntity.ok(contractService.confirmContract(id, userId));
+        return ResponseEntity.ok(contractService.confirmContract(id, currentUser));
     }
 
     @PostMapping("/{id}/simulate-payout")
@@ -89,15 +83,12 @@ public class ContractController {
         @ApiResponse(responseCode = "404", description = "Contract not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "422", description = "Unsupported royalty strategy", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<PayoutSimulationResponse> simulatePayout(
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "ACCOUNTANT")
-            @RequestHeader("X-User-Role") UserRole userRole,
+            @AuthenticationPrincipal User currentUser,
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
             @RequestBody @Valid PayoutSimulationRequest request
     ) {
-        return ResponseEntity.ok(contractService.simulatePayout(id, userId, userRole, request));
+        return ResponseEntity.ok(contractService.simulatePayout(id, currentUser, request));
     }
 
 
@@ -109,25 +100,17 @@ public class ContractController {
     public ResponseEntity<ContractResponse> getContractById(
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "ACCOUNTANT")
-            @RequestHeader("X-User-Role") UserRole userRole
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(contractService.getContractById(id, userId, userRole));
+        return ResponseEntity.ok(contractService.getContractById(id, currentUser));
     }
 
     @GetMapping
     @Operation(summary = "Get all contracts", description = "Returns all contracts. Accountant or administrator only")
         @ApiResponse(responseCode = "200", description = "Contracts successfully retrieved")
         @ApiResponse(responseCode = "403", description = "Only an accountant or an administrator can list all contracts", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
-    public ResponseEntity<List<ContractResponse>> getAllContracts(
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "ACCOUNTANT")
-            @RequestHeader("X-User-Role") UserRole userRole
-    ) {
-        return ResponseEntity.ok(contractService.getAllContracts(userId, userRole));
+    public ResponseEntity<List<ContractResponse>> getAllContracts() {
+        return ResponseEntity.ok(contractService.getAllContracts());
     }
 
     @PutMapping("/{id}")
@@ -140,13 +123,9 @@ public class ContractController {
     public ResponseEntity<ContractResponse> updateContract(
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "ACCOUNTANT")
-            @RequestHeader("X-User-Role") UserRole userRole,
             @Valid @RequestBody ContractUpdateRequest request
     ) {
-        return ResponseEntity.ok(contractService.updateContract(id, userId, userRole, request));
+        return ResponseEntity.ok(contractService.updateContract(id, request));
     }
 
     @DeleteMapping("/{id}")
@@ -157,13 +136,9 @@ public class ContractController {
         @ApiResponse(responseCode = "422", description = "An ACTIVE contract cannot be deleted", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<Void> deleteContract(
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
-            @PathVariable UUID id,
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "ADMIN")
-            @RequestHeader("X-User-Role") UserRole userRole
+            @PathVariable UUID id
     ) {
-        contractService.deleteContract(id, userId, userRole);
+        contractService.deleteContract(id);
         return ResponseEntity.noContent().build();
     }
 }

@@ -1,5 +1,6 @@
 package com.unibook.publisher.production.controller;
 
+import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.production.entity.request.OpenThreadRequest;
 import com.unibook.publisher.production.entity.request.ThreadMessageRequest;
 import com.unibook.publisher.production.entity.response.ThreadMessageResponse;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,11 +41,10 @@ public class FeedbackThreadController {
     public ResponseEntity<ThreadResponse> openThread(
             @Parameter(description = "Chapter ID", required = true, example = "9b2d5c1e-3f4a-4b8e-a1c7-5d6e7f8a9b0c")
             @PathVariable UUID chapterId,
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
+            @AuthenticationPrincipal User currentUser,
             @Valid @RequestBody OpenThreadRequest request
     ) {
-        return ResponseEntity.ok(threadService.openThread(chapterId, userId, request));
+        return ResponseEntity.ok(threadService.openThread(chapterId, currentUser, request));
     }
 
     @GetMapping("/chapters/{chapterId}/threads")
@@ -68,11 +69,10 @@ public class FeedbackThreadController {
     public ResponseEntity<ThreadMessageResponse> addMessage(
             @Parameter(description = "Thread ID", required = true, example = "1d4f8a2b-6c3e-4f9a-8b7d-2e5c9a1f0d3b")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
+            @AuthenticationPrincipal User currentUser,
             @Valid @RequestBody ThreadMessageRequest request
     ) {
-        return ResponseEntity.ok(threadService.addMessage(id, userId, request));
+        return ResponseEntity.ok(threadService.addMessage(id, currentUser, request));
     }
 
     @PostMapping("/threads/{id}/accept")
@@ -84,10 +84,9 @@ public class FeedbackThreadController {
     public ResponseEntity<ThreadResponse> acceptSuggestion(
             @Parameter(description = "Thread ID", required = true, example = "1d4f8a2b-6c3e-4f9a-8b7d-2e5c9a1f0d3b")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the author making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(threadService.acceptSuggestion(id, userId));
+        return ResponseEntity.ok(threadService.acceptSuggestion(id, currentUser));
     }
 
     @PostMapping("/threads/{id}/reject")
@@ -99,10 +98,9 @@ public class FeedbackThreadController {
     public ResponseEntity<ThreadResponse> rejectSuggestion(
             @Parameter(description = "Thread ID", required = true, example = "1d4f8a2b-6c3e-4f9a-8b7d-2e5c9a1f0d3b")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the author making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(threadService.rejectSuggestion(id, userId));
+        return ResponseEntity.ok(threadService.rejectSuggestion(id, currentUser));
     }
 
     @PatchMapping("/threads/{id}/resolve")
@@ -114,10 +112,9 @@ public class FeedbackThreadController {
     public ResponseEntity<ThreadResponse> resolveThread(
             @Parameter(description = "Thread ID", required = true, example = "1d4f8a2b-6c3e-4f9a-8b7d-2e5c9a1f0d3b")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(threadService.resolveThread(id, userId));
+        return ResponseEntity.ok(threadService.resolveThread(id, currentUser));
     }
 
     @DeleteMapping("/threads/{id}")
@@ -128,10 +125,9 @@ public class FeedbackThreadController {
     public ResponseEntity<Void> deleteThread(
             @Parameter(description = "Thread ID", required = true, example = "1d4f8a2b-6c3e-4f9a-8b7d-2e5c9a1f0d3b")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId
+            @AuthenticationPrincipal User currentUser
     ) {
-        threadService.deleteThread(id, userId);
+        threadService.deleteThread(id, currentUser);
         return ResponseEntity.noContent().build();
     }
 }

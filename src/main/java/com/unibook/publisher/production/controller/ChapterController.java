@@ -2,6 +2,7 @@ package com.unibook.publisher.production.controller;
 
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
 import com.unibook.publisher.production.entity.request.ChapterUpdateRequest;
 import com.unibook.publisher.production.entity.request.DiffRequest;
@@ -18,6 +19,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -47,11 +49,10 @@ public class ChapterController {
     public ResponseEntity<ChapterResponse> createChapter(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID manuscriptId,
-            @Parameter(description = "ID of the author making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID authorId,
+            @AuthenticationPrincipal User currentUser,
             @Valid @RequestBody ChapterCreationRequest request
     ) {
-        ChapterResponse response = chapterService.createChapter(manuscriptId, authorId, request);
+        ChapterResponse response = chapterService.createChapter(manuscriptId, currentUser, request);
         return ResponseEntity.ok(response);
     }
 
@@ -76,11 +77,10 @@ public class ChapterController {
     public ResponseEntity<ChapterResponse> updateChapter(
             @Parameter(description = "Chapter ID", required = true, example = "9b2d5c1e-3f4a-4b8e-a1c7-5d6e7f8a9b0c")
             @PathVariable UUID chapterId,
-            @Parameter(description = "ID of the author making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID authorId,
+            @AuthenticationPrincipal User currentUser,
             @Valid @RequestBody ChapterUpdateRequest request
     ) {
-        return ResponseEntity.ok(chapterService.updateChapter(chapterId, authorId, request));
+        return ResponseEntity.ok(chapterService.updateChapter(chapterId, currentUser, request));
     }
 
     @DeleteMapping("/chapters/{chapterId}")
@@ -92,10 +92,9 @@ public class ChapterController {
     public ResponseEntity<Void> deleteChapter(
             @Parameter(description = "Chapter ID", required = true, example = "9b2d5c1e-3f4a-4b8e-a1c7-5d6e7f8a9b0c")
             @PathVariable UUID chapterId,
-            @Parameter(description = "ID of the author making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID authorId
+            @AuthenticationPrincipal User currentUser
     ) {
-        chapterService.deleteChapter(chapterId, authorId);
+        chapterService.deleteChapter(chapterId, currentUser);
         return ResponseEntity.noContent().build();
     }
 
@@ -109,14 +108,13 @@ public class ChapterController {
     public ResponseEntity<RevisionResponse> uploadRevision(
             @Parameter(description = "Chapter ID", required = true, example = "9b2d5c1e-3f4a-4b8e-a1c7-5d6e7f8a9b0c")
             @PathVariable UUID chapterId,
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId,
+            @AuthenticationPrincipal User currentUser,
             @RequestParam MultipartFile file
     ) {
         try {
             return ResponseEntity.ok(chapterService.uploadRevision(
                     chapterId,
-                    userId,
+                    currentUser,
                     file.getInputStream(),
                     file.getSize(),
                     file.getContentType(),

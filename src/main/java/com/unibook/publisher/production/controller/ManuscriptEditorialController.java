@@ -1,7 +1,6 @@
 package com.unibook.publisher.production.controller;
 
-import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.production.entity.request.AssignDesignerRequest;
 import com.unibook.publisher.production.entity.response.ManuscriptAuditLogResponse;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
@@ -15,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,10 +39,9 @@ public class ManuscriptEditorialController {
     public ResponseEntity<ManuscriptResponse> finalizeText(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the editor making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID editorId
+            @AuthenticationPrincipal User currentUser
     ) {
-        return ResponseEntity.ok(finalizationService.finalizeText(id, editorId));
+        return ResponseEntity.ok(finalizationService.finalizeText(id, currentUser));
     }
 
     @PostMapping("/{id}/assign-designer")
@@ -55,16 +54,10 @@ public class ManuscriptEditorialController {
     public ResponseEntity<ManuscriptResponse> assignDesigner(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the chief editor making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID chiefEditorId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "CHIEF_EDITOR")
-            @RequestHeader("X-User-Role") UserRole callerRole,
+            @AuthenticationPrincipal User currentUser,
             @Valid @RequestBody AssignDesignerRequest request
     ) {
-        if (callerRole != UserRole.CHIEF_EDITOR) {
-            throw new ForbiddenActionException("Призначати дизайнера може лише головний редактор");
-        }
-        return ResponseEntity.ok(finalizationService.assignDesigner(id, chiefEditorId, request));
+        return ResponseEntity.ok(finalizationService.assignDesigner(id, currentUser, request));
     }
 
     @PostMapping("/{id}/publish")
@@ -76,15 +69,9 @@ public class ManuscriptEditorialController {
     public ResponseEntity<ManuscriptResponse> publish(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the chief editor making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID chiefEditorId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "CHIEF_EDITOR")
-            @RequestHeader("X-User-Role") UserRole callerRole
+            @AuthenticationPrincipal User currentUser
     ) {
-        if (callerRole != UserRole.CHIEF_EDITOR) {
-            throw new ForbiddenActionException("Публікувати рукопис може лише головний редактор");
-        }
-        return ResponseEntity.ok(finalizationService.publish(id, chiefEditorId));
+        return ResponseEntity.ok(finalizationService.publish(id, currentUser));
     }
 
     @GetMapping("/{id}/audit-log")

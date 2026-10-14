@@ -3,6 +3,7 @@ package com.unibook.publisher.identity.service;
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.exception.conflict.EmailAlreadyExistsException;
 import com.unibook.publisher.common.exception.notfound.UserNotFoundException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
 import com.unibook.publisher.common.security.jwt.JwtService;
 import com.unibook.publisher.identity.entity.User;
@@ -11,6 +12,7 @@ import com.unibook.publisher.identity.entity.request.*;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.repository.UserRepository;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -93,9 +95,12 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponse updateUserProfile(UUID userId, UserProfileUpdateRequest request) {
-        User user = userRepository.findByIdWithProfile(userId)
-                .orElseThrow(() -> new UserNotFoundException(userId));
+    public UserResponse updateUserProfile(UUID profileUserId, User currentUser, UserProfileUpdateRequest request) {
+        if (!currentUser.getId().equals(profileUserId))
+            throw new ForbiddenActionException("Користувач має право редагувати тільки свій профіль");
+
+        User user = userRepository.findByIdWithProfile(profileUserId)
+                .orElseThrow(() -> new UserNotFoundException(profileUserId));
 
         UserProfile profile = user.getProfile();
 
@@ -111,6 +116,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public UserResponse createStaff(StaffRequest request) {
         if (userRepository.existsByEmail(request.email()))
             throw new EmailAlreadyExistsException(request.email());
@@ -134,6 +140,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('ADMIN', 'CHIEF_EDITOR')")
     public List<UserResponse> getUsers(UserRole role) {
         List<User> userList = (role == null)
                 ? userRepository.findAllWithProfile()
@@ -144,6 +151,7 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
+    @PreAuthorize("hasRole('ADMIN')")
     public void deleteUser(UUID id) {
         if (!userRepository.existsById(id))
             throw new UserNotFoundException(id);

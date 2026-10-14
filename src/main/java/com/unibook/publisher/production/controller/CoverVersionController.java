@@ -3,6 +3,7 @@ package com.unibook.publisher.production.controller;
 import com.unibook.publisher.common.exception.badrequest.FileIsEmptyException;
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.production.entity.response.CoverVersionResponse;
 import com.unibook.publisher.production.service.CoverVersionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -13,6 +14,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -42,8 +44,7 @@ public class CoverVersionController {
     public ResponseEntity<CoverVersionResponse> uploadCoverVersion(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the designer making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID designerId,
+            @AuthenticationPrincipal User currentUser,
             @RequestParam MultipartFile file
     ) {
         if (file.isEmpty())
@@ -52,7 +53,7 @@ public class CoverVersionController {
         try {
             return ResponseEntity.ok(coverVersionService.uploadCoverVersion(
                     id,
-                    designerId,
+                    currentUser,
                     file.getInputStream(),
                     file.getSize(),
                     file.getContentType(),

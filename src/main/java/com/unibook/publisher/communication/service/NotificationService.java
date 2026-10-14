@@ -2,6 +2,7 @@ package com.unibook.publisher.communication.service;
 
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
+import com.unibook.publisher.identity.entity.User;
 
 import java.util.List;
 import java.util.UUID;
@@ -17,7 +18,7 @@ public interface NotificationService {
             NotificationType type
     );
 
-    List<NotificationResponse> getUserNotifications(UUID recipientId, Boolean unreadOnly);
+    List<NotificationResponse> getUserNotifications(User currentUser, Boolean unreadOnly);
 
-    NotificationResponse markAsRead(UUID notificationId, UUID userId);
+    NotificationResponse markAsRead(UUID notificationId, User currentUser);
 }
