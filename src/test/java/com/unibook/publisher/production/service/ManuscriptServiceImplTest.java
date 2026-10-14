@@ -1,6 +1,7 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.event.*;
 import com.unibook.publisher.common.exception.notfound.GenreNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
@@ -72,7 +73,7 @@ public class ManuscriptServiceImplTest {
         );
         when(repository.save(any(Manuscript.class))).thenReturn(saved);
 
-        ManuscriptResponse response = manuscriptService.submitManuscript(authorId, request);
+        ManuscriptResponse response = manuscriptService.submitManuscript(asUser(authorId), request);
         assertNotNull(response);
         assertEquals(manuscriptId, response.manuscriptId());
         assertEquals("Гаррі Поттер", response.title());
@@ -102,7 +103,7 @@ public class ManuscriptServiceImplTest {
         when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptApprovalRequest request = new ManuscriptApprovalRequest(editorId);
-        ManuscriptResponse response = manuscriptService.approveManuscript(manuscriptId, chiefEditorId, request);
+        ManuscriptResponse response = manuscriptService.approveManuscript(manuscriptId, asUser(chiefEditorId), request);
         assertNotNull(response);
         assertEquals(ManuscriptStatus.IN_PROGRESS, response.status());
 
@@ -132,7 +133,7 @@ public class ManuscriptServiceImplTest {
         when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptApprovalRequest request = new ManuscriptApprovalRequest(editorId);
-        ManuscriptResponse response = manuscriptService.approveManuscript(manuscriptId, chiefEditorId, request);
+        ManuscriptResponse response = manuscriptService.approveManuscript(manuscriptId, asUser(chiefEditorId), request);
         assertNotNull(response);
         assertEquals(ManuscriptStatus.IN_PROGRESS, response.status());
 
@@ -159,7 +160,7 @@ public class ManuscriptServiceImplTest {
 
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
 
-        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.approveManuscript(manuscriptId, randomUserId, request));
+        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.approveManuscript(manuscriptId, asUser(randomUserId), request));
     }
 
     @Test
@@ -168,7 +169,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptApprovalRequest request = new ManuscriptApprovalRequest(randomUserId);
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.approveManuscript(manuscriptId, randomUserId, request));
+        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.approveManuscript(manuscriptId, asUser(randomUserId), request));
         verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
     }
@@ -193,7 +194,7 @@ public class ManuscriptServiceImplTest {
         when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptRejectionRequest request = new ManuscriptRejectionRequest("Причина");
-        ManuscriptResponse response = manuscriptService.rejectManuscript(manuscriptId, chiefEditorId, request);
+        ManuscriptResponse response = manuscriptService.rejectManuscript(manuscriptId, asUser(chiefEditorId), request);
         assertNotNull(response);
         assertEquals(ManuscriptStatus.REJECTED, response.status());
 
@@ -221,7 +222,7 @@ public class ManuscriptServiceImplTest {
         when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptRejectionRequest request = new ManuscriptRejectionRequest("Причина");
-        ManuscriptResponse response = manuscriptService.rejectManuscript(manuscriptId, chiefEditorId, request);
+        ManuscriptResponse response = manuscriptService.rejectManuscript(manuscriptId, asUser(chiefEditorId), request);
         assertNotNull(response);
         assertEquals(ManuscriptStatus.REJECTED, response.status());
 
@@ -245,7 +246,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptRejectionRequest request = new ManuscriptRejectionRequest("Причина");
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.rejectManuscript(manuscriptId, randomUserId, request));
+        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.rejectManuscript(manuscriptId, asUser(randomUserId), request));
     }
 
     @Test
@@ -254,7 +255,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptRejectionRequest request = new ManuscriptRejectionRequest("Причина");
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.rejectManuscript(manuscriptId, randomUserId, request));
+        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.rejectManuscript(manuscriptId, asUser(randomUserId), request));
         verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
     }
@@ -279,7 +280,7 @@ public class ManuscriptServiceImplTest {
         when(repository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         ManuscriptPostponementRequest request = new ManuscriptPostponementRequest("Коментар");
-        ManuscriptResponse response = manuscriptService.postponeManuscript(manuscriptId, chiefEditorId, request);
+        ManuscriptResponse response = manuscriptService.postponeManuscript(manuscriptId, asUser(chiefEditorId), request);
         assertNotNull(response);
         assertEquals(ManuscriptStatus.POSTPONED, response.status());
 
@@ -303,7 +304,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptPostponementRequest request = new ManuscriptPostponementRequest("Коментар");
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.postponeManuscript(manuscriptId, randomUserId, request));
+        assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.postponeManuscript(manuscriptId, asUser(randomUserId), request));
     }
 
     @Test
@@ -312,7 +313,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptPostponementRequest request = new ManuscriptPostponementRequest("Коментар");
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.postponeManuscript(manuscriptId, randomUserId, request));
+        assertThrows(ResourceNotFoundException.class, () -> manuscriptService.postponeManuscript(manuscriptId, asUser(randomUserId), request));
         verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
         verify(publisher, never()).publishEvent(any());
@@ -550,7 +551,7 @@ public class ManuscriptServiceImplTest {
         );
         when(repository.save(any(Manuscript.class))).thenReturn(saved);
 
-        ManuscriptResponse response = manuscriptService.submitManuscript(authorId, request);
+        ManuscriptResponse response = manuscriptService.submitManuscript(asUser(authorId), request);
 
         assertNotNull(response);
         assertEquals(manuscriptId, response.manuscriptId());
@@ -585,7 +586,7 @@ public class ManuscriptServiceImplTest {
         );
         when(repository.save(any(Manuscript.class))).thenReturn(saved);
 
-        ManuscriptResponse response = manuscriptService.submitManuscript(authorId, request);
+        ManuscriptResponse response = manuscriptService.submitManuscript(asUser(authorId), request);
 
         assertNotNull(response);
         assertEquals("Порожній список", response.title());

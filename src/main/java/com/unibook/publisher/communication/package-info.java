@@ -1,5 +1,6 @@
 @org.springframework.modulith.ApplicationModule(
-        displayName = "Communication & Notifications"
+        displayName = "Communication & Notifications",
+        allowedDependencies = { "common", "identity::entity" }
 )
 
 package com.unibook.publisher.communication;

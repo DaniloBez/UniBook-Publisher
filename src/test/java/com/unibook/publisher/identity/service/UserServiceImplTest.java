@@ -1,6 +1,7 @@
 package com.unibook.publisher.identity.service;
 
 import com.unibook.publisher.common.enums.UserRole;
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.exception.conflict.EmailAlreadyExistsException;
 import com.unibook.publisher.common.exception.notfound.UserNotFoundException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
@@ -283,7 +284,7 @@ public class UserServiceImplTest {
             when(userRepository.findByIdWithProfile(userId)).thenReturn(Optional.of(user));
             when(userRepository.save(any(User.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-            UserResponse response = userService.updateUserProfile(userId, updateRequest);
+            UserResponse response = userService.updateUserProfile(userId, asUser(userId), updateRequest);
 
             assertThat(response.displayName()).isEqualTo("New Name");
             assertThat(response.bio()).isEqualTo("New Bio");
@@ -301,7 +302,7 @@ public class UserServiceImplTest {
 
             when(userRepository.findByIdWithProfile(userId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> userService.updateUserProfile(userId, updateRequest))
+            assertThatThrownBy(() -> userService.updateUserProfile(userId, asUser(userId), updateRequest))
                     .isInstanceOf(UserNotFoundException.class);
 
             verify(userRepository, never()).save(any());

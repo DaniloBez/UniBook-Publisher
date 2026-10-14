@@ -1,6 +1,7 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
 import com.unibook.publisher.common.event.TextFinalizedEvent;
 import com.unibook.publisher.common.event.WorkerAssignedEvent;
@@ -90,7 +91,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of());
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, editorId);
+        ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, asUser(editorId));
 
         assertEquals(ManuscriptStatus.TEXT_APPROVED, response.status());
         verify(manuscriptAuditLogService, times(1)).recordStatusChange(manuscriptId, editorId, ManuscriptStatus.IN_PROGRESS, ManuscriptStatus.TEXT_APPROVED);
@@ -119,7 +120,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
         when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(openThread));
 
-        assertThrows(UnresolvedThreadsException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
+        assertThrows(UnresolvedThreadsException.class, () -> finalizationService.finalizeText(manuscriptId, asUser(editorId)));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -133,7 +134,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(coverVersionRepository.existsByManuscript_ManuscriptId(manuscriptId)).thenReturn(false);
 
-        assertThrows(MissingCoverException.class, () -> finalizationService.publish(manuscriptId, chiefEditorId));
+        assertThrows(MissingCoverException.class, () -> finalizationService.publish(manuscriptId, asUser(chiefEditorId)));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -145,7 +146,7 @@ public class ManuscriptFinalizationServiceImplTest {
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
-        assertThrows(ManuscriptNotFoundException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
+        assertThrows(ManuscriptNotFoundException.class, () -> finalizationService.finalizeText(manuscriptId, asUser(editorId)));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -159,7 +160,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.empty());
 
-        assertThrows(ForbiddenActionException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
+        assertThrows(ForbiddenActionException.class, () -> finalizationService.finalizeText(manuscriptId, asUser(editorId)));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -174,7 +175,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
 
-        assertThrows(ForbiddenActionException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
+        assertThrows(ForbiddenActionException.class, () -> finalizationService.finalizeText(manuscriptId, asUser(editorId)));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -189,7 +190,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
 
-        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
+        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.finalizeText(manuscriptId, asUser(editorId)));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -215,7 +216,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
         when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(suggestionThread));
 
-        assertThrows(UnresolvedThreadsException.class, () -> finalizationService.finalizeText(manuscriptId, editorId));
+        assertThrows(UnresolvedThreadsException.class, () -> finalizationService.finalizeText(manuscriptId, asUser(editorId)));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -233,7 +234,7 @@ public class ManuscriptFinalizationServiceImplTest {
                 .thenReturn(new TeamAssignmentResponse(UUID.randomUUID(), manuscriptId, designerId, UserRole.DESIGNER, Instant.now()));
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ManuscriptResponse response = finalizationService.assignDesigner(manuscriptId, chiefEditorId, request);
+        ManuscriptResponse response = finalizationService.assignDesigner(manuscriptId, asUser(chiefEditorId), request);
 
         assertEquals(ManuscriptStatus.IN_DESIGN, response.status());
         verify(teamAssignmentService, times(1)).assign(manuscriptId, designerId, UserRole.DESIGNER);
@@ -249,7 +250,7 @@ public class ManuscriptFinalizationServiceImplTest {
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
-        assertThrows(ManuscriptNotFoundException.class, () -> finalizationService.assignDesigner(manuscriptId, chiefEditorId, request));
+        assertThrows(ManuscriptNotFoundException.class, () -> finalizationService.assignDesigner(manuscriptId, asUser(chiefEditorId), request));
         verify(teamAssignmentService, never()).assign(any(), any(), any());
     }
 
@@ -263,7 +264,7 @@ public class ManuscriptFinalizationServiceImplTest {
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
 
-        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.assignDesigner(manuscriptId, chiefEditorId, request));
+        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.assignDesigner(manuscriptId, asUser(chiefEditorId), request));
         verify(teamAssignmentService, never()).assign(any(), any(), any());
         verify(manuscriptRepository, never()).save(any());
     }
@@ -279,7 +280,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(coverVersionRepository.existsByManuscript_ManuscriptId(manuscriptId)).thenReturn(true);
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ManuscriptResponse response = finalizationService.publish(manuscriptId, chiefEditorId);
+        ManuscriptResponse response = finalizationService.publish(manuscriptId, asUser(chiefEditorId));
 
         assertEquals(ManuscriptStatus.PUBLISHED, response.status());
         verify(publisher, times(1)).publishEvent(any(ManuscriptPublishedEvent.class));
@@ -293,7 +294,7 @@ public class ManuscriptFinalizationServiceImplTest {
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
-        assertThrows(ManuscriptNotFoundException.class, () -> finalizationService.publish(manuscriptId, chiefEditorId));
+        assertThrows(ManuscriptNotFoundException.class, () -> finalizationService.publish(manuscriptId, asUser(chiefEditorId)));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -306,7 +307,7 @@ public class ManuscriptFinalizationServiceImplTest {
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
 
-        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.publish(manuscriptId, chiefEditorId));
+        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.publish(manuscriptId, asUser(chiefEditorId)));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -361,7 +362,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(resolvedThread));
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, editorId);
+        ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, asUser(editorId));
 
         assertEquals(ManuscriptStatus.TEXT_APPROVED, response.status());
         verify(manuscriptRepository, times(1)).save(any());
@@ -391,7 +392,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(acceptedSuggestion));
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, editorId);
+        ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, asUser(editorId));
 
         assertEquals(ManuscriptStatus.TEXT_APPROVED, response.status());
         verify(manuscriptRepository, times(1)).save(any());

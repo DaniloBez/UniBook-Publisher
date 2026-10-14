@@ -1,6 +1,7 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.event.CoverVersionAddedEvent;
 import com.unibook.publisher.common.exception.badrequest.InvalidFileTypeException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
@@ -84,7 +85,7 @@ public class CoverVersionServiceImplTest {
         when(fileStorageService.put(anyString(), any(InputStream.class), anyLong(), anyString())).thenReturn(expectedPath);
         when(coverVersionRepository.save(any(CoverVersion.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CoverVersionResponse response = coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 1024L, "image/png", "cover.png");
+        CoverVersionResponse response = coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 1024L, "image/png", "cover.png");
 
         assertEquals(1, response.versionNumber());
         assertEquals(designerId, response.uploadedByUserId());
@@ -109,7 +110,7 @@ public class CoverVersionServiceImplTest {
         when(fileStorageService.put(anyString(), any(InputStream.class), anyLong(), anyString())).thenReturn(expectedPath);
         when(coverVersionRepository.save(any(CoverVersion.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CoverVersionResponse response = coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 1024L, "image/png", "cover.png");
+        CoverVersionResponse response = coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 1024L, "image/png", "cover.png");
 
         assertEquals(4, response.versionNumber());
     }
@@ -122,10 +123,10 @@ public class CoverVersionServiceImplTest {
         InputStream fileStream = new ByteArrayInputStream("fake".getBytes(StandardCharsets.UTF_8));
 
         assertThrows(InvalidFileTypeException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 100L, "application/pdf", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 100L, "application/pdf", "cover.png"));
 
         assertThrows(InvalidFileTypeException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 100L, null, "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 100L, null, "cover.png"));
     }
 
     @Test
@@ -136,13 +137,13 @@ public class CoverVersionServiceImplTest {
         InputStream fileStream = new ByteArrayInputStream("fake".getBytes(StandardCharsets.UTF_8));
 
         assertThrows(InvalidFileTypeException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 100L, "image/png", null));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 100L, "image/png", null));
 
         assertThrows(InvalidFileTypeException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 100L, "image/png", "coverfilename"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 100L, "image/png", "coverfilename"));
 
         assertThrows(InvalidFileTypeException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 100L, "image/png", "cover."));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 100L, "image/png", "cover."));
     }
 
     @Test
@@ -153,7 +154,7 @@ public class CoverVersionServiceImplTest {
         InputStream fileStream = new ByteArrayInputStream("fake".getBytes(StandardCharsets.UTF_8));
 
         assertThrows(InvalidFileTypeException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 100L, "image/png", "cover.gif"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 100L, "image/png", "cover.gif"));
     }
 
     @Test
@@ -173,7 +174,7 @@ public class CoverVersionServiceImplTest {
         when(coverVersionRepository.save(any())).thenThrow(new RuntimeException("Database error"));
 
         assertThrows(FileUploadException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 1024L, "image/png", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 1024L, "image/png", "cover.png"));
 
         verify(fileStorageService, times(1)).delete(uploadedPath);
     }
@@ -196,7 +197,7 @@ public class CoverVersionServiceImplTest {
         doThrow(new RuntimeException("MinIO delete failed")).when(fileStorageService).delete(uploadedPath);
 
         assertThrows(FileUploadException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 1024L, "image/png", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 1024L, "image/png", "cover.png"));
 
         verify(fileStorageService, times(1)).delete(uploadedPath);
     }
@@ -214,7 +215,7 @@ public class CoverVersionServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
 
         assertThrows(ForbiddenActionException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, notDesignerId, fileStream, 1024L, "image/png", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(notDesignerId), fileStream, 1024L, "image/png", "cover.png"));
         verify(coverVersionRepository, never()).save(any());
     }
 
@@ -231,7 +232,7 @@ public class CoverVersionServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.of(designerAssignment));
 
         assertThrows(InvalidStateTransitionException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, designerId, fileStream, 1024L, "image/png", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(designerId), fileStream, 1024L, "image/png", "cover.png"));
         verify(coverVersionRepository, never()).save(any());
     }
 
@@ -245,7 +246,7 @@ public class CoverVersionServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
         assertThrows(ManuscriptNotFoundException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, notDesignerId, fileStream, 1024L, "image/png", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(notDesignerId), fileStream, 1024L, "image/png", "cover.png"));
         verify(coverVersionRepository, never()).save(any());
     }
 
@@ -261,7 +262,7 @@ public class CoverVersionServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.DESIGNER)).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenActionException.class,
-                () -> coverVersionService.uploadCoverVersion(manuscriptId, notDesignerId, fileStream, 1024L, "image/png", "cover.png"));
+                () -> coverVersionService.uploadCoverVersion(manuscriptId, asUser(notDesignerId), fileStream, 1024L, "image/png", "cover.png"));
         verify(coverVersionRepository, never()).save(any());
     }
 
