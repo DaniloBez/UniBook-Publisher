@@ -1,10 +1,7 @@
 package com.unibook.publisher.identity.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.identity.entity.request.LoginRequest;
-import com.unibook.publisher.identity.entity.request.RegisterRequest;
-import com.unibook.publisher.identity.entity.request.StaffRequest;
-import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
+import com.unibook.publisher.identity.entity.request.*;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 
@@ -16,6 +13,8 @@ public interface UserService {
     AuthResponse register(RegisterRequest request);
 
     AuthResponse login(LoginRequest request);
+
+    AuthResponse refreshToken(RefreshTokenRequest request);
 
     UserResponse getUserProfile(UUID userId);
 

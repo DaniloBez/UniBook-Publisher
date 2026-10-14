@@ -6,4 +6,8 @@ public class InvalidCredentialsException extends DomainException {
     public InvalidCredentialsException() {
         super("Неправильна пошта або пароль");
     }
+
+    public InvalidCredentialsException(String message) {
+        super(message);
+    }
 }

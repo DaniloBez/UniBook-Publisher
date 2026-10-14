@@ -4,12 +4,10 @@ import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.exception.conflict.EmailAlreadyExistsException;
 import com.unibook.publisher.common.exception.notfound.UserNotFoundException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
+import com.unibook.publisher.common.security.jwt.JwtService;
 import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.identity.entity.UserProfile;
-import com.unibook.publisher.identity.entity.request.LoginRequest;
-import com.unibook.publisher.identity.entity.request.RegisterRequest;
-import com.unibook.publisher.identity.entity.request.StaffRequest;
-import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
+import com.unibook.publisher.identity.entity.request.*;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.repository.UserRepository;
@@ -21,6 +19,8 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
@@ -38,6 +38,12 @@ public class UserServiceImplTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private UserDetailsService userDetailsService;
+
+    @Mock
+    private JwtService jwtService;
 
     @Spy
     private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -84,12 +90,24 @@ public class UserServiceImplTest {
             when(userRepository.existsByEmail(request.email())).thenReturn(false);
             when(userRepository.save(any(User.class))).thenReturn(savedUser);
 
+            UserDetails userDetails = org.springframework.security.core.userdetails.User
+                    .withUsername(request.email())
+                    .password(request.password())
+                    .roles("AUTHOR")
+                    .build();
+            when(userDetailsService.loadUserByUsername(request.email())).thenReturn(userDetails);
+            when(jwtService.generateAccessToken(any(UserDetails.class))).thenReturn("access-token");
+            when(jwtService.generateRefreshToken(any(UserDetails.class))).thenReturn("refresh-token");
+            when(jwtService.getAccessExpirationInSeconds()).thenReturn(1800L);
+
             AuthResponse response = userService.register(request);
 
             assertThat(response).isNotNull();
             assertThat(response.userId()).isEqualTo(generatedId);
             assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
-            assertThat(response.token()).contains(generatedId.toString());
+            assertThat(response.accessToken()).isNotNull();
+            assertThat(response.refreshToken()).isNotNull();
+            assertThat(response.expiresIn()).isNotNull();
 
             verify(userRepository, times(1)).save(any(User.class));
         }
@@ -124,11 +142,24 @@ public class UserServiceImplTest {
             LoginRequest request = new LoginRequest("author@gmail.com", rawPassword);
             when(userRepository.getByEmail(request.email())).thenReturn(Optional.of(user));
 
+            UserDetails userDetails = org.springframework.security.core.userdetails.User
+                    .withUsername(request.email())
+                    .password(request.password())
+                    .roles("AUTHOR")
+                    .build();
+            when(userDetailsService.loadUserByUsername(request.email())).thenReturn(userDetails);
+            when(jwtService.generateAccessToken(any(UserDetails.class))).thenReturn("access-token");
+            when(jwtService.generateRefreshToken(any(UserDetails.class))).thenReturn("refresh-token");
+            when(jwtService.getAccessExpirationInSeconds()).thenReturn(1800L);
+
             AuthResponse response = userService.login(request);
 
             assertThat(response).isNotNull();
             assertThat(response.userId()).isEqualTo(userId);
             assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
+            assertThat(response.accessToken()).isNotNull();
+            assertThat(response.refreshToken()).isNotNull();
+            assertThat(response.expiresIn()).isNotNull();
         }
 
         @Test
@@ -154,6 +185,61 @@ public class UserServiceImplTest {
             assertThatThrownBy(() -> userService.login(request))
                     .isInstanceOf(InvalidCredentialsException.class)
                     .hasMessageContaining("Неправильна пошта або пароль");
+        }
+    }
+
+    @Nested
+    @DisplayName("Оновлення токенів")
+    class RefreshTokenTests {
+
+        @Test
+        @DisplayName("Успішне оновлення токенів")
+        void refreshToken_Success() {
+            UUID userId = UUID.randomUUID();
+            String refreshToken = "valid-refresh-token";
+            String email = "author@gmail.com";
+            User user = buildUser(userId, email, "password123", UserRole.AUTHOR, "Artur");
+
+            RefreshTokenRequest request = new RefreshTokenRequest(refreshToken);
+
+            when(jwtService.isRefreshToken(refreshToken)).thenReturn(true);
+            when(jwtService.extractUsername(refreshToken)).thenReturn(email);
+            when(userRepository.getByEmail(email)).thenReturn(Optional.of(user));
+
+            UserDetails userDetails = org.springframework.security.core.userdetails.User
+                    .withUsername(email)
+                    .password("password123")
+                    .roles("AUTHOR")
+                    .build();
+
+            when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
+            when(jwtService.generateAccessToken(any(UserDetails.class))).thenReturn("new-access-token");
+            when(jwtService.generateRefreshToken(any(UserDetails.class))).thenReturn("new-refresh-token");
+            when(jwtService.getAccessExpirationInSeconds()).thenReturn(1800L);
+
+            AuthResponse response = userService.refreshToken(request);
+
+            assertThat(response).isNotNull();
+            assertThat(response.userId()).isEqualTo(userId);
+            assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
+            assertThat(response.accessToken()).isEqualTo("new-access-token");
+            assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
+            assertThat(response.expiresIn()).isEqualTo(1800L);
+        }
+
+        @Test
+        @DisplayName("")
+        void refreshToken_InvalidOrExpiredToken_ThrowsException() {
+            String refreshToken = "invalid-refresh-token";
+
+            RefreshTokenRequest request = new RefreshTokenRequest(refreshToken);
+            when(jwtService.isRefreshToken(refreshToken)).thenReturn(false);
+
+            assertThatThrownBy(() -> userService.refreshToken(request))
+                    .isInstanceOf(InvalidCredentialsException.class)
+                    .hasMessageContaining("Недійсний або протермінований refresh token");
+
+            verify(userRepository, never()).getByEmail(any());
         }
     }
 
