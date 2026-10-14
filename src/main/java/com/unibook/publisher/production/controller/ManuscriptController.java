@@ -1,7 +1,6 @@
 package com.unibook.publisher.production.controller;
 
-import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.request.*;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
@@ -15,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -63,16 +63,10 @@ public class ManuscriptController {
     public ResponseEntity<ManuscriptResponse> approveManuscript(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the chief editor making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID chiefEditorId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "CHIEF_EDITOR")
-            @RequestHeader("X-User-Role") UserRole callerRole,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ManuscriptApprovalRequest request
-            ) {
-        if(callerRole != UserRole.CHIEF_EDITOR) {
-            throw new ForbiddenActionException("Підтвердити заявку може лише головний редактор");
-        }
-        ManuscriptResponse response = manuscriptService.approveManuscript(id, chiefEditorId, request);
+    ) {
+        ManuscriptResponse response = manuscriptService.approveManuscript(id, currentUser, request);
         return ResponseEntity.ok(response);
     }
 
@@ -86,16 +80,10 @@ public class ManuscriptController {
     public ResponseEntity<ManuscriptResponse> rejectManuscript(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the chief editor making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID chiefEditorId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "CHIEF_EDITOR")
-            @RequestHeader("X-User-Role") UserRole callerRole,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ManuscriptRejectionRequest request
     ) {
-        if(callerRole != UserRole.CHIEF_EDITOR) {
-            throw new ForbiddenActionException("Відхилити заявку може лише головний редактор");
-        }
-        ManuscriptResponse response = manuscriptService.rejectManuscript(id, chiefEditorId, request);
+        ManuscriptResponse response = manuscriptService.rejectManuscript(id, currentUser, request);
         return ResponseEntity.ok(response);
     }
 
@@ -109,16 +97,10 @@ public class ManuscriptController {
     public ResponseEntity<ManuscriptResponse> postponeManuscript(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @Parameter(description = "ID of the chief editor making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID chiefEditorId,
-            @Parameter(description = "Role of the user making the request", required = true, example = "CHIEF_EDITOR")
-            @RequestHeader("X-User-Role") UserRole callerRole,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ManuscriptPostponementRequest request
     ) {
-        if(callerRole != UserRole.CHIEF_EDITOR) {
-            throw new ForbiddenActionException("Відкласти заявку може лише головний редактор");
-        }
-        ManuscriptResponse response = manuscriptService.postponeManuscript(id, chiefEditorId, request);
+        ManuscriptResponse response = manuscriptService.postponeManuscript(id, currentUser, request);
         return ResponseEntity.ok(response);
     }
 
@@ -127,11 +109,10 @@ public class ManuscriptController {
         @ApiResponse(responseCode = "200", description = "Manuscript successfully submitted")
         @ApiResponse(responseCode = "400", description = "Request validation error", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<ManuscriptResponse> submitManuscript(
-            @Parameter(description = "ID of the author making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID authorId,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ManuscriptSubmissionRequest request
     ) {
-        ManuscriptResponse response = manuscriptService.submitManuscript(authorId, request);
+        ManuscriptResponse response = manuscriptService.submitManuscript(currentUser, request);
         return ResponseEntity.ok(response);
     }
 

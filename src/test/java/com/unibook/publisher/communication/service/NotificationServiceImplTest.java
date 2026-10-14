@@ -1,6 +1,8 @@
 package com.unibook.publisher.communication.service;
 
 import com.unibook.publisher.common.exception.notfound.NotificationNotFoundException;
+import com.unibook.publisher.common.security.AuthenticatedUser;
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.communication.entity.Notification;
@@ -133,7 +135,7 @@ class NotificationServiceImplTest {
 
             when(notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(notification1, notification2));
 
-            List<NotificationResponse> result = notificationService.getUserNotifications(userId, false);
+            List<NotificationResponse> result = notificationService.getUserNotifications(asUser(userId), false);
 
             assertThat(result).hasSize(2);
         }
@@ -157,7 +159,7 @@ class NotificationServiceImplTest {
             when(notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId))
                     .thenReturn(List.of(unread));
 
-            List<NotificationResponse> result = notificationService.getUserNotifications(userId, true);
+            List<NotificationResponse> result = notificationService.getUserNotifications(asUser(userId), true);
 
             assertThat(result).hasSize(1);
             assertThat(result.getFirst().title()).isEqualTo("Заголовок1");
@@ -182,7 +184,7 @@ class NotificationServiceImplTest {
 
             when(notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId)).thenReturn(List.of(unread, read));
 
-            List<NotificationResponse> result = notificationService.getUserNotifications(userId, null);
+            List<NotificationResponse> result = notificationService.getUserNotifications(asUser(userId), null);
 
             assertThat(result).hasSize(2);
         }
@@ -193,7 +195,7 @@ class NotificationServiceImplTest {
             UUID userId = UUID.randomUUID();
             when(notificationRepository.findByRecipientIdOrderByCreatedAtDesc(userId)).thenReturn(List.of());
 
-            List<NotificationResponse> result = notificationService.getUserNotifications(userId, false);
+            List<NotificationResponse> result = notificationService.getUserNotifications(asUser(userId), false);
 
             assertThat(result).isNotNull().isEmpty();
         }
@@ -224,7 +226,7 @@ class NotificationServiceImplTest {
             when(notificationRepository.save(any(Notification.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 
-            NotificationResponse response = notificationService.markAsRead(notificationId, userId);
+            NotificationResponse response = notificationService.markAsRead(notificationId, asUser(userId));
 
             assertThat(response.isRead()).isTrue();
             verify(notificationRepository).save(argThat(Notification::isRead));
@@ -251,7 +253,7 @@ class NotificationServiceImplTest {
             when(notificationRepository.save(any(Notification.class)))
                     .thenAnswer(invocation -> invocation.getArgument(0));
 
-            NotificationResponse response = notificationService.markAsRead(notificationId, userId);
+            NotificationResponse response = notificationService.markAsRead(notificationId, asUser(userId));
 
             assertThat(response.isRead()).isTrue();
             verify(notificationRepository).save(any(Notification.class));
@@ -265,7 +267,8 @@ class NotificationServiceImplTest {
 
             when(notificationRepository.findById(notificationId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> notificationService.markAsRead(notificationId, userId))
+            AuthenticatedUser userUser = asUser(userId);
+            assertThatThrownBy(() -> notificationService.markAsRead(notificationId, userUser))
                     .isInstanceOf(NotificationNotFoundException.class)
                     .hasMessageContaining("не знайдено");
 
@@ -293,7 +296,8 @@ class NotificationServiceImplTest {
 
             when(notificationRepository.findById(notificationId)).thenReturn(Optional.of(original));
 
-            assertThatThrownBy(() -> notificationService.markAsRead(notificationId, strangerId))
+            AuthenticatedUser strangerUser = asUser(strangerId);
+            assertThatThrownBy(() -> notificationService.markAsRead(notificationId, strangerUser))
                     .isInstanceOf(ForbiddenActionException.class)
                     .hasMessage("Можна відмічати тільки свої повідомлення");
 

@@ -1,7 +1,5 @@
 package com.unibook.publisher.identity.controller;
 
-import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.identity.entity.request.StaffRequest;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.service.UserService;
@@ -36,14 +34,7 @@ public class AdminController {
         @ApiResponse(responseCode = "400", description = "Request validation error", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "403", description = "Only an administrator can create staff accounts", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "409", description = "A user with this email already exists", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
-    public ResponseEntity<UserResponse> createStaff(
-            @Parameter(description = "Role of the user making the request", required = true, example = "ADMIN")
-            @RequestHeader("X-User-Role") UserRole role,
-            @RequestBody @Valid StaffRequest request
-    ) {
-        if (role != UserRole.ADMIN)
-            throw new ForbiddenActionException("Створювати робітників може тільки адміністратор");
-
+    public ResponseEntity<UserResponse> createStaff(@RequestBody @Valid StaffRequest request) {
         UserResponse response = userService.createStaff(request);
 
         URI location = ServletUriComponentsBuilder
@@ -61,14 +52,9 @@ public class AdminController {
         @ApiResponse(responseCode = "403", description = "Only an administrator can delete users", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "404", description = "User not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<Void> deleteUser(
-            @Parameter(description = "Role of the user making the request", required = true, example = "ADMIN")
-            @RequestHeader("X-User-Role") UserRole role,
             @Parameter(description = "ID of the user to delete", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
             @PathVariable UUID id
     ) {
-        if (role != UserRole.ADMIN)
-            throw new ForbiddenActionException("Видаляти користувачів може тільки адміністратор");
-
         userService.deleteUser(id);
         return ResponseEntity.noContent().build();
     }

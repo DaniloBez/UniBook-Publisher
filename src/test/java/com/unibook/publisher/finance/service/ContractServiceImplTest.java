@@ -1,6 +1,8 @@
 package com.unibook.publisher.finance.service;
 
 import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.common.security.AuthenticatedUser;
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.enums.RoyaltyStrategyType;
 import com.unibook.publisher.common.event.ContractConfirmedEvent;
 import com.unibook.publisher.common.event.ContractRoyaltyUpdatedEvent;
@@ -185,9 +187,7 @@ class ContractServiceImplTest {
 
             ContractResponse response = contractService.getContractByManuscriptId(
                     manuscriptId,
-                    UUID.randomUUID(),
-                    UserRole.ACCOUNTANT
-            );
+                    asUser(UUID.randomUUID(), UserRole.ACCOUNTANT));
 
             assertThat(response.manuscriptId()).isEqualTo(manuscriptId);
         }
@@ -197,7 +197,7 @@ class ContractServiceImplTest {
         void getContract_AsOwnerAuthor_Success() {
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
-            ContractResponse response = contractService.getContractByManuscriptId(manuscriptId, authorId, UserRole.AUTHOR);
+            ContractResponse response = contractService.getContractByManuscriptId(manuscriptId, asUser(authorId, UserRole.AUTHOR));
 
             assertThat(response.authorId()).isEqualTo(authorId);
         }
@@ -209,7 +209,8 @@ class ContractServiceImplTest {
 
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
-            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, randomAuthorId, UserRole.AUTHOR)) //REM I would die of laughing if that random UUID would match author id and that would fail the correct scenario. I swear, this will happen before the most important deploy to production
+            AuthenticatedUser randomAuthorAuthorUser = asUser(randomAuthorId, UserRole.AUTHOR);
+            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, randomAuthorAuthorUser)) //REM I would die of laughing if that random UUID would match author id and that would fail the correct scenario. I swear, this will happen before the most important deploy to production
                     .isInstanceOf(ForbiddenActionException.class);
         }
 
@@ -220,9 +221,7 @@ class ContractServiceImplTest {
 
             ContractResponse response = contractService.getContractByManuscriptId(
                     manuscriptId,
-                    UUID.randomUUID(),
-                    UserRole.ADMIN
-            );
+                    asUser(UUID.randomUUID(), UserRole.ADMIN));
 
             assertThat(response.manuscriptId()).isEqualTo(manuscriptId);
         }
@@ -232,7 +231,8 @@ class ContractServiceImplTest {
         void getContract_ContractNotFound_ThrowsException() {
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, authorId, UserRole.ACCOUNTANT))
+            AuthenticatedUser authorAccountantUser = asUser(authorId, UserRole.ACCOUNTANT);
+            assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, authorAccountantUser))
                     .isInstanceOf(ContractNotFoundException.class);
         }
     }
@@ -252,7 +252,7 @@ class ContractServiceImplTest {
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(confirmed));
             when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-            ContractResponse response = contractService.updateRoyalty(contractId, authorId, UserRole.ACCOUNTANT, request);
+            ContractResponse response = contractService.updateRoyalty(contractId, asUser(authorId, UserRole.ACCOUNTANT), request);
 
             assertThat(response.royaltyPercent()).isEqualByComparingTo("12.5");
             assertThat(response.advancePayment()).isEqualByComparingTo("5000.0");
@@ -260,19 +260,6 @@ class ContractServiceImplTest {
 
             verify(financeAuditLogRepository).save(any());
             verify(eventPublisher).publishEvent(any(ContractRoyaltyUpdatedEvent.class));
-        }
-
-        @Test
-        @DisplayName("Помилка, якщо роль викликача не ACCOUNTANT") //REM You shall not pass!!(Gandalf, LOTR)
-        void updateRoyalty_NotAccountant_ThrowsException() {
-            RoyaltyUpdateRequest request = new RoyaltyUpdateRequest(
-                    new BigDecimal("12.5"), new BigDecimal("5000.0"), "Причина"
-            );
-
-            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorId, UserRole.EDITOR, request))
-                    .isInstanceOf(ForbiddenActionException.class);
-
-            verifyNoInteractions(contractRepository, financeAuditLogRepository, eventPublisher);
         }
 
         @Test
@@ -286,7 +273,8 @@ class ContractServiceImplTest {
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
 
 
-            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorId, UserRole.ACCOUNTANT, request))
+            AuthenticatedUser authorAccountantUser = asUser(authorId, UserRole.ACCOUNTANT);
+            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorAccountantUser, request))
                     .isInstanceOf(InvalidStateTransitionException.class);
 
             verify(financeAuditLogRepository, never()).save(any());
@@ -303,7 +291,8 @@ class ContractServiceImplTest {
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
 
 
-            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorId, UserRole.ACCOUNTANT, request))
+            AuthenticatedUser authorAccountantUser = asUser(authorId, UserRole.ACCOUNTANT);
+            assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorAccountantUser, request))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
     }
@@ -320,7 +309,7 @@ class ContractServiceImplTest {
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draft));
             when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-            ContractResponse response = contractService.confirmContract(contractId, authorId);
+            ContractResponse response = contractService.confirmContract(contractId, asUser(authorId));
 
             assertThat(response.authorConfirmedAt()).isNotNull();
             assertThat(response.status()).isEqualTo(ContractStatus.DRAFT);
@@ -336,7 +325,8 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draft));
 
-            assertThatThrownBy(() -> contractService.confirmContract(contractId, notAuthorId))
+            AuthenticatedUser notAuthorUser = asUser(notAuthorId);
+            assertThatThrownBy(() -> contractService.confirmContract(contractId, notAuthorUser))
                     .isInstanceOf(ForbiddenActionException.class);
 
             verify(contractRepository, never()).save(any());
@@ -350,7 +340,8 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
 
-            assertThatThrownBy(() -> contractService.confirmContract(contractId, authorId))
+            AuthenticatedUser authorUser = asUser(authorId);
+            assertThatThrownBy(() -> contractService.confirmContract(contractId, authorUser))
                     .isInstanceOf(InvalidStateTransitionException.class);
         }
 
@@ -360,7 +351,7 @@ class ContractServiceImplTest {
             Contract alreadyConfirmed = confirmedContract(draftContract());
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(alreadyConfirmed));
 
-            ContractResponse response = contractService.confirmContract(contractId, authorId);
+            ContractResponse response = contractService.confirmContract(contractId, asUser(authorId));
 
             assertThat(response.authorConfirmedAt()).isEqualTo(alreadyConfirmed.getAuthorConfirmedAt());
             verify(contractRepository, never()).save(any());
@@ -396,8 +387,7 @@ class ContractServiceImplTest {
 
             PayoutSimulationResponse flatRateResponse = contractService.simulatePayout(
                     contractId,
-                    authorId,
-                    UserRole.AUTHOR,
+                    asUser(authorId, UserRole.AUTHOR),
                     flatRateRequest
             );
 
@@ -411,8 +401,7 @@ class ContractServiceImplTest {
 
             PayoutSimulationResponse tieredResponse = contractService.simulatePayout(
                     contractId,
-                    authorId,
-                    UserRole.AUTHOR,
+                    asUser(authorId, UserRole.AUTHOR),
                     tieredRequest
             );
 
@@ -426,8 +415,7 @@ class ContractServiceImplTest {
 
             PayoutSimulationResponse advanceRecoupmentResponse = contractService.simulatePayout(
                     contractId,
-                    authorId,
-                    UserRole.AUTHOR,
+                    asUser(authorId, UserRole.AUTHOR),
                     advanceRecoupmentRequest
             );
 
@@ -448,7 +436,8 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
 
-            assertThatThrownBy(() -> contractService.simulatePayout(contractId, notAuthorId, UserRole.EDITOR, request))
+            AuthenticatedUser notAuthorEditorUser = asUser(notAuthorId, UserRole.EDITOR);
+            assertThatThrownBy(() -> contractService.simulatePayout(contractId, notAuthorEditorUser, request))
                     .isInstanceOf(ForbiddenActionException.class);
         }
 
@@ -459,7 +448,8 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> contractService.simulatePayout(contractId, authorId, UserRole.AUTHOR, request))
+            AuthenticatedUser authorAuthorUser = asUser(authorId, UserRole.AUTHOR);
+            assertThatThrownBy(() -> contractService.simulatePayout(contractId, authorAuthorUser, request))
                     .isInstanceOf(ContractNotFoundException.class);
         }
 
@@ -482,7 +472,8 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
 
-            assertThatThrownBy(() -> serviceWithMissingStrategy.simulatePayout(contractId, authorId, UserRole.AUTHOR, request))
+            AuthenticatedUser authorAuthorUser = asUser(authorId, UserRole.AUTHOR);
+            assertThatThrownBy(() -> serviceWithMissingStrategy.simulatePayout(contractId, authorAuthorUser, request))
                     .isInstanceOf(UnsupportedRoyaltyStrategyException.class);
         }
     }
@@ -492,7 +483,7 @@ class ContractServiceImplTest {
         @Test
         void getContractById_AsAccountant_Success() {
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draftContract()));
-            ContractResponse response = contractService.getContractById(contractId, UUID.randomUUID(), UserRole.ACCOUNTANT);
+            ContractResponse response = contractService.getContractById(contractId, asUser(UUID.randomUUID(), UserRole.ACCOUNTANT));
             assertThat(response.contractId()).isEqualTo(contractId);
             assertThat(response.manuscriptId()).isEqualTo(manuscriptId);
         }
@@ -500,7 +491,7 @@ class ContractServiceImplTest {
         @Test
         void getContractById_AsOwnerAuthor_Success() {
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draftContract()));
-            ContractResponse response = contractService.getContractById(contractId, authorId, UserRole.AUTHOR);
+            ContractResponse response = contractService.getContractById(contractId, asUser(authorId, UserRole.AUTHOR));
             assertThat(response.authorId()).isEqualTo(authorId);
         }
 
@@ -509,7 +500,8 @@ class ContractServiceImplTest {
             UUID notAuthorId = UUID.randomUUID();
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draftContract()));
-            assertThrows(ForbiddenActionException.class, () -> contractService.getContractById(contractId, notAuthorId, UserRole.AUTHOR));
+            AuthenticatedUser notAuthorAuthorUser = asUser(notAuthorId, UserRole.AUTHOR);
+            assertThrows(ForbiddenActionException.class, () -> contractService.getContractById(contractId, notAuthorAuthorUser));
         }
 
         @Test
@@ -517,7 +509,8 @@ class ContractServiceImplTest {
             UUID notAuthorId = UUID.randomUUID();
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
-            assertThrows(ContractNotFoundException.class, () -> contractService.getContractById(contractId, notAuthorId, UserRole.ACCOUNTANT));
+            AuthenticatedUser notAuthorAccountantUser = asUser(notAuthorId, UserRole.ACCOUNTANT);
+            assertThrows(ContractNotFoundException.class, () -> contractService.getContractById(contractId, notAuthorAccountantUser));
         }
     }
 
@@ -527,7 +520,7 @@ class ContractServiceImplTest {
         @Test
         void getAllContracts_AsAccountant_Success() {
             when(contractRepository.findAll()).thenReturn(List.of(draftContract(), activeContract(draftContract())));
-            List<ContractResponse> result = contractService.getAllContracts(UUID.randomUUID(), UserRole.ACCOUNTANT);
+            List<ContractResponse> result = contractService.getAllContracts();
             assertThat(result).hasSize(2);
             verify(contractRepository).findAll();
         }
@@ -535,18 +528,8 @@ class ContractServiceImplTest {
         @Test
         void getAllContracts_AsAdmin_Success() {
             when(contractRepository.findAll()).thenReturn(List.of(draftContract()));
-            List<ContractResponse> result = contractService.getAllContracts(UUID.randomUUID(), UserRole.ADMIN);
+            List<ContractResponse> result = contractService.getAllContracts();
             assertThat(result).hasSize(1);
-        }
-
-        @Test
-        void getAllContracts_AsAuthor_ThrowsException() {
-            assertThrows(ForbiddenActionException.class, () -> contractService.getAllContracts(authorId, UserRole.AUTHOR));
-        }
-
-        @Test
-        void getAllContracts_AsEditor_ThrowsException() {
-            assertThrows(ForbiddenActionException.class, () -> contractService.getAllContracts(authorId, UserRole.EDITOR));
         }
     }
 
@@ -561,7 +544,7 @@ class ContractServiceImplTest {
             when(contractRepository.save(any(Contract.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
             ContractResponse response = contractService.updateContract(
-                    contractId, UUID.randomUUID(), UserRole.ACCOUNTANT, request
+                    contractId, request
             );
 
             assertThat(response.royaltyPercent()).isEqualByComparingTo("20.0");
@@ -571,17 +554,11 @@ class ContractServiceImplTest {
         }
 
         @Test
-        void updateContract_NotAccountant_ThrowsException() {
-            ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
-            assertThrows(ForbiddenActionException.class, () -> contractService.updateContract(contractId, authorId, UserRole.ADMIN, request));
-        }
-
-        @Test
         void updateContract_NotDraft_ThrowsException() {
             Contract active = activeContract(draftContract());
             ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
-            assertThrows(InvalidStateTransitionException.class, () -> contractService.updateContract(contractId, authorId, UserRole.ACCOUNTANT, request));
+            assertThrows(InvalidStateTransitionException.class, () -> contractService.updateContract(contractId, request));
             verify(contractRepository, never()).save(any());
         }
 
@@ -590,7 +567,7 @@ class ContractServiceImplTest {
             ContractUpdateRequest request = new ContractUpdateRequest(new BigDecimal("20.0"), new BigDecimal("3000.0"));
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
-            assertThrows(ContractNotFoundException.class, () -> contractService.updateContract(contractId, authorId, UserRole.ACCOUNTANT, request));
+            assertThrows(ContractNotFoundException.class, () -> contractService.updateContract(contractId, request));
             verify(contractRepository, never()).save(any());
         }
     }
@@ -601,7 +578,7 @@ class ContractServiceImplTest {
         void deleteContract_Draft_Success() {
             Contract draft = draftContract();
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draft));
-            contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ADMIN);
+            contractService.deleteContract(contractId);
             verify(contractRepository).delete(draft);
         }
 
@@ -610,27 +587,22 @@ class ContractServiceImplTest {
             Contract terminated = draftContract();
             terminated.setStatus(ContractStatus.TERMINATED);
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(terminated));
-            contractService.deleteContract(contractId, UUID.randomUUID(), UserRole.ADMIN);
+            contractService.deleteContract(contractId);
             verify(contractRepository).delete(terminated);
-        }
-
-        @Test
-        void deleteContract_NotAdmin_ThrowsException() {
-            assertThrows(ForbiddenActionException.class, () -> contractService.deleteContract(contractId, authorId, UserRole.ACCOUNTANT));
         }
 
         @Test
         void deleteContract_Active_ThrowsException() {
             Contract active = activeContract(draftContract());
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
-            assertThrows(InvalidStateTransitionException.class, () -> contractService.deleteContract(contractId, authorId, UserRole.ADMIN));
+            assertThrows(InvalidStateTransitionException.class, () -> contractService.deleteContract(contractId));
             verify(contractRepository, never()).delete(any());
         }
 
         @Test
         void deleteContract_NotFound_ThrowsException() {
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
-            assertThrows(ContractNotFoundException.class, () -> contractService.deleteContract(contractId, authorId, UserRole.ADMIN));
+            assertThrows(ContractNotFoundException.class, () -> contractService.deleteContract(contractId));
             verify(contractRepository, never()).delete(any());
         }
     }

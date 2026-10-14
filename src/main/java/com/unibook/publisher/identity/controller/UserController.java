@@ -1,7 +1,7 @@
 package com.unibook.publisher.identity.controller;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.exception.security.ForbiddenActionException;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.service.UserService;
@@ -14,6 +14,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -47,16 +48,12 @@ public class UserController {
         @ApiResponse(responseCode = "403", description = "Attempt to edit the profile of another user", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "404", description = "User not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<UserResponse> updateUserProfile(
-            @Parameter(description = "ID of the user making the request (temporary replacement for JWT)", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
-            @RequestHeader("X-User-Id") UUID userId, // Поки не використовуємо jwt, отримуємо дані з хедера
-            @Parameter(description = "ID of the user whose profile is updated; must match X-User-Id", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @Parameter(description = "ID of the user whose profile is updated; must match the authenticated user", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
             @PathVariable UUID id,
             @RequestBody @Valid UserProfileUpdateRequest request
     ) {
-        if (!userId.equals(id))
-            throw new ForbiddenActionException("Користувач має право редагувати тільки свій профіль");
-
-        return ResponseEntity.ok(userService.updateUserProfile(userId, request));
+        return ResponseEntity.ok(userService.updateUserProfile(id, currentUser, request));
     }
 
     @GetMapping
@@ -64,14 +61,9 @@ public class UserController {
         @ApiResponse(responseCode = "200", description = "Users successfully retrieved")
         @ApiResponse(responseCode = "403", description = "Only a chief editor or an administrator can list users", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<List<UserResponse>> getUsers(
-            @Parameter(description = "Role of the user making the request", required = true, example = "CHIEF_EDITOR")
-            @RequestHeader("X-User-Role") UserRole callerRole,
             @Parameter(description = "Filter: return only users with this role", example = "EDITOR")
             @RequestParam(required = false) UserRole role
     ) {
-        if (callerRole != UserRole.ADMIN && callerRole != UserRole.CHIEF_EDITOR)
-            throw new ForbiddenActionException("Переглядати список користувачів можуть лише головний редактор або адміністратор");
-
         return ResponseEntity.ok(userService.getUsers(role));
     }
 }

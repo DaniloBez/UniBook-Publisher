@@ -22,15 +22,20 @@ import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
 import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -99,20 +104,20 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
-    public ContractResponse getContractByManuscriptId(UUID manuscriptId, UUID callerId, UserRole callerRole) {
+    public ContractResponse getContractByManuscriptId(UUID manuscriptId, AuthenticatedUser currentUser) {
         Contract contract = contractRepository.findByManuscriptId(manuscriptId)
                 .orElseThrow(() -> new ContractNotFoundException(manuscriptId));
 
-        checkViewAccess(contract, callerId, callerRole);
+        checkViewAccess(contract, currentUser);
 
         return ContractResponse.from(contract);
     }
 
     @Override
     @Transactional
-    public ContractResponse updateRoyalty(UUID contractId, UUID callerId, UserRole callerRole, RoyaltyUpdateRequest request) {
-        if (callerRole != UserRole.ACCOUNTANT)
-            throw new ForbiddenActionException("Змінювати умови контракту може тільки бухгалтер");
+    @PreAuthorize("hasRole('ACCOUNTANT')")
+    public ContractResponse updateRoyalty(UUID contractId, AuthenticatedUser currentUser, RoyaltyUpdateRequest request) {
+        UUID callerId = currentUser.id();
 
         Contract contract = getContractOrThrow(contractId);
 
@@ -170,7 +175,9 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     @Transactional
-    public ContractResponse confirmContract(UUID contractId, UUID callerId) {
+    public ContractResponse confirmContract(UUID contractId, AuthenticatedUser currentUser) {
+        UUID callerId = currentUser.id();
+
         Contract contract = getContractOrThrow(contractId);
 
         if (!contract.getAuthorId().equals(callerId))
@@ -210,10 +217,10 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
-    public PayoutSimulationResponse simulatePayout(UUID contractId, UUID callerId, UserRole callerRole, PayoutSimulationRequest request) {
+    public PayoutSimulationResponse simulatePayout(UUID contractId, AuthenticatedUser currentUser, PayoutSimulationRequest request) {
         Contract contract = getContractOrThrow(contractId);
 
-        checkViewAccess(contract, callerId, callerRole);
+        checkViewAccess(contract, currentUser);
 
         RoyaltyStrategy strategy = resolveStrategy(request.royaltyStrategyType());
 
@@ -239,12 +246,20 @@ public class ContractServiceImpl implements ContractService {
                 .orElseThrow(() -> new ContractNotFoundException(contractId));
     }
 
-    private void checkViewAccess(Contract contract, UUID callerId, UserRole callerRole) {
-        boolean isOwner = contract.getAuthorId().equals(callerId);
-        boolean isPrivileged = callerRole == UserRole.ACCOUNTANT || callerRole == UserRole.ADMIN;
+    private void checkViewAccess(Contract contract, AuthenticatedUser currentUser) {
+        boolean isOwner = contract.getAuthorId().equals(currentUser.id());
+        boolean isPrivileged = hasAnyRole(currentUser, UserRole.ACCOUNTANT, UserRole.ADMIN);
 
         if (!isOwner && !isPrivileged)
             throw new ForbiddenActionException("Переглядати контракт можуть тільки бухгалтер, адміністратор або автор-власник");
+    }
+
+    private boolean hasAnyRole(AuthenticatedUser user, UserRole... roles) {
+        Set<String> authorities = user.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .collect(Collectors.toSet());
+
+        return Arrays.stream(roles).anyMatch(role -> authorities.contains("ROLE_" + role.name()));
     }
 
     private RoyaltyStrategy resolveStrategy(RoyaltyStrategyType type) {
@@ -258,17 +273,15 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
-    public ContractResponse getContractById(UUID id, UUID callerId, UserRole callerRole) {
+    public ContractResponse getContractById(UUID id, AuthenticatedUser currentUser) {
         Contract contract = getContractOrThrow(id);
-        checkViewAccess(contract, callerId, callerRole);
+        checkViewAccess(contract, currentUser);
         return ContractResponse.from(contract);
     }
 
     @Override
-    public List<ContractResponse> getAllContracts(UUID callerId, UserRole callerRole) {
-        if (callerRole != UserRole.ACCOUNTANT && callerRole != UserRole.ADMIN) {
-            throw new ForbiddenActionException("Переглядати всі контракти можуть лише бухгалтер або адміністратор");
-        }
+    @PreAuthorize("hasAnyRole('ACCOUNTANT', 'ADMIN')")
+    public List<ContractResponse> getAllContracts() {
         return contractRepository.findAll().stream()
                 .map(ContractResponse::from)
                 .toList();
@@ -276,11 +289,8 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     @Transactional
-    public ContractResponse updateContract(UUID id, UUID callerId, UserRole callerRole, ContractUpdateRequest request) {
-        if (callerRole != UserRole.ACCOUNTANT) {
-            throw new ForbiddenActionException("Оновлювати контракт може лише бухгалтер");
-        }
-
+    @PreAuthorize("hasRole('ACCOUNTANT')")
+    public ContractResponse updateContract(UUID id, ContractUpdateRequest request) {
         Contract contract = getContractOrThrow(id);
 
         if (contract.getStatus() != ContractStatus.DRAFT) {
@@ -303,10 +313,8 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     @Transactional
-    public void deleteContract(UUID id, UUID callerId, UserRole callerRole) {
-        if (callerRole != UserRole.ADMIN) {
-            throw new ForbiddenActionException("Видаляти контракт може лише адміністратор");
-        }
+    @PreAuthorize("hasRole('ADMIN')")
+    public void deleteContract(UUID id) {
         Contract contract = getContractOrThrow(id);
         if (contract.getStatus() == ContractStatus.ACTIVE) {
             throw new InvalidStateTransitionException(

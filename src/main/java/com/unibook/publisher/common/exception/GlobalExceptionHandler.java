@@ -12,9 +12,13 @@ import com.unibook.publisher.common.exception.state.InvalidStateTransitionExcept
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.exception.storage.FileStorageException;
 import com.unibook.publisher.common.logging.AppLogger;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -23,6 +27,7 @@ import tools.jackson.databind.exc.InvalidFormatException;
 import tools.jackson.databind.exc.MismatchedInputException;
 import tools.jackson.databind.exc.UnrecognizedPropertyException;
 
+import java.net.URI;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -32,8 +37,9 @@ import java.util.stream.Collectors;
 public class GlobalExceptionHandler {
 
     private final AppLogger logger;
-    
+
     private static final String TIMESTAMP_FIELD = "timestamp";
+    private static final String PATH_FIELD = "path";
 
     public GlobalExceptionHandler(AppLogger logger) {
         this.logger = logger;
@@ -96,13 +102,13 @@ public class GlobalExceptionHandler {
         return detail;
     }
 
-     @ExceptionHandler(FileStorageException.class)
-     public ProblemDetail handleNotFound(FileStorageException exception) {
-         ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
-         detail.setTitle("Файл не знайдено");
-         detail.setProperty(TIMESTAMP_FIELD, Instant.now());
-         return detail;
-     }
+    @ExceptionHandler(FileStorageException.class)
+    public ProblemDetail handleNotFound(FileStorageException exception) {
+        ProblemDetail detail = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+        detail.setTitle("Файл не знайдено");
+        detail.setProperty(TIMESTAMP_FIELD, Instant.now());
+        return detail;
+    }
 
     @ExceptionHandler(InvalidStateTransitionException.class)
     public ProblemDetail handleInvalidState(InvalidStateTransitionException exception) {
@@ -148,6 +154,38 @@ public class GlobalExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, exception.getMessage());
         problem.setTitle("Помилка автентифікації");
         problem.setProperty(TIMESTAMP_FIELD, Instant.now());
+        return problem;
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ProblemDetail handleAccessDenied(AccessDeniedException exception, HttpServletRequest request) {
+        String detail = exception.getMessage() != null ? exception.getMessage() : "You do not have permission to access this resource";
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, detail);
+        problem.setTitle("Access denied");
+        problem.setType(URI.create("/api/errors/forbidden"));
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now().toString());
+        problem.setProperty(PATH_FIELD, request.getRequestURI());
+        return problem;
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ProblemDetail handleBadCredentials(BadCredentialsException exception, HttpServletRequest request) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, "Invalid username or password");
+        problem.setTitle("Bad credentials");
+        problem.setType(URI.create("/api/errors/bad-credentials"));
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now().toString());
+        problem.setProperty(PATH_FIELD, request.getRequestURI());
+        return problem;
+    }
+
+    @ExceptionHandler(AuthenticationException.class)
+    public ProblemDetail handleAuthentication(AuthenticationException exception, HttpServletRequest request) {
+        String detail = exception.getMessage() != null ? exception.getMessage() : "Authentication is required to access this resource";
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, detail);
+        problem.setTitle("Authentication required");
+        problem.setType(URI.create("/api/errors/unauthorized"));
+        problem.setProperty(TIMESTAMP_FIELD, Instant.now().toString());
+        problem.setProperty(PATH_FIELD, request.getRequestURI());
         return problem;
     }
 
@@ -201,6 +239,4 @@ public class GlobalExceptionHandler {
         detail.setProperty(TIMESTAMP_FIELD, Instant.now());
         return detail;
     }
-
-
 }

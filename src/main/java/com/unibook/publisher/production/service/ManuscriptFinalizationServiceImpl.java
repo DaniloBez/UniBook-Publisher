@@ -10,6 +10,7 @@ import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundExcepti
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
@@ -23,6 +24,7 @@ import com.unibook.publisher.production.repository.FeedbackThreadRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import com.unibook.publisher.production.repository.TeamAssignmentRepository;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,7 +65,9 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
 
     @Override
     @Transactional
-    public ManuscriptResponse finalizeText(UUID manuscriptId, UUID editorId) {
+    public ManuscriptResponse finalizeText(UUID manuscriptId, AuthenticatedUser currentUser) {
+        UUID editorId = currentUser.id();
+
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
         TeamAssignment editorAssignment = teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)
@@ -111,7 +115,10 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
 
     @Override
     @Transactional
-    public ManuscriptResponse assignDesigner(UUID manuscriptId, UUID chiefEditorId, AssignDesignerRequest request) {
+    @PreAuthorize("hasRole('CHIEF_EDITOR')")
+    public ManuscriptResponse assignDesigner(UUID manuscriptId, AuthenticatedUser currentUser, AssignDesignerRequest request) {
+        UUID chiefEditorId = currentUser.id();
+
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
         if (!manuscript.getStatus().canTransitionTo(ManuscriptStatus.IN_DESIGN)) {
@@ -153,7 +160,10 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
 
     @Override
     @Transactional
-    public ManuscriptResponse publish(UUID manuscriptId, UUID chiefEditorId) {
+    @PreAuthorize("hasRole('CHIEF_EDITOR')")
+    public ManuscriptResponse publish(UUID manuscriptId, AuthenticatedUser currentUser) {
+        UUID chiefEditorId = currentUser.id();
+
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
 

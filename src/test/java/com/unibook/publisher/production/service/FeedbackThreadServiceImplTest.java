@@ -1,6 +1,8 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.common.security.AuthenticatedUser;
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.event.ThreadOpenedEvent;
 import com.unibook.publisher.common.exception.business.EmptyRevisionTextException;
 import com.unibook.publisher.common.exception.business.InvalidQuoteException;
@@ -121,7 +123,7 @@ public class FeedbackThreadServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThreadResponse response = threadService.openThread(chapterId, authorId, new OpenThreadRequest("Погляньте на цей абзац", null, null, null, null, null));
+        ThreadResponse response = threadService.openThread(chapterId, asUser(authorId), new OpenThreadRequest("Погляньте на цей абзац", null, null, null, null, null));
 
         assertEquals(ThreadStatus.OPEN, response.status());
         assertFalse(response.isSuggestion());
@@ -142,7 +144,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
 
-        assertThrows(ForbiddenActionException.class, () -> threadService.acceptSuggestion(threadId, randomUserId));
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
+        assertThrows(ForbiddenActionException.class, () -> threadService.acceptSuggestion(threadId, randomUserUser));
         verify(threadRepository, never()).save(any());
     }
 
@@ -161,7 +164,8 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
 
-        assertThrows(InvalidStateTransitionException.class, () -> threadService.resolveThread(threadId, authorId));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(InvalidStateTransitionException.class, () -> threadService.resolveThread(threadId, authorUser));
         verify(threadRepository, never()).save(any());
     }
 
@@ -174,8 +178,9 @@ public class FeedbackThreadServiceImplTest {
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
 
+        AuthenticatedUser authorUser = asUser(authorId);
         assertThrows(ChapterNotFoundException.class,
-                () -> threadService.openThread(chapterId, authorId, request));
+                () -> threadService.openThread(chapterId, authorUser, request));
         verify(threadRepository, never()).save(any());
     }
 
@@ -192,7 +197,7 @@ public class FeedbackThreadServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThreadResponse response = threadService.openThread(chapterId, authorId,
+        ThreadResponse response = threadService.openThread(chapterId, asUser(authorId),
                 new OpenThreadRequest("Погляньте на цей абзац", "новий текст", null, null, null, null));
 
         assertTrue(response.isSuggestion());
@@ -276,7 +281,7 @@ public class FeedbackThreadServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
         when(messageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThreadMessageResponse response = threadService.addMessage(threadId, authorId, new ThreadMessageRequest("Дякую за фідбек"));
+        ThreadMessageResponse response = threadService.addMessage(threadId, asUser(authorId), new ThreadMessageRequest("Дякую за фідбек"));
 
         assertEquals("Дякую за фідбек", response.content());
         verify(messageRepository, times(1)).save(any());
@@ -300,7 +305,7 @@ public class FeedbackThreadServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.of(editorAssignment));
         when(messageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThreadMessageResponse response = threadService.addMessage(threadId, editorId, new ThreadMessageRequest("Виправлено"));
+        ThreadMessageResponse response = threadService.addMessage(threadId, asUser(editorId), new ThreadMessageRequest("Виправлено"));
 
         assertEquals("Виправлено", response.content());
         verify(messageRepository, times(1)).save(any());
@@ -324,8 +329,9 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
 
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
         assertThrows(ForbiddenActionException.class,
-                () -> threadService.addMessage(threadId, randomUserId, request));
+                () -> threadService.addMessage(threadId, randomUserUser, request));
         verify(messageRepository, never()).save(any());
     }
 
@@ -338,8 +344,9 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.empty());
 
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
         assertThrows(ThreadNotFoundException.class,
-                () -> threadService.addMessage(threadId, randomUserId, request));
+                () -> threadService.addMessage(threadId, randomUserUser, request));
     }
 
     @Test
@@ -357,7 +364,7 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThreadResponse response = threadService.acceptSuggestion(threadId, authorId);
+        ThreadResponse response = threadService.acceptSuggestion(threadId, asUser(authorId));
 
         assertEquals(SuggestionStatus.ACCEPTED, response.suggestionStatus());
         verify(threadRepository, times(1)).save(any());
@@ -371,7 +378,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.empty());
 
-        assertThrows(ThreadNotFoundException.class, () -> threadService.acceptSuggestion(threadId, randomUserId));
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
+        assertThrows(ThreadNotFoundException.class, () -> threadService.acceptSuggestion(threadId, randomUserUser));
     }
 
     @Test
@@ -388,7 +396,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
 
-        assertThrows(ThreadNotASuggestionException.class, () -> threadService.acceptSuggestion(threadId, authorId));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(ThreadNotASuggestionException.class, () -> threadService.acceptSuggestion(threadId, authorUser));
         verify(threadRepository, never()).save(any());
     }
 
@@ -406,7 +415,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
 
-        assertThrows(InvalidStateTransitionException.class, () -> threadService.acceptSuggestion(threadId, authorId));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(InvalidStateTransitionException.class, () -> threadService.acceptSuggestion(threadId, authorUser));
         verify(threadRepository, never()).save(any());
     }
 
@@ -425,7 +435,7 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThreadResponse response = threadService.rejectSuggestion(threadId, authorId);
+        ThreadResponse response = threadService.rejectSuggestion(threadId, asUser(authorId));
 
         assertEquals(SuggestionStatus.REJECTED, response.suggestionStatus());
         verify(threadRepository, times(1)).save(any());
@@ -445,7 +455,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
 
-        assertThrows(ForbiddenActionException.class, () -> threadService.rejectSuggestion(threadId, randomUserId));
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
+        assertThrows(ForbiddenActionException.class, () -> threadService.rejectSuggestion(threadId, randomUserUser));
         verify(threadRepository, never()).save(any());
     }
 
@@ -457,7 +468,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.empty());
 
-        assertThrows(ThreadNotFoundException.class, () -> threadService.rejectSuggestion(threadId, randomUserId));
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
+        assertThrows(ThreadNotFoundException.class, () -> threadService.rejectSuggestion(threadId, randomUserUser));
     }
 
     @Test
@@ -474,7 +486,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
 
-        assertThrows(ThreadNotASuggestionException.class, () -> threadService.rejectSuggestion(threadId, authorId));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(ThreadNotASuggestionException.class, () -> threadService.rejectSuggestion(threadId, authorUser));
         verify(threadRepository, never()).save(any());
     }
 
@@ -492,7 +505,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
 
-        assertThrows(InvalidStateTransitionException.class, () -> threadService.rejectSuggestion(threadId, authorId));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(InvalidStateTransitionException.class, () -> threadService.rejectSuggestion(threadId, authorUser));
         verify(threadRepository, never()).save(any());
     }
 
@@ -512,7 +526,7 @@ public class FeedbackThreadServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThreadResponse response = threadService.resolveThread(threadId, authorId);
+        ThreadResponse response = threadService.resolveThread(threadId, asUser(authorId));
 
         assertEquals(ThreadStatus.RESOLVED, response.status());
         verify(threadRepository, times(1)).save(any());
@@ -526,7 +540,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.empty());
 
-        assertThrows(ThreadNotFoundException.class, () -> threadService.resolveThread(threadId, randomUserId));
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
+        assertThrows(ThreadNotFoundException.class, () -> threadService.resolveThread(threadId, randomUserUser));
     }
 
     @Test
@@ -545,7 +560,8 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
 
-        assertThrows(ForbiddenActionException.class, () -> threadService.resolveThread(threadId, randomUserId));
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
+        assertThrows(ForbiddenActionException.class, () -> threadService.resolveThread(threadId, randomUserUser));
         verify(threadRepository, never()).save(any());
     }
 
@@ -571,7 +587,8 @@ public class FeedbackThreadServiceImplTest {
                 0,
                 5
         );
-        assertThrows(RevisionNotFoundException.class, () -> threadService.openThread(chapterId, authorId, request));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(RevisionNotFoundException.class, () -> threadService.openThread(chapterId, authorUser, request));
     }
 
     @Test
@@ -596,7 +613,7 @@ public class FeedbackThreadServiceImplTest {
                 0,
                 5
         );
-        assertDoesNotThrow(() -> threadService.openThread(chapterId, authorId, request1));
+        assertDoesNotThrow(() -> threadService.openThread(chapterId, asUser(authorId), request1));
 
         OpenThreadRequest request2 = new OpenThreadRequest(
                 "Початкове повідомлення",
@@ -606,7 +623,7 @@ public class FeedbackThreadServiceImplTest {
                 0,
                 5
         );
-        assertDoesNotThrow(() -> threadService.openThread(chapterId, authorId, request2));
+        assertDoesNotThrow(() -> threadService.openThread(chapterId, asUser(authorId), request2));
         verify(revisionRepository, never()).findById(any());
     }
 
@@ -635,7 +652,8 @@ public class FeedbackThreadServiceImplTest {
                 5
         );
 
-        assertThrows(EmptyRevisionTextException.class, () -> threadService.openThread(chapterId, authorId, request));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(EmptyRevisionTextException.class, () -> threadService.openThread(chapterId, authorUser, request));
     }
 
     @Test
@@ -696,11 +714,12 @@ public class FeedbackThreadServiceImplTest {
                 5
         );
 
-        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request1));
-        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request2));
-        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request3));
-        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request4));
-        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorId, request5));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorUser, request1));
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorUser, request2));
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorUser, request3));
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorUser, request4));
+        assertThrows(InvalidQuotePositionException.class, () -> threadService.openThread(chapterId, authorUser, request5));
     }
 
     @Test
@@ -728,7 +747,8 @@ public class FeedbackThreadServiceImplTest {
                 0,
                 5
         );
-        assertThrows(InvalidQuoteException.class, () -> threadService.openThread(chapterId, authorId, request));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(InvalidQuoteException.class, () -> threadService.openThread(chapterId, authorUser, request));
     }
 
     @Test
@@ -757,7 +777,7 @@ public class FeedbackThreadServiceImplTest {
                 0,
                 5
         );
-        assertDoesNotThrow(() -> threadService.openThread(chapterId, authorId, request));
+        assertDoesNotThrow(() -> threadService.openThread(chapterId, asUser(authorId), request));
     }
 
     @Test
@@ -774,7 +794,7 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
 
-        threadService.deleteThread(threadId, authorId);
+        threadService.deleteThread(threadId, asUser(authorId));
 
         verify(threadRepository, times(1)).delete(thread);
     }
@@ -795,7 +815,7 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.of(editorAssignment));
 
-        threadService.deleteThread(threadId, editorId);
+        threadService.deleteThread(threadId, asUser(editorId));
 
         verify(threadRepository, times(1)).delete(thread);
     }
@@ -815,7 +835,8 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
 
-        assertThrows(ForbiddenActionException.class, () -> threadService.deleteThread(threadId, randomUserId));
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
+        assertThrows(ForbiddenActionException.class, () -> threadService.deleteThread(threadId, randomUserUser));
         verify(threadRepository, never()).delete(any());
     }
 
@@ -827,7 +848,8 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.empty());
 
-        assertThrows(ThreadNotFoundException.class, () -> threadService.deleteThread(threadId, randomUserId));
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
+        assertThrows(ThreadNotFoundException.class, () -> threadService.deleteThread(threadId, randomUserUser));
         verify(threadRepository, never()).delete(any());
     }
 
@@ -863,7 +885,8 @@ public class FeedbackThreadServiceImplTest {
                 5
         );
 
-        assertThrows(FileReadException.class, () -> threadService.openThread(chapterId, authorId, request));
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(FileReadException.class, () -> threadService.openThread(chapterId, authorUser, request));
     }
 
     @Test
@@ -882,7 +905,7 @@ public class FeedbackThreadServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
-        ThreadResponse response = threadService.openThread(chapterId, editorId, new OpenThreadRequest("Зауваження від редактора", null, null, null, null, null));
+        ThreadResponse response = threadService.openThread(chapterId, asUser(editorId), new OpenThreadRequest("Зауваження від редактора", null, null, null, null, null));
 
         assertEquals(ThreadStatus.OPEN, response.status());
         verify(publisher, times(1)).publishEvent(any(ThreadOpenedEvent.class));

@@ -8,6 +8,7 @@ import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundExcepti
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.CoverVersion;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
@@ -67,12 +68,14 @@ public class CoverVersionServiceImpl implements CoverVersionService {
     @Transactional
     public CoverVersionResponse uploadCoverVersion(
             UUID manuscriptId,
-            UUID designerId,
+            AuthenticatedUser currentUser,
             InputStream fileStream,
             long size,
             String contentType,
             String originalFilename
     ) {
+        UUID designerId = currentUser.id();
+
         validateImageFile(contentType, originalFilename);
 
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)

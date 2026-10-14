@@ -6,6 +6,7 @@ import com.unibook.publisher.common.exception.notfound.GenreNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.Genre;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.request.*;
@@ -14,6 +15,7 @@ import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.repository.GenreRepository;
 import com.unibook.publisher.production.repository.ManuscriptRepository;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -57,7 +59,10 @@ public class ManuscriptServiceImpl implements ManuscriptService {
 
     @Override
     @Transactional
-    public ManuscriptResponse approveManuscript(UUID id, UUID chiefEditorId, ManuscriptApprovalRequest request) {
+    @PreAuthorize("hasRole('CHIEF_EDITOR')")
+    public ManuscriptResponse approveManuscript(UUID id, AuthenticatedUser currentUser, ManuscriptApprovalRequest request) {
+        UUID chiefEditorId = currentUser.id();
+
         Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
                 .orElseThrow(() -> new ManuscriptNotFoundException(id));
         if (!manuscript.getStatus().canTransitionTo(ManuscriptStatus.IN_PROGRESS)) {
@@ -100,7 +105,10 @@ public class ManuscriptServiceImpl implements ManuscriptService {
 
     @Override
     @Transactional
-    public ManuscriptResponse rejectManuscript(UUID id, UUID chiefEditorId, ManuscriptRejectionRequest request) {
+    @PreAuthorize("hasRole('CHIEF_EDITOR')")
+    public ManuscriptResponse rejectManuscript(UUID id, AuthenticatedUser currentUser, ManuscriptRejectionRequest request) {
+        UUID chiefEditorId = currentUser.id();
+
         Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
                 .orElseThrow(() -> new ManuscriptNotFoundException(id));
         if (!manuscript.getStatus().canTransitionTo(ManuscriptStatus.REJECTED)) {
@@ -136,7 +144,10 @@ public class ManuscriptServiceImpl implements ManuscriptService {
 
     @Override
     @Transactional
-    public ManuscriptResponse postponeManuscript(UUID id, UUID chiefEditorId, ManuscriptPostponementRequest request) {
+    @PreAuthorize("hasRole('CHIEF_EDITOR')")
+    public ManuscriptResponse postponeManuscript(UUID id, AuthenticatedUser currentUser, ManuscriptPostponementRequest request) {
+        UUID chiefEditorId = currentUser.id();
+
         Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
                 .orElseThrow(() -> new ManuscriptNotFoundException(id));
         if (!manuscript.getStatus().canTransitionTo(ManuscriptStatus.POSTPONED)) {
@@ -172,7 +183,9 @@ public class ManuscriptServiceImpl implements ManuscriptService {
 
     @Override
     @Transactional
-    public ManuscriptResponse submitManuscript(UUID authorId, ManuscriptSubmissionRequest request) {
+    public ManuscriptResponse submitManuscript(AuthenticatedUser currentUser, ManuscriptSubmissionRequest request) {
+        UUID authorId = currentUser.id();
+
         Set<Genre> genres = new HashSet<>();
         if(request.genreIds() != null && !request.genreIds().isEmpty()) {
             genres.addAll(genreRepository.findAllById(request.genreIds()));
