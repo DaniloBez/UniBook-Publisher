@@ -1,6 +1,7 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.identity.entity.User;
 import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.event.RevisionAddedEvent;
 import com.unibook.publisher.common.exception.business.BusinessRuleViolationException;
@@ -136,7 +137,8 @@ public class ChapterServiceImplTest {
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
-        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.createChapter(manuscriptId, asUser(randomUserId), request));
+        User randomUserUser = asUser(randomUserId);
+        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.createChapter(manuscriptId, randomUserUser, request));
     }
 
     @Test
@@ -150,7 +152,8 @@ public class ChapterServiceImplTest {
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
 
-        assertThrows(ForbiddenActionException.class, () -> chapterService.createChapter(manuscriptId, asUser(userId), request));
+        User userUser = asUser(userId);
+        assertThrows(ForbiddenActionException.class, () -> chapterService.createChapter(manuscriptId, userUser, request));
     }
 
     @Test
@@ -162,7 +165,8 @@ public class ChapterServiceImplTest {
         ChapterCreationRequest request = new ChapterCreationRequest("Розділ", 1);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(InvalidStateTransitionException.class, () -> chapterService.createChapter(manuscriptId, asUser(authorId), request));
+        User authorUser = asUser(authorId);
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.createChapter(manuscriptId, authorUser, request));
     }
 
     @Test
@@ -272,11 +276,12 @@ public class ChapterServiceImplTest {
         UUID authorId = UUID.randomUUID();
         InputStream fileStream = new ByteArrayInputStream("Текст".getBytes(StandardCharsets.UTF_8));
 
+        User authorUser = asUser(authorId);
         assertThrows(InvalidFileTypeException.class,
-                () -> chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, "application/pdf", "chapter.md"));
+                () -> chapterService.uploadRevision(chapterId, authorUser, fileStream, 100L, "application/pdf", "chapter.md"));
 
         assertThrows(InvalidFileTypeException.class,
-                () -> chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, null, "chapter.md"));
+                () -> chapterService.uploadRevision(chapterId, authorUser, fileStream, 100L, null, "chapter.md"));
     }
 
     @Test
@@ -286,14 +291,15 @@ public class ChapterServiceImplTest {
         UUID authorId = UUID.randomUUID();
         InputStream fileStream = new ByteArrayInputStream("Текст".getBytes(StandardCharsets.UTF_8));
 
+        User authorUser = asUser(authorId);
         assertThrows(InvalidFileTypeException.class,
-                () -> chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, "text/markdown", null));
+                () -> chapterService.uploadRevision(chapterId, authorUser, fileStream, 100L, "text/markdown", null));
 
         assertThrows(InvalidFileTypeException.class,
-                () -> chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, "text/markdown", "filename"));
+                () -> chapterService.uploadRevision(chapterId, authorUser, fileStream, 100L, "text/markdown", "filename"));
 
         assertThrows(InvalidFileTypeException.class,
-                () -> chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, "text/markdown", "filename."));
+                () -> chapterService.uploadRevision(chapterId, authorUser, fileStream, 100L, "text/markdown", "filename."));
     }
 
     @Test
@@ -303,8 +309,9 @@ public class ChapterServiceImplTest {
         UUID authorId = UUID.randomUUID();
         InputStream fileStream = new ByteArrayInputStream("Текст".getBytes(StandardCharsets.UTF_8));
 
+        User authorUser = asUser(authorId);
         assertThrows(InvalidFileTypeException.class,
-                () -> chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, "text/markdown", "chapter.exe"));
+                () -> chapterService.uploadRevision(chapterId, authorUser, fileStream, 100L, "text/markdown", "chapter.exe"));
     }
 
     @Test
@@ -323,8 +330,9 @@ public class ChapterServiceImplTest {
         when(fileStorageService.put(anyString(), any(InputStream.class), anyLong(), anyString())).thenReturn(expectedPath);
         when(revisionRepository.save(any())).thenThrow(new RuntimeException("Database error"));
 
+        User authorUser = asUser(authorId);
         assertThrows(FileUploadException.class,
-                () -> chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, "text/markdown", "chapter.md"));
+                () -> chapterService.uploadRevision(chapterId, authorUser, fileStream, 100L, "text/markdown", "chapter.md"));
 
         verify(fileStorageService, times(1)).delete(expectedPath);
     }
@@ -346,8 +354,9 @@ public class ChapterServiceImplTest {
         when(revisionRepository.save(any())).thenThrow(new RuntimeException("Database error"));
         doThrow(new RuntimeException("Storage delete failed")).when(fileStorageService).delete(expectedPath);
 
+        User authorUser = asUser(authorId);
         assertThrows(FileUploadException.class,
-                () -> chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, "text/markdown", "chapter.md"));
+                () -> chapterService.uploadRevision(chapterId, authorUser, fileStream, 100L, "text/markdown", "chapter.md"));
 
         verify(fileStorageService, times(1)).delete(expectedPath);
     }
@@ -365,7 +374,8 @@ public class ChapterServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
         when(teamAssignmentRepository.existsByManuscript_ManuscriptIdAndUserIdAndRole(manuscriptId, userId, UserRole.EDITOR)).thenReturn(false);
 
-        assertThrows(ForbiddenActionException.class, () -> chapterService.uploadRevision(chapterId, asUser(userId), fileStream, 10L, "text/markdown", "chapter.md"));
+        User userUser = asUser(userId);
+        assertThrows(ForbiddenActionException.class, () -> chapterService.uploadRevision(chapterId, userUser, fileStream, 10L, "text/markdown", "chapter.md"));
     }
 
     @Test
@@ -380,7 +390,8 @@ public class ChapterServiceImplTest {
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
-        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.uploadRevision(chapterId, asUser(userId), fileStream, 10L, "text/markdown", "chapter.md"));
+        User userUser = asUser(userId);
+        assertThrows(ManuscriptNotFoundException.class, () -> chapterService.uploadRevision(chapterId, userUser, fileStream, 10L, "text/markdown", "chapter.md"));
     }
 
     @Test
@@ -392,7 +403,8 @@ public class ChapterServiceImplTest {
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
 
-        assertThrows(ChapterNotFoundException.class, () -> chapterService.uploadRevision(chapterId, asUser(userId), fileStream, 10L, "text/markdown", "chapter.md"));
+        User userUser = asUser(userId);
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.uploadRevision(chapterId, userUser, fileStream, 10L, "text/markdown", "chapter.md"));
     }
 
     @Test
@@ -407,7 +419,8 @@ public class ChapterServiceImplTest {
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter(chapterId, manuscript)));
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
 
-        assertThrows(InvalidStateTransitionException.class, () -> chapterService.uploadRevision(chapterId, asUser(userId), fileStream, 10L, "text/markdown", "chapter.md"));
+        User userUser = asUser(userId);
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.uploadRevision(chapterId, userUser, fileStream, 10L, "text/markdown", "chapter.md"));
     }
 
     @Test
@@ -598,7 +611,8 @@ public class ChapterServiceImplTest {
         ChapterUpdateRequest request = new ChapterUpdateRequest("Розділ", 1);
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
-        assertThrows(ChapterNotFoundException.class, () -> chapterService.updateChapter(chapterId, asUser(randomUserId), request));
+        User randomUserUser = asUser(randomUserId);
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.updateChapter(chapterId, randomUserUser, request));
         verify(chapterRepository, never()).save(any());
     }
 
@@ -611,7 +625,8 @@ public class ChapterServiceImplTest {
         ChapterUpdateRequest request = new ChapterUpdateRequest("Розділ", 1);
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
-        assertThrows(ForbiddenActionException.class, () -> chapterService.updateChapter(chapterId, asUser(randomUserId), request));
+        User randomUserUser = asUser(randomUserId);
+        assertThrows(ForbiddenActionException.class, () -> chapterService.updateChapter(chapterId, randomUserUser, request));
         verify(chapterRepository, never()).save(any());
     }
 
@@ -624,7 +639,8 @@ public class ChapterServiceImplTest {
         ChapterUpdateRequest request = new ChapterUpdateRequest("Розділ", 1);
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
-        assertThrows(InvalidStateTransitionException.class, () -> chapterService.updateChapter(chapterId, asUser(authorId), request));
+        User authorUser = asUser(authorId);
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.updateChapter(chapterId, authorUser, request));
         verify(chapterRepository, never()).save(any());
     }
 
@@ -647,7 +663,8 @@ public class ChapterServiceImplTest {
         UUID chapterId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.empty());
-        assertThrows(ChapterNotFoundException.class, () -> chapterService.deleteChapter(chapterId, asUser(authorId)));
+        User authorUser = asUser(authorId);
+        assertThrows(ChapterNotFoundException.class, () -> chapterService.deleteChapter(chapterId, authorUser));
         verify(chapterRepository, never()).delete(any());
     }
 
@@ -658,7 +675,8 @@ public class ChapterServiceImplTest {
         Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), UUID.randomUUID(), ManuscriptStatus.IN_PROGRESS));
         UUID randomUserId = UUID.randomUUID();
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
-        assertThrows(ForbiddenActionException.class, () -> chapterService.deleteChapter(chapterId, asUser(randomUserId)));
+        User randomUserUser = asUser(randomUserId);
+        assertThrows(ForbiddenActionException.class, () -> chapterService.deleteChapter(chapterId, randomUserUser));
         verify(chapterRepository, never()).delete(any());
     }
 
@@ -669,7 +687,8 @@ public class ChapterServiceImplTest {
         UUID authorId = UUID.randomUUID();
         Chapter chapter = chapter(chapterId, manuscript(UUID.randomUUID(), authorId, ManuscriptStatus.SUBMITTED));
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
-        assertThrows(InvalidStateTransitionException.class, () -> chapterService.deleteChapter(chapterId, asUser(authorId)));
+        User authorUser = asUser(authorId);
+        assertThrows(InvalidStateTransitionException.class, () -> chapterService.deleteChapter(chapterId, authorUser));
         verify(chapterRepository, never()).delete(any());
     }
 }

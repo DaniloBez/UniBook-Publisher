@@ -1,6 +1,7 @@
 package com.unibook.publisher.finance.security;
 
 import com.unibook.publisher.common.enums.UserRole;
+import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.finance.entity.request.ContractUpdateRequest;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
@@ -88,7 +89,8 @@ class ContractMethodSecurityTest {
     @DisplayName("updateRoyalty: EDITOR отримує AccessDenied")
     void updateRoyalty_Editor_Denied() {
         RoyaltyUpdateRequest request = new RoyaltyUpdateRequest(new BigDecimal("12.5"), new BigDecimal("5000.0"), "Причина");
-        assertThatThrownBy(() -> contractService.updateRoyalty(id, asUser(UUID.randomUUID(), UserRole.EDITOR), request))
+        User randomEditorUser = asUser(UUID.randomUUID(), UserRole.EDITOR);
+        assertThatThrownBy(() -> contractService.updateRoyalty(id, randomEditorUser, request))
                 .isInstanceOf(AccessDeniedException.class);
     }
 }

@@ -1,6 +1,7 @@
 package com.unibook.publisher.communication.service;
 
 import com.unibook.publisher.common.exception.notfound.NotificationNotFoundException;
+import com.unibook.publisher.identity.entity.User;
 import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.logging.AppLogger;
@@ -266,7 +267,8 @@ class NotificationServiceImplTest {
 
             when(notificationRepository.findById(notificationId)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> notificationService.markAsRead(notificationId, asUser(userId)))
+            User userUser = asUser(userId);
+            assertThatThrownBy(() -> notificationService.markAsRead(notificationId, userUser))
                     .isInstanceOf(NotificationNotFoundException.class)
                     .hasMessageContaining("не знайдено");
 
@@ -294,7 +296,8 @@ class NotificationServiceImplTest {
 
             when(notificationRepository.findById(notificationId)).thenReturn(Optional.of(original));
 
-            assertThatThrownBy(() -> notificationService.markAsRead(notificationId, asUser(strangerId)))
+            User strangerUser = asUser(strangerId);
+            assertThatThrownBy(() -> notificationService.markAsRead(notificationId, strangerUser))
                     .isInstanceOf(ForbiddenActionException.class)
                     .hasMessage("Можна відмічати тільки свої повідомлення");
 
