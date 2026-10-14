@@ -24,4 +24,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.profile WHERE u.role = :role")
     List<User> findByRoleWithProfile(@Param("role") UserRole role);
+
+    <T> ScopedValue<T> findByEmail(String email);
 }

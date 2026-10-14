@@ -1,6 +1,7 @@
 package com.unibook.publisher.identity.controller;
 
 import com.unibook.publisher.identity.entity.request.LoginRequest;
+import com.unibook.publisher.identity.entity.request.RefreshTokenRequest;
 import com.unibook.publisher.identity.entity.request.RegisterRequest;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
 import com.unibook.publisher.identity.service.UserService;
@@ -54,5 +55,20 @@ public class AuthController {
         @ApiResponse(responseCode = "401", description = "Wrong email or password", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<AuthResponse> login(@RequestBody @Valid LoginRequest request) {
         return ResponseEntity.ok(userService.login(request));
+    }
+
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh access token", description = "Generates new pair of access and fresh tokens")
+        @ApiResponse(responseCode = "400", description = "Request validation error", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+    public ResponseEntity<AuthResponse> refresh(@RequestBody @Valid RefreshTokenRequest request) {
+        return ResponseEntity.ok(userService.refreshToken(request));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Logout", description = "Completes the user logout process")
+        @ApiResponse(responseCode = "204", description = "User successfully logged out")
+    public ResponseEntity<Void> logout() {
+        return ResponseEntity.noContent().build();
     }
 }

@@ -4,15 +4,15 @@ import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.exception.conflict.EmailAlreadyExistsException;
 import com.unibook.publisher.common.exception.notfound.UserNotFoundException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
+import com.unibook.publisher.common.security.jwt.JwtService;
 import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.identity.entity.UserProfile;
-import com.unibook.publisher.identity.entity.request.LoginRequest;
-import com.unibook.publisher.identity.entity.request.RegisterRequest;
-import com.unibook.publisher.identity.entity.request.StaffRequest;
-import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
+import com.unibook.publisher.identity.entity.request.*;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.repository.UserRepository;
+import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,11 +24,15 @@ import java.util.UUID;
 @Transactional(readOnly = true)
 public class UserServiceImpl implements UserService {
     private final UserRepository userRepository;
+    private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
-    public UserServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public UserServiceImpl(UserRepository userRepository, UserDetailsService userDetailsService, PasswordEncoder passwordEncoder, JwtService jwtService) {
         this.userRepository = userRepository;
+        this.userDetailsService = userDetailsService;
         this.passwordEncoder = passwordEncoder;
+        this.jwtService = jwtService;
     }
 
     @Override
@@ -52,14 +56,10 @@ public class UserServiceImpl implements UserService {
 
         User savedUser = userRepository.save(user);
 
-        return new AuthResponse(
-                savedUser.getId(),
-                savedUser.getRole(),
-                "jwt-token-for-" + savedUser.getId());
+        return toAuthResponse(savedUser);
     }
 
     @Override
-    @Transactional
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.getByEmail(request.email())
                 .orElseThrow(InvalidCredentialsException::new);
@@ -67,11 +67,20 @@ public class UserServiceImpl implements UserService {
         if (!passwordEncoder.matches(request.password(), user.getHashedPassword()))
             throw new InvalidCredentialsException();
 
-        return new AuthResponse(
-                user.getId(),
-                user.getRole(),
-                "jwt-token-for-" + user.getId()
-        );
+        return toAuthResponse(user);
+    }
+
+    @Override
+    public AuthResponse refreshToken(RefreshTokenRequest request) {
+        String token = request.refreshToken();
+        if(!jwtService.isRefreshToken(token)) {
+            throw new InvalidCredentialsException("Недійсний або протермінований refresh token");
+        }
+        String email = jwtService.extractUsername(token);
+        User user = userRepository.getByEmail(email)
+                .orElseThrow(() -> new InvalidCredentialsException("Недійсний або протермінований refresh token"));
+
+        return toAuthResponse(user);
     }
 
     @Override
@@ -140,5 +149,21 @@ public class UserServiceImpl implements UserService {
             throw new UserNotFoundException(id);
 
         userRepository.deleteById(id);
+    }
+
+    private AuthResponse toAuthResponse(User user) {
+        UserDetails details = userDetailsService.loadUserByUsername(user.getEmail());
+
+        String accessToken = jwtService.generateAccessToken(details);
+        String refreshToken = jwtService.generateRefreshToken(details);
+        long expiresIn = jwtService.getAccessExpirationInSeconds();
+
+        return new AuthResponse(
+                user.getId(),
+                user.getRole(),
+                accessToken,
+                refreshToken,
+                expiresIn
+        );
     }
 }
