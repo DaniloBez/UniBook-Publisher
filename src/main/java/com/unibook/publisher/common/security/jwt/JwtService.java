@@ -24,7 +24,7 @@ public class JwtService {
     public JwtService(
             @Value("${security.jwt.secret}") String secret,
             @Value("${security.jwt.expiration.access}") long accessExpirationToken,
-            @Value("${security.jwt.expiration.refresh}")long refreshTokenExpirationToken
+            @Value("${security.jwt.expiration.refresh}") long refreshTokenExpirationToken
     ) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.accessExpirationMillis = accessExpirationToken;
@@ -33,6 +33,7 @@ public class JwtService {
 
     public String generateAccessToken(UserDetails details) {
         Instant now = Instant.now();
+        Instant expiration = now.plusMillis(accessExpirationMillis);
         List<String> authorities = details.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .toList();
@@ -42,13 +43,14 @@ public class JwtService {
                 .claim("role", authorities)
                 .claim("type", "access")
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusMillis(accessExpirationMillis)))
+                .expiration(Date.from(expiration))
                 .signWith(key)
                 .compact();
     }
 
     public String generateRefreshToken(UserDetails details) {
         Instant now = Instant.now();
+        Instant expiration = now.plusMillis(refreshExpirationMillis);
         List<String> authorities = details.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .toList();
@@ -58,7 +60,7 @@ public class JwtService {
                 .claim("role", authorities)
                 .claim("type", "refresh")
                 .issuedAt(Date.from(now))
-                .expiration(Date.from(now.plusMillis(refreshExpirationMillis)))
+                .expiration(Date.from(expiration))
                 .signWith(key)
                 .compact();
     }
@@ -66,7 +68,7 @@ public class JwtService {
     public boolean isRefreshToken(String token) {
         try {
             return "refresh".equals(parseClaims(token).get("type"));
-        } catch (JwtException | IllegalArgumentException e) {
+        } catch (JwtException | IllegalArgumentException _) {
             return false;
         }
     }
