@@ -1,6 +1,6 @@
 package com.unibook.publisher.production.controller;
 
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.request.AssignDesignerRequest;
 import com.unibook.publisher.production.entity.response.ManuscriptAuditLogResponse;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
@@ -39,7 +39,7 @@ public class ManuscriptEditorialController {
     public ResponseEntity<ManuscriptResponse> finalizeText(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @AuthenticationPrincipal User currentUser
+            @AuthenticationPrincipal AuthenticatedUser currentUser
     ) {
         return ResponseEntity.ok(finalizationService.finalizeText(id, currentUser));
     }
@@ -54,7 +54,7 @@ public class ManuscriptEditorialController {
     public ResponseEntity<ManuscriptResponse> assignDesigner(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody AssignDesignerRequest request
     ) {
         return ResponseEntity.ok(finalizationService.assignDesigner(id, currentUser, request));
@@ -69,7 +69,7 @@ public class ManuscriptEditorialController {
     public ResponseEntity<ManuscriptResponse> publish(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @AuthenticationPrincipal User currentUser
+            @AuthenticationPrincipal AuthenticatedUser currentUser
     ) {
         return ResponseEntity.ok(finalizationService.publish(id, currentUser));
     }

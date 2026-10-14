@@ -1,7 +1,7 @@
 package com.unibook.publisher.finance.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.enums.RoyaltyStrategyType;
 import com.unibook.publisher.common.event.ContractConfirmedEvent;
@@ -209,7 +209,7 @@ class ContractServiceImplTest {
 
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.of(draftContract()));
 
-            User randomAuthorAuthorUser = asUser(randomAuthorId, UserRole.AUTHOR);
+            AuthenticatedUser randomAuthorAuthorUser = asUser(randomAuthorId, UserRole.AUTHOR);
             assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, randomAuthorAuthorUser)) //REM I would die of laughing if that random UUID would match author id and that would fail the correct scenario. I swear, this will happen before the most important deploy to production
                     .isInstanceOf(ForbiddenActionException.class);
         }
@@ -231,7 +231,7 @@ class ContractServiceImplTest {
         void getContract_ContractNotFound_ThrowsException() {
             when(contractRepository.findByManuscriptId(manuscriptId)).thenReturn(Optional.empty());
 
-            User authorAccountantUser = asUser(authorId, UserRole.ACCOUNTANT);
+            AuthenticatedUser authorAccountantUser = asUser(authorId, UserRole.ACCOUNTANT);
             assertThatThrownBy(() -> contractService.getContractByManuscriptId(manuscriptId, authorAccountantUser))
                     .isInstanceOf(ContractNotFoundException.class);
         }
@@ -273,7 +273,7 @@ class ContractServiceImplTest {
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
 
 
-            User authorAccountantUser = asUser(authorId, UserRole.ACCOUNTANT);
+            AuthenticatedUser authorAccountantUser = asUser(authorId, UserRole.ACCOUNTANT);
             assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorAccountantUser, request))
                     .isInstanceOf(InvalidStateTransitionException.class);
 
@@ -291,7 +291,7 @@ class ContractServiceImplTest {
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
 
 
-            User authorAccountantUser = asUser(authorId, UserRole.ACCOUNTANT);
+            AuthenticatedUser authorAccountantUser = asUser(authorId, UserRole.ACCOUNTANT);
             assertThatThrownBy(() -> contractService.updateRoyalty(contractId, authorAccountantUser, request))
                     .isInstanceOf(ResourceNotFoundException.class);
         }
@@ -325,7 +325,7 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draft));
 
-            User notAuthorUser = asUser(notAuthorId);
+            AuthenticatedUser notAuthorUser = asUser(notAuthorId);
             assertThatThrownBy(() -> contractService.confirmContract(contractId, notAuthorUser))
                     .isInstanceOf(ForbiddenActionException.class);
 
@@ -340,7 +340,7 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(active));
 
-            User authorUser = asUser(authorId);
+            AuthenticatedUser authorUser = asUser(authorId);
             assertThatThrownBy(() -> contractService.confirmContract(contractId, authorUser))
                     .isInstanceOf(InvalidStateTransitionException.class);
         }
@@ -436,7 +436,7 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
 
-            User notAuthorEditorUser = asUser(notAuthorId, UserRole.EDITOR);
+            AuthenticatedUser notAuthorEditorUser = asUser(notAuthorId, UserRole.EDITOR);
             assertThatThrownBy(() -> contractService.simulatePayout(contractId, notAuthorEditorUser, request))
                     .isInstanceOf(ForbiddenActionException.class);
         }
@@ -448,7 +448,7 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
 
-            User authorAuthorUser = asUser(authorId, UserRole.AUTHOR);
+            AuthenticatedUser authorAuthorUser = asUser(authorId, UserRole.AUTHOR);
             assertThatThrownBy(() -> contractService.simulatePayout(contractId, authorAuthorUser, request))
                     .isInstanceOf(ContractNotFoundException.class);
         }
@@ -472,7 +472,7 @@ class ContractServiceImplTest {
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(contract));
 
-            User authorAuthorUser = asUser(authorId, UserRole.AUTHOR);
+            AuthenticatedUser authorAuthorUser = asUser(authorId, UserRole.AUTHOR);
             assertThatThrownBy(() -> serviceWithMissingStrategy.simulatePayout(contractId, authorAuthorUser, request))
                     .isInstanceOf(UnsupportedRoyaltyStrategyException.class);
         }
@@ -500,7 +500,7 @@ class ContractServiceImplTest {
             UUID notAuthorId = UUID.randomUUID();
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.of(draftContract()));
-            User notAuthorAuthorUser = asUser(notAuthorId, UserRole.AUTHOR);
+            AuthenticatedUser notAuthorAuthorUser = asUser(notAuthorId, UserRole.AUTHOR);
             assertThrows(ForbiddenActionException.class, () -> contractService.getContractById(contractId, notAuthorAuthorUser));
         }
 
@@ -509,7 +509,7 @@ class ContractServiceImplTest {
             UUID notAuthorId = UUID.randomUUID();
 
             when(contractRepository.findById(contractId)).thenReturn(Optional.empty());
-            User notAuthorAccountantUser = asUser(notAuthorId, UserRole.ACCOUNTANT);
+            AuthenticatedUser notAuthorAccountantUser = asUser(notAuthorId, UserRole.ACCOUNTANT);
             assertThrows(ContractNotFoundException.class, () -> contractService.getContractById(contractId, notAuthorAccountantUser));
         }
     }

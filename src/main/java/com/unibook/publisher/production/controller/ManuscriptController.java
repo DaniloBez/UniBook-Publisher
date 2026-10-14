@@ -1,6 +1,6 @@
 package com.unibook.publisher.production.controller;
 
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.request.*;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
@@ -63,7 +63,7 @@ public class ManuscriptController {
     public ResponseEntity<ManuscriptResponse> approveManuscript(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ManuscriptApprovalRequest request
     ) {
         ManuscriptResponse response = manuscriptService.approveManuscript(id, currentUser, request);
@@ -80,7 +80,7 @@ public class ManuscriptController {
     public ResponseEntity<ManuscriptResponse> rejectManuscript(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ManuscriptRejectionRequest request
     ) {
         ManuscriptResponse response = manuscriptService.rejectManuscript(id, currentUser, request);
@@ -97,7 +97,7 @@ public class ManuscriptController {
     public ResponseEntity<ManuscriptResponse> postponeManuscript(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ManuscriptPostponementRequest request
     ) {
         ManuscriptResponse response = manuscriptService.postponeManuscript(id, currentUser, request);
@@ -109,7 +109,7 @@ public class ManuscriptController {
         @ApiResponse(responseCode = "200", description = "Manuscript successfully submitted")
         @ApiResponse(responseCode = "400", description = "Request validation error", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<ManuscriptResponse> submitManuscript(
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ManuscriptSubmissionRequest request
     ) {
         ManuscriptResponse response = manuscriptService.submitManuscript(currentUser, request);

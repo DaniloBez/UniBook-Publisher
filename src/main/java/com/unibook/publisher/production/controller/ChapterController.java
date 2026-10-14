@@ -2,7 +2,7 @@ package com.unibook.publisher.production.controller;
 
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
 import com.unibook.publisher.production.entity.request.ChapterUpdateRequest;
 import com.unibook.publisher.production.entity.request.DiffRequest;
@@ -49,7 +49,7 @@ public class ChapterController {
     public ResponseEntity<ChapterResponse> createChapter(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID manuscriptId,
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ChapterCreationRequest request
     ) {
         ChapterResponse response = chapterService.createChapter(manuscriptId, currentUser, request);
@@ -77,7 +77,7 @@ public class ChapterController {
     public ResponseEntity<ChapterResponse> updateChapter(
             @Parameter(description = "Chapter ID", required = true, example = "9b2d5c1e-3f4a-4b8e-a1c7-5d6e7f8a9b0c")
             @PathVariable UUID chapterId,
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Valid @RequestBody ChapterUpdateRequest request
     ) {
         return ResponseEntity.ok(chapterService.updateChapter(chapterId, currentUser, request));
@@ -92,7 +92,7 @@ public class ChapterController {
     public ResponseEntity<Void> deleteChapter(
             @Parameter(description = "Chapter ID", required = true, example = "9b2d5c1e-3f4a-4b8e-a1c7-5d6e7f8a9b0c")
             @PathVariable UUID chapterId,
-            @AuthenticationPrincipal User currentUser
+            @AuthenticationPrincipal AuthenticatedUser currentUser
     ) {
         chapterService.deleteChapter(chapterId, currentUser);
         return ResponseEntity.noContent().build();
@@ -108,7 +108,7 @@ public class ChapterController {
     public ResponseEntity<RevisionResponse> uploadRevision(
             @Parameter(description = "Chapter ID", required = true, example = "9b2d5c1e-3f4a-4b8e-a1c7-5d6e7f8a9b0c")
             @PathVariable UUID chapterId,
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @RequestParam MultipartFile file
     ) {
         try {

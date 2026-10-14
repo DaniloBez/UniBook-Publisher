@@ -22,7 +22,7 @@ import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.repository.ContractRepository;
 import com.unibook.publisher.finance.repository.FinanceAuditLogRepository;
 import com.unibook.publisher.finance.royalty.RoyaltyStrategy;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.GrantedAuthority;
@@ -104,7 +104,7 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
-    public ContractResponse getContractByManuscriptId(UUID manuscriptId, User currentUser) {
+    public ContractResponse getContractByManuscriptId(UUID manuscriptId, AuthenticatedUser currentUser) {
         Contract contract = contractRepository.findByManuscriptId(manuscriptId)
                 .orElseThrow(() -> new ContractNotFoundException(manuscriptId));
 
@@ -116,8 +116,8 @@ public class ContractServiceImpl implements ContractService {
     @Override
     @Transactional
     @PreAuthorize("hasRole('ACCOUNTANT')")
-    public ContractResponse updateRoyalty(UUID contractId, User currentUser, RoyaltyUpdateRequest request) {
-        UUID callerId = currentUser.getId();
+    public ContractResponse updateRoyalty(UUID contractId, AuthenticatedUser currentUser, RoyaltyUpdateRequest request) {
+        UUID callerId = currentUser.id();
 
         Contract contract = getContractOrThrow(contractId);
 
@@ -175,8 +175,8 @@ public class ContractServiceImpl implements ContractService {
 
     @Override
     @Transactional
-    public ContractResponse confirmContract(UUID contractId, User currentUser) {
-        UUID callerId = currentUser.getId();
+    public ContractResponse confirmContract(UUID contractId, AuthenticatedUser currentUser) {
+        UUID callerId = currentUser.id();
 
         Contract contract = getContractOrThrow(contractId);
 
@@ -217,7 +217,7 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
-    public PayoutSimulationResponse simulatePayout(UUID contractId, User currentUser, PayoutSimulationRequest request) {
+    public PayoutSimulationResponse simulatePayout(UUID contractId, AuthenticatedUser currentUser, PayoutSimulationRequest request) {
         Contract contract = getContractOrThrow(contractId);
 
         checkViewAccess(contract, currentUser);
@@ -246,15 +246,15 @@ public class ContractServiceImpl implements ContractService {
                 .orElseThrow(() -> new ContractNotFoundException(contractId));
     }
 
-    private void checkViewAccess(Contract contract, User currentUser) {
-        boolean isOwner = contract.getAuthorId().equals(currentUser.getId());
+    private void checkViewAccess(Contract contract, AuthenticatedUser currentUser) {
+        boolean isOwner = contract.getAuthorId().equals(currentUser.id());
         boolean isPrivileged = hasAnyRole(currentUser, UserRole.ACCOUNTANT, UserRole.ADMIN);
 
         if (!isOwner && !isPrivileged)
             throw new ForbiddenActionException("Переглядати контракт можуть тільки бухгалтер, адміністратор або автор-власник");
     }
 
-    private boolean hasAnyRole(User user, UserRole... roles) {
+    private boolean hasAnyRole(AuthenticatedUser user, UserRole... roles) {
         Set<String> authorities = user.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .collect(Collectors.toSet());
@@ -273,7 +273,7 @@ public class ContractServiceImpl implements ContractService {
     }
 
     @Override
-    public ContractResponse getContractById(UUID id, User currentUser) {
+    public ContractResponse getContractById(UUID id, AuthenticatedUser currentUser) {
         Contract contract = getContractOrThrow(id);
         checkViewAccess(contract, currentUser);
         return ContractResponse.from(contract);

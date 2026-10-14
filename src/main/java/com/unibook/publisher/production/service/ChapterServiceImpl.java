@@ -12,7 +12,7 @@ import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.request.DiffRequest;
@@ -72,8 +72,8 @@ public class ChapterServiceImpl implements ChapterService {
 
     @Override
     @Transactional
-    public ChapterResponse createChapter(UUID manuscriptId, User currentUser, ChapterCreationRequest request) {
-        UUID authorId = currentUser.getId();
+    public ChapterResponse createChapter(UUID manuscriptId, AuthenticatedUser currentUser, ChapterCreationRequest request) {
+        UUID authorId = currentUser.id();
 
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
@@ -117,13 +117,13 @@ public class ChapterServiceImpl implements ChapterService {
     @Transactional
     public RevisionResponse uploadRevision(
             UUID chapterId,
-            User currentUser,
+            AuthenticatedUser currentUser,
             InputStream fileStream,
             long size,
             String contentType,
             String originalFilename
     ) {
-        UUID userId = currentUser.getId();
+        UUID userId = currentUser.id();
 
         validateTextFile(contentType, originalFilename);
 
@@ -269,8 +269,8 @@ public class ChapterServiceImpl implements ChapterService {
 
     @Override
     @Transactional
-    public ChapterResponse updateChapter(UUID chapterId, User currentUser, ChapterUpdateRequest request) {
-        UUID authorId = currentUser.getId();
+    public ChapterResponse updateChapter(UUID chapterId, AuthenticatedUser currentUser, ChapterUpdateRequest request) {
+        UUID authorId = currentUser.id();
 
         Chapter chapter = findChapterOwnedBy(chapterId, authorId, "редагування");
         chapter.setChapterTitle(request.chapterTitle());
@@ -290,8 +290,8 @@ public class ChapterServiceImpl implements ChapterService {
 
     @Override
     @Transactional
-    public void deleteChapter(UUID chapterId, User currentUser) {
-        UUID authorId = currentUser.getId();
+    public void deleteChapter(UUID chapterId, AuthenticatedUser currentUser) {
+        UUID authorId = currentUser.id();
 
         Chapter chapter = findChapterOwnedBy(chapterId, authorId, "видалення");
         chapterRepository.delete(chapter);

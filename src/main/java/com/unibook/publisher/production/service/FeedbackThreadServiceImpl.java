@@ -15,7 +15,7 @@ import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.*;
 import com.unibook.publisher.production.entity.request.OpenThreadRequest;
 import com.unibook.publisher.production.entity.request.ThreadMessageRequest;
@@ -71,8 +71,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
 
     @Override
     @Transactional
-    public ThreadResponse openThread(UUID chapterId, User currentUser, OpenThreadRequest request) {
-        UUID initiatorId = currentUser.getId();
+    public ThreadResponse openThread(UUID chapterId, AuthenticatedUser currentUser, OpenThreadRequest request) {
+        UUID initiatorId = currentUser.id();
 
         Chapter chapter = chapterRepository.findById(chapterId)
                 .orElseThrow(() -> new ChapterNotFoundException(chapterId));
@@ -166,8 +166,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
 
     @Override
     @Transactional
-    public ThreadMessageResponse addMessage(UUID threadId, User currentUser, ThreadMessageRequest request) {
-        UUID senderId = currentUser.getId();
+    public ThreadMessageResponse addMessage(UUID threadId, AuthenticatedUser currentUser, ThreadMessageRequest request) {
+        UUID senderId = currentUser.id();
 
         FeedbackThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
@@ -200,8 +200,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
 
     @Override
     @Transactional
-    public ThreadResponse acceptSuggestion(UUID threadId, User currentUser) {
-        UUID userId = currentUser.getId();
+    public ThreadResponse acceptSuggestion(UUID threadId, AuthenticatedUser currentUser) {
+        UUID userId = currentUser.id();
 
         FeedbackThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
@@ -239,8 +239,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
 
     @Override
     @Transactional
-    public ThreadResponse rejectSuggestion(UUID threadId, User currentUser) {
-        UUID userId = currentUser.getId();
+    public ThreadResponse rejectSuggestion(UUID threadId, AuthenticatedUser currentUser) {
+        UUID userId = currentUser.id();
 
         FeedbackThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
@@ -278,8 +278,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
 
     @Override
     @Transactional
-    public ThreadResponse resolveThread(UUID threadId, User currentUser) {
-        UUID userId = currentUser.getId();
+    public ThreadResponse resolveThread(UUID threadId, AuthenticatedUser currentUser) {
+        UUID userId = currentUser.id();
 
         FeedbackThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));
@@ -332,8 +332,8 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
 
     @Override
     @Transactional
-    public void deleteThread(UUID threadId, User currentUser) {
-        UUID userId = currentUser.getId();
+    public void deleteThread(UUID threadId, AuthenticatedUser currentUser) {
+        UUID userId = currentUser.id();
 
         FeedbackThread thread = threadRepository.findById(threadId)
                 .orElseThrow(() -> new ThreadNotFoundException(threadId));

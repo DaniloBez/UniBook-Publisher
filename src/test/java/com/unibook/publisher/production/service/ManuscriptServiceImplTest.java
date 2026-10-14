@@ -1,7 +1,7 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.event.*;
 import com.unibook.publisher.common.exception.notfound.GenreNotFoundException;
@@ -161,7 +161,7 @@ public class ManuscriptServiceImplTest {
 
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
 
-        User randomUserUser = asUser(randomUserId);
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
         assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.approveManuscript(manuscriptId, randomUserUser, request));
     }
 
@@ -171,7 +171,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptApprovalRequest request = new ManuscriptApprovalRequest(randomUserId);
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
-        User randomUserUser = asUser(randomUserId);
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
         assertThrows(ResourceNotFoundException.class, () -> manuscriptService.approveManuscript(manuscriptId, randomUserUser, request));
         verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
@@ -249,7 +249,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptRejectionRequest request = new ManuscriptRejectionRequest("Причина");
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
-        User randomUserUser = asUser(randomUserId);
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
         assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.rejectManuscript(manuscriptId, randomUserUser, request));
     }
 
@@ -259,7 +259,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptRejectionRequest request = new ManuscriptRejectionRequest("Причина");
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
-        User randomUserUser = asUser(randomUserId);
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
         assertThrows(ResourceNotFoundException.class, () -> manuscriptService.rejectManuscript(manuscriptId, randomUserUser, request));
         verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());
@@ -309,7 +309,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptPostponementRequest request = new ManuscriptPostponementRequest("Коментар");
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.of(manuscript));
-        User randomUserUser = asUser(randomUserId);
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
         assertThrows(InvalidStateTransitionException.class, () -> manuscriptService.postponeManuscript(manuscriptId, randomUserUser, request));
     }
 
@@ -319,7 +319,7 @@ public class ManuscriptServiceImplTest {
         UUID randomUserId = UUID.randomUUID();
         ManuscriptPostponementRequest request = new ManuscriptPostponementRequest("Коментар");
         when(repository.findByIdWithGenres(manuscriptId)).thenReturn(Optional.empty());
-        User randomUserUser = asUser(randomUserId);
+        AuthenticatedUser randomUserUser = asUser(randomUserId);
         assertThrows(ResourceNotFoundException.class, () -> manuscriptService.postponeManuscript(manuscriptId, randomUserUser, request));
         verify(repository, times(1)).findByIdWithGenres(manuscriptId);
         verify(repository, never()).save(any());

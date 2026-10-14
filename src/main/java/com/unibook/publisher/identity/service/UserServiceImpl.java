@@ -7,6 +7,7 @@ import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
 import com.unibook.publisher.common.security.jwt.JwtService;
 import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.identity.entity.UserProfile;
 import com.unibook.publisher.identity.entity.request.*;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
@@ -95,8 +96,8 @@ public class UserServiceImpl implements UserService {
 
     @Override
     @Transactional
-    public UserResponse updateUserProfile(UUID profileUserId, User currentUser, UserProfileUpdateRequest request) {
-        if (!currentUser.getId().equals(profileUserId))
+    public UserResponse updateUserProfile(UUID profileUserId, AuthenticatedUser currentUser, UserProfileUpdateRequest request) {
+        if (!currentUser.id().equals(profileUserId))
             throw new ForbiddenActionException("Користувач має право редагувати тільки свій профіль");
 
         User user = userRepository.findByIdWithProfile(profileUserId)

@@ -1,7 +1,7 @@
 package com.unibook.publisher.identity.controller;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.service.UserService;
@@ -48,7 +48,7 @@ public class UserController {
         @ApiResponse(responseCode = "403", description = "Attempt to edit the profile of another user", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "404", description = "User not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<UserResponse> updateUserProfile(
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Parameter(description = "ID of the user whose profile is updated; must match the authenticated user", required = true, example = "3fa85f64-5717-4562-b3fc-2c963f66afa6")
             @PathVariable UUID id,
             @RequestBody @Valid UserProfileUpdateRequest request

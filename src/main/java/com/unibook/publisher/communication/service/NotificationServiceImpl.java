@@ -7,7 +7,7 @@ import com.unibook.publisher.communication.entity.Notification;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
 import com.unibook.publisher.communication.repository.NotificationRepository;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,8 +58,8 @@ public class NotificationServiceImpl implements NotificationService {
     }
 
     @Override
-    public List<NotificationResponse> getUserNotifications(User currentUser, Boolean unreadOnly) {
-        UUID recipientId = currentUser.getId();
+    public List<NotificationResponse> getUserNotifications(AuthenticatedUser currentUser, Boolean unreadOnly) {
+        UUID recipientId = currentUser.id();
 
         List<Notification> list = Boolean.TRUE.equals(unreadOnly)
                 ? notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(recipientId)
@@ -72,11 +72,11 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     @Transactional
-    public NotificationResponse markAsRead(UUID notificationId, User currentUser) {
+    public NotificationResponse markAsRead(UUID notificationId, AuthenticatedUser currentUser) {
         Notification notification = notificationRepository.findById(notificationId)
                 .orElseThrow(() -> new NotificationNotFoundException(notificationId));
 
-        if (!notification.getRecipientId().equals(currentUser.getId())) {
+        if (!notification.getRecipientId().equals(currentUser.id())) {
             throw new ForbiddenActionException("Можна відмічати тільки свої повідомлення");
         }
 
@@ -87,7 +87,7 @@ public class NotificationServiceImpl implements NotificationService {
         logger.info(
                 "Updated notification {}: marked as read by user {}",
                 notificationId,
-                currentUser.getId()
+                currentUser.id()
         );
 
         return NotificationResponse.from(updated);

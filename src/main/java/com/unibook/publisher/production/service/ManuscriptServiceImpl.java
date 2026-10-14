@@ -6,7 +6,7 @@ import com.unibook.publisher.common.exception.notfound.GenreNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.Genre;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.request.*;
@@ -60,8 +60,8 @@ public class ManuscriptServiceImpl implements ManuscriptService {
     @Override
     @Transactional
     @PreAuthorize("hasRole('CHIEF_EDITOR')")
-    public ManuscriptResponse approveManuscript(UUID id, User currentUser, ManuscriptApprovalRequest request) {
-        UUID chiefEditorId = currentUser.getId();
+    public ManuscriptResponse approveManuscript(UUID id, AuthenticatedUser currentUser, ManuscriptApprovalRequest request) {
+        UUID chiefEditorId = currentUser.id();
 
         Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
                 .orElseThrow(() -> new ManuscriptNotFoundException(id));
@@ -106,8 +106,8 @@ public class ManuscriptServiceImpl implements ManuscriptService {
     @Override
     @Transactional
     @PreAuthorize("hasRole('CHIEF_EDITOR')")
-    public ManuscriptResponse rejectManuscript(UUID id, User currentUser, ManuscriptRejectionRequest request) {
-        UUID chiefEditorId = currentUser.getId();
+    public ManuscriptResponse rejectManuscript(UUID id, AuthenticatedUser currentUser, ManuscriptRejectionRequest request) {
+        UUID chiefEditorId = currentUser.id();
 
         Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
                 .orElseThrow(() -> new ManuscriptNotFoundException(id));
@@ -145,8 +145,8 @@ public class ManuscriptServiceImpl implements ManuscriptService {
     @Override
     @Transactional
     @PreAuthorize("hasRole('CHIEF_EDITOR')")
-    public ManuscriptResponse postponeManuscript(UUID id, User currentUser, ManuscriptPostponementRequest request) {
-        UUID chiefEditorId = currentUser.getId();
+    public ManuscriptResponse postponeManuscript(UUID id, AuthenticatedUser currentUser, ManuscriptPostponementRequest request) {
+        UUID chiefEditorId = currentUser.id();
 
         Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
                 .orElseThrow(() -> new ManuscriptNotFoundException(id));
@@ -183,8 +183,8 @@ public class ManuscriptServiceImpl implements ManuscriptService {
 
     @Override
     @Transactional
-    public ManuscriptResponse submitManuscript(User currentUser, ManuscriptSubmissionRequest request) {
-        UUID authorId = currentUser.getId();
+    public ManuscriptResponse submitManuscript(AuthenticatedUser currentUser, ManuscriptSubmissionRequest request) {
+        UUID authorId = currentUser.id();
 
         Set<Genre> genres = new HashSet<>();
         if(request.genreIds() != null && !request.genreIds().isEmpty()) {

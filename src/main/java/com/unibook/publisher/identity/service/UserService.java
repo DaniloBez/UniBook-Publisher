@@ -1,7 +1,7 @@
 package com.unibook.publisher.identity.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.identity.entity.request.*;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
@@ -19,7 +19,7 @@ public interface UserService {
 
     UserResponse getUserProfile(UUID userId);
 
-    UserResponse updateUserProfile(UUID profileUserId, User currentUser, UserProfileUpdateRequest request);
+    UserResponse updateUserProfile(UUID profileUserId, AuthenticatedUser currentUser, UserProfileUpdateRequest request);
 
     UserResponse createStaff(StaffRequest request);
 

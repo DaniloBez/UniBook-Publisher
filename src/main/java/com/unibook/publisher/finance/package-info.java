@@ -1,6 +1,6 @@
 @org.springframework.modulith.ApplicationModule(
         displayName = "Finance & Royalties",
-        allowedDependencies = { "common", "identity::entity" }
+        allowedDependencies = "common"
 )
 
 package com.unibook.publisher.finance;

@@ -2,7 +2,7 @@ package com.unibook.publisher.communication.controller;
 
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
 import com.unibook.publisher.communication.service.NotificationService;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -31,7 +31,7 @@ public class NotificationController {
     @Operation(summary = "Get user notifications", description = "Returns notifications of the current user, newest first. Can be limited to unread notifications only")
     @ApiResponse(responseCode = "200", description = "Notifications successfully retrieved")
     public ResponseEntity<List<NotificationResponse>> getNotifications(
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Parameter(description = "If true, only unread notifications are returned", example = "false")
             @RequestParam(required = false, defaultValue = "false") Boolean unreadOnly
     ) {
@@ -44,7 +44,7 @@ public class NotificationController {
     @ApiResponse(responseCode = "403", description = "The notification belongs to another user", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     @ApiResponse(responseCode = "404", description = "Notification not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<NotificationResponse> markAsRead(
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Parameter(description = "Notification ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id
     ) {

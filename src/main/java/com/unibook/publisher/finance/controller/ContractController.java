@@ -6,7 +6,7 @@ import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
 import com.unibook.publisher.finance.entity.response.ContractResponse;
 import com.unibook.publisher.finance.entity.response.PayoutSimulationResponse;
 import com.unibook.publisher.finance.service.ContractService;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -38,7 +38,7 @@ public class ContractController {
         @ApiResponse(responseCode = "403", description = "The caller is not allowed to view this contract", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "404", description = "Contract for the given manuscript not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<ContractResponse> getContract(
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @RequestParam UUID manuscriptId
     ) {
@@ -53,7 +53,7 @@ public class ContractController {
         @ApiResponse(responseCode = "404", description = "Contract not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "422", description = "The contract is not in DRAFT status", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<ContractResponse> updateRoyalty(
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
             @RequestBody @Valid RoyaltyUpdateRequest request
@@ -68,7 +68,7 @@ public class ContractController {
         @ApiResponse(responseCode = "404", description = "Contract not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "422", description = "The contract is not in DRAFT status", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<ContractResponse> confirmContract(
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id
     ) {
@@ -83,7 +83,7 @@ public class ContractController {
         @ApiResponse(responseCode = "404", description = "Contract not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
         @ApiResponse(responseCode = "422", description = "Unsupported royalty strategy", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
     public ResponseEntity<PayoutSimulationResponse> simulatePayout(
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
             @RequestBody @Valid PayoutSimulationRequest request
@@ -100,7 +100,7 @@ public class ContractController {
     public ResponseEntity<ContractResponse> getContractById(
             @Parameter(description = "Contract ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @AuthenticationPrincipal User currentUser
+            @AuthenticationPrincipal AuthenticatedUser currentUser
     ) {
         return ResponseEntity.ok(contractService.getContractById(id, currentUser));
     }

@@ -10,7 +10,7 @@ import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundExcepti
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
@@ -65,8 +65,8 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
 
     @Override
     @Transactional
-    public ManuscriptResponse finalizeText(UUID manuscriptId, User currentUser) {
-        UUID editorId = currentUser.getId();
+    public ManuscriptResponse finalizeText(UUID manuscriptId, AuthenticatedUser currentUser) {
+        UUID editorId = currentUser.id();
 
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
@@ -116,8 +116,8 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
     @Override
     @Transactional
     @PreAuthorize("hasRole('CHIEF_EDITOR')")
-    public ManuscriptResponse assignDesigner(UUID manuscriptId, User currentUser, AssignDesignerRequest request) {
-        UUID chiefEditorId = currentUser.getId();
+    public ManuscriptResponse assignDesigner(UUID manuscriptId, AuthenticatedUser currentUser, AssignDesignerRequest request) {
+        UUID chiefEditorId = currentUser.id();
 
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
@@ -161,8 +161,8 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
     @Override
     @Transactional
     @PreAuthorize("hasRole('CHIEF_EDITOR')")
-    public ManuscriptResponse publish(UUID manuscriptId, User currentUser) {
-        UUID chiefEditorId = currentUser.getId();
+    public ManuscriptResponse publish(UUID manuscriptId, AuthenticatedUser currentUser) {
+        UUID chiefEditorId = currentUser.id();
 
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));

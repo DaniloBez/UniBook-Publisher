@@ -3,7 +3,7 @@ package com.unibook.publisher.production.controller;
 import com.unibook.publisher.common.exception.badrequest.FileIsEmptyException;
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.response.CoverVersionResponse;
 import com.unibook.publisher.production.service.CoverVersionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -44,7 +44,7 @@ public class CoverVersionController {
     public ResponseEntity<CoverVersionResponse> uploadCoverVersion(
             @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
             @PathVariable UUID id,
-            @AuthenticationPrincipal User currentUser,
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
             @RequestParam MultipartFile file
     ) {
         if (file.isEmpty())

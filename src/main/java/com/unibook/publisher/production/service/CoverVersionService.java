@@ -1,6 +1,6 @@
 package com.unibook.publisher.production.service;
 
-import com.unibook.publisher.identity.entity.User;
+import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.response.CoverVersionResponse;
 
 import java.io.InputStream;
@@ -10,7 +10,7 @@ import java.util.UUID;
 public interface CoverVersionService {
     CoverVersionResponse uploadCoverVersion(
             UUID manuscriptId,
-            User currentUser,
+            AuthenticatedUser currentUser,
             InputStream fileStream,
             long size,
             String contentType,

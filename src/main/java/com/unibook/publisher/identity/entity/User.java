@@ -1,6 +1,5 @@
 package com.unibook.publisher.identity.entity;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.unibook.publisher.common.enums.UserRole;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
