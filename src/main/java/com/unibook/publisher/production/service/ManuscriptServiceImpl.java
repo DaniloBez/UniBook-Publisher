@@ -45,6 +45,7 @@ public class ManuscriptServiceImpl implements ManuscriptService {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('CHIEF_EDITOR', 'ACCOUNTANT', 'ADMIN')")
     public ManuscriptResponse getManuscriptById(UUID id) {
         Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
                 .orElseThrow(() -> new ManuscriptNotFoundException(id));
@@ -52,8 +53,25 @@ public class ManuscriptServiceImpl implements ManuscriptService {
     }
 
     @Override
+    @PreAuthorize("hasAnyRole('CHIEF_EDITOR', 'ACCOUNTANT', 'ADMIN')")
     public List<ManuscriptResponse> getManuscripts(ManuscriptStatus status) {
         List<Manuscript> manuscripts = (status == null) ? manuscriptRepository.findAllWithGenres() : manuscriptRepository.findByStatusWithGenres(status);
+        return manuscripts.stream().map(ManuscriptResponse::from).toList();
+    }
+
+    @Override
+    @PreAuthorize("hasAnyRole('AUTHOR', 'EDITOR', 'DESIGNER')")
+    public List<ManuscriptResponse> getManuscriptsForUser(UUID userId, UserRole role) {
+        List<Manuscript> manuscripts;
+        if (role == UserRole.AUTHOR) {
+            manuscripts = manuscriptRepository.findByAuthorIdWithGenres(userId);
+        } else {
+            List<UUID> manuscriptIds = teamAssignmentService.getManuscriptIdsForUser(userId, role);
+            if (manuscriptIds.isEmpty()) {
+                return List.of();
+            }
+            manuscripts = manuscriptRepository.findAllByIdWithGenres(manuscriptIds);
+        }
         return manuscripts.stream().map(ManuscriptResponse::from).toList();
     }
 

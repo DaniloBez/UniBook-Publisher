@@ -412,6 +412,107 @@ public class ManuscriptServiceImplTest {
     }
 
     @Test
+    void getManuscriptsForUser_Author_Success() {
+        UUID authorId = UUID.randomUUID();
+        Manuscript manuscript = new Manuscript(
+                UUID.randomUUID(),
+                "Аліса",
+                authorId,
+                ManuscriptStatus.SUBMITTED,
+                Set.of(),
+                "Опис до книги Аліса",
+                "url",
+                Instant.now()
+        );
+        when(repository.findByAuthorIdWithGenres(authorId)).thenReturn(List.of(manuscript));
+
+        List<ManuscriptResponse> manuscripts = manuscriptService.getManuscriptsForUser(authorId, UserRole.AUTHOR);
+
+        assertEquals(1, manuscripts.size());
+        assertEquals("Аліса", manuscripts.getFirst().title());
+        verify(repository, times(1)).findByAuthorIdWithGenres(authorId);
+        verify(teamAssignmentService, never()).getManuscriptIdsForUser(any(), any());
+        verify(repository, never()).findAllByIdWithGenres(any());
+    }
+
+    @Test
+    void getManuscriptsForUser_Author_Empty() {
+        UUID authorId = UUID.randomUUID();
+        when(repository.findByAuthorIdWithGenres(authorId)).thenReturn(List.of());
+
+        List<ManuscriptResponse> manuscripts = manuscriptService.getManuscriptsForUser(authorId, UserRole.AUTHOR);
+
+        assertTrue(manuscripts.isEmpty());
+        verify(repository, times(1)).findByAuthorIdWithGenres(authorId);
+    }
+
+    @Test
+    void getManuscriptsForUser_Editor_Success() {
+        UUID editorId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+        Manuscript manuscript = new Manuscript(
+                manuscriptId,
+                "Гаррі Поттер",
+                UUID.randomUUID(),
+                ManuscriptStatus.IN_PROGRESS,
+                Set.of(),
+                "Опис до книги Гаррі Поттер",
+                "url",
+                Instant.now()
+        );
+        List<UUID> ids = List.of(manuscriptId);
+        when(teamAssignmentService.getManuscriptIdsForUser(editorId, UserRole.EDITOR)).thenReturn(ids);
+        when(repository.findAllByIdWithGenres(ids)).thenReturn(List.of(manuscript));
+
+        List<ManuscriptResponse> manuscripts = manuscriptService.getManuscriptsForUser(editorId, UserRole.EDITOR);
+
+        assertEquals(1, manuscripts.size());
+        assertEquals(manuscriptId, manuscripts.getFirst().manuscriptId());
+        verify(teamAssignmentService, times(1)).getManuscriptIdsForUser(editorId, UserRole.EDITOR);
+        verify(repository, times(1)).findAllByIdWithGenres(ids);
+        verify(repository, never()).findByAuthorIdWithGenres(any());
+    }
+
+    @Test
+    void getManuscriptsForUser_Designer_Success() {
+        UUID designerId = UUID.randomUUID();
+        UUID manuscriptId = UUID.randomUUID();
+        Manuscript manuscript = new Manuscript(
+                manuscriptId,
+                "451 градус по Фаренгейту",
+                UUID.randomUUID(),
+                ManuscriptStatus.IN_PROGRESS,
+                Set.of(),
+                "Опис до книги 451 градус по Фаренгейту",
+                "url",
+                Instant.now()
+        );
+        List<UUID> ids = List.of(manuscriptId);
+        when(teamAssignmentService.getManuscriptIdsForUser(designerId, UserRole.DESIGNER)).thenReturn(ids);
+        when(repository.findAllByIdWithGenres(ids)).thenReturn(List.of(manuscript));
+
+        List<ManuscriptResponse> manuscripts = manuscriptService.getManuscriptsForUser(designerId, UserRole.DESIGNER);
+
+        assertEquals(1, manuscripts.size());
+        assertEquals("451 градус по Фаренгейту", manuscripts.getFirst().title());
+        verify(teamAssignmentService, times(1)).getManuscriptIdsForUser(designerId, UserRole.DESIGNER);
+        verify(repository, times(1)).findAllByIdWithGenres(ids);
+    }
+
+    @Test
+    void getManuscriptsForUser_NoAssignments_ReturnsEmpty() {
+        UUID editorId = UUID.randomUUID();
+        when(teamAssignmentService.getManuscriptIdsForUser(editorId, UserRole.EDITOR)).thenReturn(List.of());
+
+        List<ManuscriptResponse> manuscripts = manuscriptService.getManuscriptsForUser(editorId, UserRole.EDITOR);
+
+        assertTrue(manuscripts.isEmpty());
+        verify(teamAssignmentService, times(1)).getManuscriptIdsForUser(editorId, UserRole.EDITOR);
+        verify(repository, never()).findAllByIdWithGenres(any());
+        verify(repository, never()).findByAuthorIdWithGenres(any());
+    }
+
+    @Test
     void updateManuscript_Success() {
         UUID id = UUID.randomUUID();
         UUID genreId1 = UUID.randomUUID();
