@@ -9,19 +9,4 @@ public class LoginWebController {
     public String loginPage() {
         return "login";
     }
-
-    @GetMapping("/manuscripts")
-    public String m1() {
-        return "manuscripts";
-    }
-
-    @GetMapping("/manuscripts/my")
-    public String m2() {
-        return "manuscripts/my";
-    }
-
-    @GetMapping("/manuscripts/new")
-    public String m3() {
-        return "manuscripts/new";
-    }
 }
