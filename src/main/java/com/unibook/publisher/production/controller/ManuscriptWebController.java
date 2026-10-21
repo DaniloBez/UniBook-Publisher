@@ -4,7 +4,6 @@ import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.production.entity.request.ManuscriptFormDto;
 import com.unibook.publisher.production.entity.request.ManuscriptSubmissionRequest;
-import com.unibook.publisher.production.entity.response.GenreResponse;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.service.GenreService;
