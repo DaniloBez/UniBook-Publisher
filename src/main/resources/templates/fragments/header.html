@@ -1,0 +1,65 @@
+<!--/*@thymesVar id="currentUser" type="com.unibook.publisher.identity.entity.response.UserResponse"*/-->
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="uk">
+<body>
+
+<header th:fragment="navbar" class="navbar navbar-light bg-white border-bottom shadow-sm mb-4 py-2">
+    <div class="container-fluid px-4 d-flex align-items-center justify-content-between">
+        <div class="d-flex align-items-center">
+            <a sec:authorize="hasAnyRole('AUTHOR', 'EDITOR', 'DESIGNER')"
+               th:href="@{/manuscripts/my}"
+               class="navbar-brand fw-bold text-dark fs-4 m-0">
+                UniBook Publisher
+            </a>
+
+            <a sec:authorize="hasAnyRole('CHIEF_EDITOR', 'ACCOUNTANT', 'ADMIN')"
+               th:href="@{/manuscripts}"
+               class="navbar-brand fw-bold text-dark fs-4 m-0">
+                UniBook Publisher
+            </a>
+
+            <a sec:authorize="isAnonymous()"
+               th:href="@{/login}"
+               class="navbar-brand fw-bold text-dark fs-4 m-0">
+                UniBook Publisher
+            </a>
+        </div>
+
+        <div class="d-flex align-items-center gap-3">
+            <div th:if="${currentUser != null}" class="d-flex align-items-center gap-2">
+                <img th:if="${currentUser.avatarUrl != null and !#strings.isEmpty(currentUser.avatarUrl)}"
+                     th:src="${currentUser.avatarUrl}"
+                     alt="User Avatar"
+                     class="rounded-circle border"
+                     style="width: 38px; height: 38px; object-fit: cover;" />
+
+                <div th:if="${currentUser.avatarUrl == null or #strings.isEmpty(currentUser.avatarUrl)}"
+                     class="rounded-circle bg-dark text-white d-flex align-items-center justify-content-center fw-bold text-uppercase border"
+                     style="width: 38px; height: 38px; font-size: 1rem; flex-shrink: 0;">
+                    <span th:text="${#strings.substring((!#strings.isEmpty(currentUser.displayName) ? currentUser.displayName : currentUser.email), 0, 1)}">U</span>
+                </div>
+
+                <div class="d-flex flex-column justify-content-center">
+                    <span class="fw-semibold text-dark fs-6 lh-1"
+                          th:text="${currentUser.displayName != null and !#strings.isEmpty(currentUser.displayName) ? currentUser.displayName : currentUser.email}">
+                        Ім'я Користувача
+                    </span>
+
+                    <span class="badge bg-secondary mt-1 align-self-start font-monospace"
+                          style="font-size: 0.65rem;"
+                          th:text="${currentUser.role}">
+                        ROLE
+                    </span>
+                </div>
+            </div>
+
+            <form sec:authorize="isAuthenticated()" th:action="@{/logout}" method="post" class="m-0 ms-2">
+                <button type="submit" class="btn btn-outline-dark btn-sm px-2 py-1" style="font-size: 0.8rem;">
+                    Вийти
+                </button>
+            </form>
+        </div>
+    </div>
+</header>
+</body>
+</html>

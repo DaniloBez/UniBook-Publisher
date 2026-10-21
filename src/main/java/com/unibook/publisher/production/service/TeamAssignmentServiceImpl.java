@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -51,5 +52,10 @@ public class TeamAssignmentServiceImpl implements TeamAssignmentService {
         );
 
         return TeamAssignmentResponse.from(saved);
+    }
+
+    @Override
+    public List<UUID> getManuscriptIdsForUser(UUID userId, UserRole role) {
+        return teamAssignmentRepository.findManuscriptIdsByUserIdAndRole(userId, role);
     }
 }

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="uk">
+<head th:replace="~{fragments/common-head :: styles(${'UniBook - ' + heading})}"></head>
+<body>
+<div th:replace="~{fragments/header :: navbar}"></div>
+
+<main class="container py-3">
+    <div th:if="${successMessage}"
+         class="alert alert-success"
+         th:text="${successMessage}">
+        Рукопис успішно подано.
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h1 class="h3 mb-0" th:text="${heading}">Рукописи</h1>
+        <a sec:authorize="hasRole('AUTHOR')"
+           th:href="@{/manuscripts/new}"
+           class="btn btn-dark">
+            + Подати новий рукопис
+        </a>
+    </div>
+
+    <div class="card p-3">
+        <p th:if="${#lists.isEmpty(manuscripts)}"
+           class="text-muted mb-0">
+            Рукописів ще немає.
+        </p>
+
+        <table th:unless="${#lists.isEmpty(manuscripts)}"
+               class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>#</th>
+                <th>Назва</th>
+                <th>Жанри</th>
+                <th>Статус</th>
+            </tr>
+            </thead>
+
+            <tbody>
+            <tr th:each="manuscript, stat : ${manuscripts}">
+                <td th:text="${stat.count}">1</td>
+
+                <td>
+                    <strong th:text="${manuscript.title}">Назва</strong>
+                </td>
+
+                <td>
+                    <th:block th:each="genreId : ${manuscript.genreIds}">
+                        <span th:each="genre : ${genres}"
+                              th:if="${genre.genreId == genreId}"
+                              class="badge bg-secondary me-1"
+                              th:text="${genre.genreName}">
+                            Жанр
+                        </span>
+                    </th:block>
+                </td>
+
+                <td>
+                    <span class="badge bg-dark"
+                          th:text="${manuscript.status}">
+                        SUBMITTED
+                    </span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+</body>
+</html>

@@ -37,7 +37,8 @@ def coverageExcludes = [
 	'**/controller/**',
 	'**/*Strategy.*',
 	'**/*FileStorage*',
-  '**/*StartupRunner.*'
+  '**/*StartupRunner.*',
+  '**/web/**'
 ]
 
 sonar {

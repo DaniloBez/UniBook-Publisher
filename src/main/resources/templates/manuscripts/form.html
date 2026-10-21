@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security" lang="uk">
+<head th:replace="~{fragments/common-head :: styles('UniBook - Новий рукопис')}"></head>
+<body>
+<div th:replace="~{fragments/header :: navbar}"></div>
+
+<main class="container py-3" style="max-width: 720px;">
+    <h1 class="h3 mb-3">Подати новий рукопис</h1>
+
+    <div class="card p-4">
+        <form th:action="@{/manuscripts/new}"
+              th:object="${manuscriptForm}"
+              method="post"
+              novalidate>
+
+            <div class="mb-3">
+                <label for="title" class="form-label">Назва</label>
+                <input type="text"
+                       id="title"
+                       th:field="*{title}"
+                       class="form-control"
+                       th:classappend="${#fields.hasErrors('title')} ? 'is-invalid'">
+
+                <div class="invalid-feedback"
+                     th:if="${#fields.hasErrors('title')}"
+                     th:errors="*{title}">
+                    Помилка назви
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="annotation" class="form-label">Анотація</label>
+                <textarea id="annotation"
+                          th:field="*{annotation}"
+                          class="form-control"
+                          rows="6"
+                          th:classappend="${#fields.hasErrors('annotation')} ? 'is-invalid'"></textarea>
+
+                <div class="invalid-feedback"
+                     th:if="${#fields.hasErrors('annotation')}"
+                     th:errors="*{annotation}">
+                    Помилка анотації
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label for="draftFileUrl" class="form-label">
+                    Посилання на файл чернетки
+                </label>
+
+                <input type="text"
+                       id="draftFileUrl"
+                       th:field="*{draftFileUrl}"
+                       class="form-control"
+                       th:classappend="${#fields.hasErrors('draftFileUrl')} ? 'is-invalid'">
+
+                <div class="invalid-feedback"
+                     th:if="${#fields.hasErrors('draftFileUrl')}"
+                     th:errors="*{draftFileUrl}">
+                    Помилка посилання
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label d-block">Жанри</label>
+
+                <div class="form-check form-check-inline"
+                     th:each="genre, stat : ${genres}">
+                    <input type="checkbox"
+                           class="form-check-input"
+                           th:id="${'genre-' + stat.index}"
+                           th:field="*{genreIds}"
+                           th:value="${genre.genreId}">
+
+                    <label class="form-check-label"
+                           th:for="${'genre-' + stat.index}"
+                           th:text="${genre.genreName}">
+                        Жанр
+                    </label>
+                </div>
+
+                <div class="text-danger small mt-1"
+                     th:if="${#fields.hasErrors('genreIds')}"
+                     th:errors="*{genreIds}">
+                    Помилка жанрів
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between">
+                <a th:href="@{/manuscripts/my}"
+                   class="btn btn-outline-dark">
+                    Скасувати
+                </a>
+
+                <button type="submit" class="btn btn-dark">
+                    Подати
+                </button>
+            </div>
+        </form>
+    </div>
+</main>
+</body>
+</html>
