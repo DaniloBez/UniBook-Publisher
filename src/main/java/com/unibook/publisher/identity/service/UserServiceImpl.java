@@ -11,6 +11,7 @@ import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.identity.entity.UserProfile;
 import com.unibook.publisher.identity.entity.request.*;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
+import com.unibook.publisher.identity.entity.response.CurrentUserResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.repository.UserRepository;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -92,6 +93,14 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new UserNotFoundException(userId));
 
         return UserResponse.from(user);
+    }
+
+    @Override
+    public CurrentUserResponse getCurrentUser(UUID userId) {
+        User user = userRepository.findByIdWithProfile(userId)
+                .orElseThrow(() -> new UserNotFoundException(userId));
+
+        return CurrentUserResponse.from(user);
     }
 
     @Override

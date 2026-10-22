@@ -4,12 +4,14 @@ import com.unibook.publisher.common.enums.UserRole;
 import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.exception.conflict.EmailAlreadyExistsException;
 import com.unibook.publisher.common.exception.notfound.UserNotFoundException;
+import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
 import com.unibook.publisher.common.security.jwt.JwtService;
 import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.identity.entity.UserProfile;
 import com.unibook.publisher.identity.entity.request.*;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
+import com.unibook.publisher.identity.entity.response.CurrentUserResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
@@ -275,6 +277,33 @@ public class UserServiceImplTest {
         }
 
         @Test
+        @DisplayName("Успішне отримання поточного профілю користувача")
+        void getCurrentUser_Success() {
+            UUID userId = UUID.randomUUID();
+            User user = buildUser(userId, "user@gmail.com", "pass", UserRole.AUTHOR, "User Display");
+
+            when(userRepository.findByIdWithProfile(userId)).thenReturn(Optional.of(user));
+
+            CurrentUserResponse response = userService.getCurrentUser(userId);
+
+            assertThat(response.userId()).isEqualTo(userId);
+            assertThat(response.email()).isEqualTo("user@gmail.com");
+            assertThat(response.displayName()).isEqualTo("User Display");
+            assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
+            assertThat(response.bio()).isEqualTo("Bio text");
+        }
+
+        @Test
+        @DisplayName("Помилка отримання поточного профілю користувача, якщо користувача не знайдено")
+        void getCurrentUser_UserNotFound_ThrowsException() {
+            UUID userId = UUID.randomUUID();
+            when(userRepository.findByIdWithProfile(userId)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> userService.getCurrentUser(userId))
+                    .isInstanceOf(UserNotFoundException.class);
+        }
+
+        @Test
         @DisplayName("Успішне оновлення даних профілю")
         void updateUserProfile_Success() {
             UUID userId = UUID.randomUUID();
@@ -305,6 +334,21 @@ public class UserServiceImplTest {
             assertThatThrownBy(() -> userService.updateUserProfile(userId, asUser(userId), updateRequest))
                     .isInstanceOf(UserNotFoundException.class);
 
+            verify(userRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("Помилка оновлення профілю, якщо користувач не має права редагувати профіль")
+        void updateUserProfile_ForbittenAction_ThrowsException() {
+            UUID profileUserId = UUID.randomUUID();
+            UUID userId = UUID.randomUUID();
+
+            UserProfileUpdateRequest updateRequest = new UserProfileUpdateRequest("New Name", "New Bio", "new.png", "en-US");
+
+            assertThatThrownBy(() -> userService.updateUserProfile(profileUserId, asUser(userId), updateRequest))
+                    .isInstanceOf(ForbiddenActionException.class);
+
+            verify(userRepository, never()).findByIdWithProfile(any());
             verify(userRepository, never()).save(any());
         }
     }
