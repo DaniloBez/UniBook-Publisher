@@ -16,6 +16,8 @@ import com.unibook.publisher.common.exception.state.InvalidStateTransitionExcept
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.common.security.AuthenticatedUser;
+import com.unibook.publisher.identity.api.UserLookupService;
+import com.unibook.publisher.identity.api.UserSummary;
 import com.unibook.publisher.production.entity.*;
 import com.unibook.publisher.production.entity.request.OpenThreadRequest;
 import com.unibook.publisher.production.entity.request.ThreadMessageRequest;
@@ -33,10 +35,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -47,6 +47,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
     private final RevisionRepository revisionRepository;
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final FileStorageService fileStorageService;
+    private final UserLookupService userLookupService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
@@ -55,7 +56,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
             ThreadMessageRepository messageRepository,
             ChapterRepository chapterRepository, RevisionRepository revisionRepository,
             TeamAssignmentRepository teamAssignmentRepository,
-            FileStorageService fileStorageService,
+            FileStorageService fileStorageService, UserLookupService userLookupService,
             ApplicationEventPublisher publisher,
             AppLogger logger
     ) {
@@ -65,6 +66,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         this.revisionRepository = revisionRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
         this.fileStorageService = fileStorageService;
+        this.userLookupService = userLookupService;
         this.publisher = publisher;
         this.logger = logger;
     }
@@ -119,7 +121,11 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
                 chapter.getChapterTitle()
         ));
 
-        return ThreadResponse.from(thread);
+        Map<UUID, UserSummary> userMap = userLookupService.findById(initiatorId)
+                .map(summary -> Map.of(initiatorId, summary))
+                .orElse(Collections.emptyMap());
+
+        return ThreadResponse.from(thread, userMap);
     }
 
     private void validateQuote(OpenThreadRequest request) {
@@ -161,7 +167,17 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         List<FeedbackThread> threads = statusFilter == null
                 ? threadRepository.findByChapterIdWithMessages(chapterId)
                 : threadRepository.findByChapterIdAndStatusWithMessages(chapterId, statusFilter);
-        return threads.stream().map(ThreadResponse::from).toList();
+
+        Set<UUID> senderIds = threads.stream()
+                .flatMap(thread -> thread.getMessages().stream())
+                .map(ThreadMessage::getSenderUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, UserSummary> userMap = userLookupService.findAllByIds(senderIds);
+
+        return threads.stream()
+                .map(thread -> ThreadResponse.from(thread, userMap))
+                .toList();
     }
 
     @Override
@@ -195,7 +211,11 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
                 request.content()
         ));
 
-        return ThreadMessageResponse.from(saved);
+        Map<UUID, UserSummary> userMap = userLookupService.findById(senderId)
+                .map(summary -> Map.of(senderId, summary))
+                .orElseGet(Collections::emptyMap);
+
+        return ThreadMessageResponse.from(saved, userMap);
     }
 
     @Override
@@ -234,7 +254,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
                 userId
         );
 
-        return ThreadResponse.from(updated);
+        return toThreadResponse(updated);
     }
 
     @Override
@@ -273,7 +293,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
                 userId
         );
 
-        return ThreadResponse.from(updated);
+        return toThreadResponse(updated);
     }
 
     @Override
@@ -311,7 +331,7 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
                 userId
         );
 
-        return ThreadResponse.from(updated);
+        return toThreadResponse(updated);
     }
 
     private Manuscript manuscriptOfThread(FeedbackThread thread) {
@@ -346,5 +366,15 @@ public class FeedbackThreadServiceImpl implements FeedbackThreadService {
         threadRepository.delete(thread);
 
         logger.info("Deleted feedback thread {} by user {}", threadId, userId);
+    }
+
+    private ThreadResponse toThreadResponse(FeedbackThread thread) {
+        Set<UUID> senderIds = thread.getMessages().stream()
+                .map(ThreadMessage::getSenderUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, UserSummary> userMap = userLookupService.findAllByIds(senderIds);
+        return ThreadResponse.from(thread, userMap);
     }
 }

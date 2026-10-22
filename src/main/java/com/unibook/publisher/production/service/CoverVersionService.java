@@ -16,5 +16,11 @@ public interface CoverVersionService {
             String contentType,
             String originalFilename
     );
+
+    CoverVersionResponse approveCoverVersion(
+            UUID manuscriptId,
+            UUID coverVersionId,
+            AuthenticatedUser currentUser);
+
     List<CoverVersionResponse> getCoverVersions(UUID manuscriptId);
 }

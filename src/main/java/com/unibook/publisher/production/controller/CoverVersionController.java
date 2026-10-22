@@ -75,4 +75,19 @@ public class CoverVersionController {
     ) {
         return ResponseEntity.ok(coverVersionService.getCoverVersions(id));
     }
+
+    @PatchMapping("/{manuscriptId}/cover-versions/{coverVersionId}/approve")
+    @Operation(summary = "Approve a cover version", description = "Marks the selected cover version as approved for the manuscript")
+    @ApiResponse(responseCode = "200", description = "Cover version successfully approved")
+    @ApiResponse(responseCode = "403", description = "The caller is not allowed to approve this cover version", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "404", description = "Manuscript or cover version not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+    @ApiResponse(responseCode = "422", description = "The manuscript is not in a status that allows approving a cover version", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+    public ResponseEntity<CoverVersionResponse> approveCoverVersion(
+            @Parameter(description = "Manuscript ID", required = true, example = "7c9e6679-7425-40de-944b-e07fc1f90ae7")
+            @PathVariable UUID manuscriptId,
+            @Parameter(description = "Cover version ID", required = true, example = "8c9e6679-7425-40de-944b-e07fc1f90ae7")
+            @PathVariable UUID coverVersionId,
+            @AuthenticationPrincipal AuthenticatedUser currentUser) {
+        return ResponseEntity.ok(coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, currentUser));
+    }
 }

@@ -11,6 +11,8 @@ import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.common.security.AuthenticatedUser;
+import com.unibook.publisher.identity.api.UserLookupService;
+import com.unibook.publisher.identity.api.UserSummary;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
@@ -28,7 +30,9 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -40,6 +44,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
     private final TeamAssignmentService teamAssignmentService;
     private final CoverVersionRepository coverVersionRepository;
     private final ManuscriptAuditLogService manuscriptAuditLogService;
+    private final UserLookupService userLookupService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
@@ -49,7 +54,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
             TeamAssignmentRepository teamAssignmentRepository,
             TeamAssignmentService teamAssignmentService,
             CoverVersionRepository coverVersionRepository,
-            ManuscriptAuditLogService manuscriptAuditLogService,
+            ManuscriptAuditLogService manuscriptAuditLogService, UserLookupService userLookupService,
             ApplicationEventPublisher publisher,
             AppLogger logger
     ) {
@@ -59,6 +64,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
         this.teamAssignmentService = teamAssignmentService;
         this.coverVersionRepository = coverVersionRepository;
         this.manuscriptAuditLogService = manuscriptAuditLogService;
+        this.userLookupService = userLookupService;
         this.publisher = publisher;
         this.logger = logger;
     }
@@ -110,7 +116,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
                 editorId,
                 updated.getAuthorId()
         ));
-        return ManuscriptResponse.from(updated);
+        return toManuscriptResponse(updated);
     }
 
     @Override
@@ -155,7 +161,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
                 UserRole.DESIGNER,
                 updated.getAuthorId()
         ));
-        return ManuscriptResponse.from(updated);
+        return toManuscriptResponse(updated);
     }
 
     @Override
@@ -176,7 +182,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
                     manuscript.getStatus().allowedTransitions()
             );
         }
-        if (!coverVersionRepository.existsByManuscript_ManuscriptId(manuscriptId)) throw new MissingCoverException();
+        if (!coverVersionRepository.existsByManuscript_ManuscriptIdAndApprovedTrue(manuscriptId)) throw new MissingCoverException();
 
         ManuscriptStatus oldStatus = manuscript.getStatus();
         manuscript.setStatus(ManuscriptStatus.PUBLISHED);
@@ -195,7 +201,7 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
                 updated.getTitle(),
                 updated.getAuthorId()
         ));
-        return ManuscriptResponse.from(updated);
+        return toManuscriptResponse(updated);
     }
 
     @Override
@@ -204,5 +210,13 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
             throw new ManuscriptNotFoundException(manuscriptId);
 
         return manuscriptAuditLogService.getAuditLog(manuscriptId);
+    }
+
+    private ManuscriptResponse toManuscriptResponse(Manuscript manuscript) {
+        Map<UUID, UserSummary> userMap = userLookupService.findById(manuscript.getAuthorId())
+                .map(summary -> Map.of(manuscript.getAuthorId(), summary))
+                .orElse(Collections.emptyMap());
+
+        return ManuscriptResponse.from(manuscript, userMap);
     }
 }

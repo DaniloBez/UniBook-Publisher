@@ -277,6 +277,107 @@ public class CoverVersionServiceImplTest {
     }
 
     @Test
+    @DisplayName("Успішне підтвердження обкладинки автором")
+    void approveCoverVersion_Success() {
+        UUID manuscriptId = UUID.randomUUID();
+        UUID coverVersionId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+
+        Manuscript manuscript = new Manuscript(
+                manuscriptId,
+                "Назва",
+                authorId,
+                ManuscriptStatus.IN_DESIGN,
+                Set.of(),
+                "Анотація",
+                "url",
+                Instant.now()
+        );
+
+        CoverVersion coverVersion = new CoverVersion(
+                manuscript,
+                "https://cover.url/1.png",
+                authorId,
+                1,
+                Instant.now()
+        );
+        coverVersion.setId(coverVersionId);
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(coverVersionRepository.findByIdAndManuscriptId(coverVersionId, manuscriptId)).thenReturn(coverVersion);
+        when(coverVersionRepository.save(any(CoverVersion.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        CoverVersionResponse response = coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, asUser(authorId));
+
+        assertNotNull(response);
+        assertTrue(coverVersion.isApproved());
+        verify(coverVersionRepository, times(1)).unapproveAllByManuscript_ManuscriptId(manuscriptId);
+        verify(coverVersionRepository, times(1)).save(coverVersion);
+    }
+
+    @Test
+    @DisplayName("Рукопис не знайдено")
+    void approveCoverVersion_ManuscriptNotFoundException() {
+        UUID manuscriptId = UUID.randomUUID();
+        UUID coverVersionId = UUID.randomUUID();
+        UUID userId = UUID.randomUUID();
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
+        assertThrows(ManuscriptNotFoundException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, asUser(userId)));
+        verify(coverVersionRepository, never()).unapproveAllByManuscript_ManuscriptId(any());
+        verify(coverVersionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Спроба підтвердження не автором рукопису")
+    void approveCoverVersion_ForbiddenActionException() {
+        UUID manuscriptId = UUID.randomUUID();
+        UUID coverVersionId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+        UUID notAuthorId = UUID.randomUUID();
+
+        Manuscript manuscript = new Manuscript(
+                manuscriptId,
+                "Назва",
+                authorId,
+                ManuscriptStatus.IN_DESIGN,
+                Set.of(),
+                "Анотація",
+                "url",
+                Instant.now()
+        );
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        assertThrows(ForbiddenActionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, asUser(notAuthorId)));
+        verify(coverVersionRepository, never()).unapproveAllByManuscript_ManuscriptId(any());
+        verify(coverVersionRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Невалідний статус рукопису")
+    void approveCoverVersion_InvalidStateTransitionException() {
+        UUID manuscriptId = UUID.randomUUID();
+        UUID coverVersionId = UUID.randomUUID();
+        UUID authorId = UUID.randomUUID();
+
+        Manuscript manuscript = new Manuscript(
+                manuscriptId,
+                "Назва",
+                authorId,
+                ManuscriptStatus.SUBMITTED,
+                Set.of(),
+                "Анотація",
+                "url",
+                Instant.now()
+        );
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        assertThrows(InvalidStateTransitionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, asUser(authorId)));
+        verify(coverVersionRepository, never()).unapproveAllByManuscript_ManuscriptId(any());
+        verify(coverVersionRepository, never()).save(any());
+    }
+
+    @Test
     @DisplayName("Успішне отримання списку версій обкладинок рукопису")
     void getCoverVersions_Success() {
         UUID manuscriptId = UUID.randomUUID();

@@ -1,11 +1,9 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.security.AuthenticatedUser;
-import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.event.RevisionAddedEvent;
-import com.unibook.publisher.common.exception.business.BusinessRuleViolationException;
 import com.unibook.publisher.common.exception.badrequest.InvalidFileTypeException;
+import com.unibook.publisher.common.exception.business.BusinessRuleViolationException;
 import com.unibook.publisher.common.exception.business.FileUploadException;
 import com.unibook.publisher.common.exception.notfound.ChapterNotFoundException;
 import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundException;
@@ -14,6 +12,9 @@ import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.common.security.AuthenticatedUser;
+import com.unibook.publisher.identity.api.UserLookupService;
+import com.unibook.publisher.identity.api.UserSummary;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.Revision;
@@ -42,11 +43,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -75,6 +74,9 @@ public class ChapterServiceImplTest {
     private ApplicationEventPublisher publisher;
 
     @Mock
+    private UserLookupService userLookupService;
+
+    @Mock
     private AppLogger logger;
 
     @Mock
@@ -90,7 +92,7 @@ public class ChapterServiceImplTest {
                 authorId,
                 status,
                 Set.of(),
-                "Опис до книги 451 градус по Фаренгейту",
+                "Опис до книги",
                 "url",
                 Instant.now()
         );
@@ -212,6 +214,9 @@ public class ChapterServiceImplTest {
         when(fileStorageService.put(anyString(), any(InputStream.class), anyLong(), anyString())).thenReturn(expectedPath);
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
 
+        UserSummary editorSummary = new UserSummary(editorId, "editor@gmail.com", "Редактор", UserRole.EDITOR, "avatar.png");
+        when(userLookupService.findById(editorId)).thenReturn(Optional.of(editorSummary));
+
         RevisionResponse response = chapterService.uploadRevision(chapterId, asUser(editorId), fileStream, 100L, "text/markdown", "chapter1.md");
         assertNotNull(response);
         assertEquals(1, response.versionNumber());
@@ -235,6 +240,9 @@ public class ChapterServiceImplTest {
         when(revisionRepository.findTopByChapter_ChapterIdOrderByVersionNumberDesc(chapterId)).thenReturn(Optional.empty());
         when(fileStorageService.put(anyString(), any(InputStream.class), anyLong(), anyString())).thenReturn(expectedPath);
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
+
+        UserSummary authorSummary = new UserSummary(authorId, "author@gmail.com", "Автор", UserRole.AUTHOR, "avatar.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
 
         RevisionResponse response = chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, "text/markdown", "chapter1.md");
         assertNotNull(response);
@@ -260,6 +268,9 @@ public class ChapterServiceImplTest {
         when(revisionRepository.findTopByChapter_ChapterIdOrderByVersionNumberDesc(chapterId)).thenReturn(Optional.of(latestRevision));
         when(fileStorageService.put(anyString(), any(InputStream.class), anyLong(), anyString())).thenReturn(expectedPath);
         when(revisionRepository.save(any(Revision.class))).thenAnswer(i -> i.getArgument(0));
+
+        UserSummary authorSummary = new UserSummary(authorId, "author@gmail.com", "Автор", UserRole.AUTHOR, "avatar.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
 
         RevisionResponse response = chapterService.uploadRevision(chapterId, asUser(authorId), fileStream, 100L, "text/markdown", "chapter1.md");
         assertNotNull(response);
@@ -432,6 +443,7 @@ public class ChapterServiceImplTest {
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(revisionRepository.findAllByChapter_ChapterIdOrderByVersionNumberAsc(chapterId)).thenReturn(List.of(revision));
+        when(userLookupService.findAllByIds(any())).thenReturn(Collections.emptyMap());
 
         List<RevisionResponse> revisions = chapterService.getRevisionsByChapterId(chapterId);
 
