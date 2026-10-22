@@ -6,6 +6,7 @@ import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.communication.entity.Notification;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
+import com.unibook.publisher.communication.entity.response.UnreadCountResponse;
 import com.unibook.publisher.communication.repository.NotificationRepository;
 import com.unibook.publisher.common.security.AuthenticatedUser;
 import org.springframework.stereotype.Service;
@@ -62,7 +63,7 @@ public class NotificationServiceImpl implements NotificationService {
         UUID recipientId = currentUser.id();
 
         List<Notification> list = Boolean.TRUE.equals(unreadOnly)
-                ? notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(recipientId)
+                ? notificationRepository.findByRecipientIdAndReadFalseOrderByCreatedAtDesc(recipientId)
                 : notificationRepository.findByRecipientIdOrderByCreatedAtDesc(recipientId);
 
         return list.stream()
@@ -91,5 +92,17 @@ public class NotificationServiceImpl implements NotificationService {
         );
 
         return NotificationResponse.from(updated);
+    }
+
+    @Override
+    public UnreadCountResponse getUnreadCount(UUID userId) {
+        long count = notificationRepository.countByRecipientIdAndReadFalse(userId);
+        return new UnreadCountResponse(count);
+    }
+
+    @Override
+    @Transactional
+    public void markAllAsRead(UUID userId) {
+        notificationRepository.markAllAsReadByUserId(userId);
     }
 }

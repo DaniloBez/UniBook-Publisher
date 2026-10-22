@@ -8,6 +8,7 @@ import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.communication.entity.Notification;
 import com.unibook.publisher.communication.entity.NotificationType;
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
+import com.unibook.publisher.communication.entity.response.UnreadCountResponse;
 import com.unibook.publisher.communication.repository.NotificationRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -156,7 +157,7 @@ class NotificationServiceImplTest {
                     Instant.now()
             );
 
-            when(notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId))
+            when(notificationRepository.findByRecipientIdAndReadFalseOrderByCreatedAtDesc(userId))
                     .thenReturn(List.of(unread));
 
             List<NotificationResponse> result = notificationService.getUserNotifications(asUser(userId), true);
@@ -166,7 +167,7 @@ class NotificationServiceImplTest {
             assertThat(result.getFirst().isRead()).isFalse();
 
             verify(notificationRepository, times(1))
-                    .findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId);
+                    .findByRecipientIdAndReadFalseOrderByCreatedAtDesc(userId);
             verify(notificationRepository, never())
                     .findByRecipientIdOrderByCreatedAtDesc(any());
         }
@@ -302,6 +303,32 @@ class NotificationServiceImplTest {
                     .hasMessage("Можна відмічати тільки свої повідомлення");
 
             verify(notificationRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("Лічильник та позначка всіх сповіщень як непрочитаних")
+    class CountAndBulkReadTests {
+
+        @Test
+        @DisplayName("Успішне отримання кількості непрочитаних сповіщень")
+        void getUnreadCount_Success() {
+            UUID userId = UUID.randomUUID();
+            when(notificationRepository.countByRecipientIdAndReadFalse(userId)).thenReturn(5L);
+
+            UnreadCountResponse response = notificationService.getUnreadCount(userId);
+
+            assertThat(response).isNotNull();
+            assertThat(response.unreadCount()).isEqualTo(5L);
+            verify(notificationRepository, times(1)).countByRecipientIdAndReadFalse(userId);
+        }
+
+        @Test
+        @DisplayName("Успішна позначка всіх сповіщень як прочитаних")
+        void markAllAsRead_Success() {
+            UUID userId = UUID.randomUUID();
+            notificationService.markAllAsRead(userId);
+            verify(notificationRepository, times(1)).markAllAsReadByUserId(userId);
         }
     }
 }
