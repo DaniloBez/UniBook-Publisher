@@ -140,4 +140,17 @@ public class ManuscriptController {
         manuscriptService.deleteManuscript(id);
         return ResponseEntity.noContent().build();
     }
+
+    @GetMapping("/my")
+    @Operation(summary = "Get my manuscripts", description = "Returns manuscripts created by the authenticated user, optionally filtered by status")
+        @ApiResponse(responseCode = "200", description = "My manuscripts successfully retrieved")
+        @ApiResponse(responseCode = "400", description = "Request validation error", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+        @ApiResponse(responseCode = "401", description = "User is not authenticated", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+    public ResponseEntity<List<ManuscriptResponse>> getMyManuscripts(
+            @AuthenticationPrincipal AuthenticatedUser currentUser,
+            @Parameter(description = "Filter: return only manuscripts with this status", example = "SUBMITTED")
+            @RequestParam(required = false) ManuscriptStatus status
+    ) {
+        return ResponseEntity.ok(manuscriptService.getMyManuscripts(currentUser, status));
+    }
 }

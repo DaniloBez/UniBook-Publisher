@@ -1,5 +1,6 @@
 package com.unibook.publisher.common.security;
 
+import com.unibook.publisher.common.enums.UserRole;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
@@ -25,5 +26,14 @@ public record AuthenticatedUser(
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return authorities;
+    }
+
+    public UserRole getUserRole() {
+        if(authorities == null || authorities.isEmpty()) {
+            return null;
+        }
+        String authority = authorities.iterator().next().getAuthority();
+        String role = authority.startsWith("ROLE_") ? authority.substring("ROLE_".length()) : authority;
+        return UserRole.valueOf(role);
     }
 }

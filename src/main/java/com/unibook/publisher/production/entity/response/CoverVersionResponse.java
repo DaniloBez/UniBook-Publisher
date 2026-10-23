@@ -21,6 +21,9 @@ public record CoverVersionResponse(
         @JsonProperty("version_number")
         int versionNumber,
 
+        @JsonProperty("is_approved")
+        boolean isApproved,
+
         @JsonProperty("uploaded_at")
         Instant uploadedAt
 ) {
@@ -31,6 +34,7 @@ public record CoverVersionResponse(
                 coverVersion.getFileUrl(),
                 coverVersion.getUploadedByUserId(),
                 coverVersion.getVersionNumber(),
+                coverVersion.isApproved(),
                 coverVersion.getUploadedAt()
         );
     }

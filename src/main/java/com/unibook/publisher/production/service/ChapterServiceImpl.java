@@ -13,6 +13,8 @@ import com.unibook.publisher.common.exception.state.InvalidStateTransitionExcept
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.common.security.AuthenticatedUser;
+import com.unibook.publisher.identity.api.UserLookupService;
+import com.unibook.publisher.identity.api.UserSummary;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.request.DiffRequest;
@@ -35,9 +37,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional(readOnly = true)
@@ -56,16 +57,18 @@ public class ChapterServiceImpl implements ChapterService {
     private final TeamAssignmentRepository teamAssignmentRepository;
     private final DiffService diffService;
     private final FileStorageService fileStorageService;
+    private final UserLookupService userLookupService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
-    public ChapterServiceImpl(ChapterRepository chapterRepository, ManuscriptRepository manuscriptRepository, RevisionRepository revisionRepository, TeamAssignmentRepository teamAssignmentRepository, DiffService diffService, FileStorageService fileStorageService, ApplicationEventPublisher publisher, AppLogger logger) {
+    public ChapterServiceImpl(ChapterRepository chapterRepository, ManuscriptRepository manuscriptRepository, RevisionRepository revisionRepository, TeamAssignmentRepository teamAssignmentRepository, DiffService diffService, FileStorageService fileStorageService, UserLookupService userLookupService, ApplicationEventPublisher publisher, AppLogger logger) {
         this.chapterRepository = chapterRepository;
         this.manuscriptRepository = manuscriptRepository;
         this.revisionRepository = revisionRepository;
         this.teamAssignmentRepository = teamAssignmentRepository;
         this.diffService = diffService;
         this.fileStorageService = fileStorageService;
+        this.userLookupService = userLookupService;
         this.publisher = publisher;
         this.logger = logger;
     }
@@ -186,7 +189,11 @@ public class ChapterServiceImpl implements ChapterService {
                     manuscript.getAuthorId()
             ));
 
-            return RevisionResponse.from(saved);
+            Map<UUID, UserSummary> userMap = userLookupService.findById(userId)
+                    .map(summary -> Map.of(userId, summary))
+                    .orElse(Collections.emptyMap());
+
+            return RevisionResponse.from(saved, userMap);
         } catch (Exception e) {
             try {
                 fileStorageService.delete(uploadedPath);
@@ -226,8 +233,17 @@ public class ChapterServiceImpl implements ChapterService {
         if(chapterRepository.findById(chapterId).isEmpty()) {
             throw new ChapterNotFoundException(chapterId);
         }
-        return revisionRepository.findAllByChapter_ChapterIdOrderByVersionNumberAsc(chapterId).stream()
-                .map(RevisionResponse::from)
+        List<Revision> revisions = revisionRepository.findAllByChapter_ChapterIdOrderByVersionNumberAsc(chapterId);
+
+        Set<UUID> uploaderIds = revisions.stream()
+                .map(Revision::getUploadedByUserId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, UserSummary> userMap = userLookupService.findAllByIds(uploaderIds);
+
+        return revisions.stream()
+                .map(revision -> RevisionResponse.from(revision, userMap))
                 .toList();
     }
 

@@ -1,8 +1,6 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.security.AuthenticatedUser;
-import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.event.ManuscriptPublishedEvent;
 import com.unibook.publisher.common.event.TextFinalizedEvent;
 import com.unibook.publisher.common.event.WorkerAssignedEvent;
@@ -12,15 +10,18 @@ import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundExcepti
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.common.security.AuthenticatedUser;
+import com.unibook.publisher.identity.api.UserLookupService;
+import com.unibook.publisher.identity.api.UserSummary;
 import com.unibook.publisher.production.entity.Chapter;
 import com.unibook.publisher.production.entity.FeedbackThread;
 import com.unibook.publisher.production.entity.Manuscript;
-import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.TeamAssignment;
 import com.unibook.publisher.production.entity.request.AssignDesignerRequest;
 import com.unibook.publisher.production.entity.response.ManuscriptAuditLogResponse;
 import com.unibook.publisher.production.entity.response.ManuscriptResponse;
 import com.unibook.publisher.production.entity.response.TeamAssignmentResponse;
+import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.enums.SuggestionStatus;
 import com.unibook.publisher.production.enums.ThreadStatus;
 import com.unibook.publisher.production.repository.CoverVersionRepository;
@@ -41,6 +42,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -67,6 +69,9 @@ public class ManuscriptFinalizationServiceImplTest {
     private ManuscriptAuditLogService manuscriptAuditLogService;
 
     @Mock
+    private UserLookupService userLookupService;
+
+    @Mock
     private ApplicationEventPublisher publisher;
 
     @Mock
@@ -75,8 +80,12 @@ public class ManuscriptFinalizationServiceImplTest {
     @InjectMocks
     private ManuscriptFinalizationServiceImpl finalizationService;
 
+    private Manuscript manuscript(UUID manuscriptId, UUID authorId, ManuscriptStatus status) {
+        return new Manuscript(manuscriptId, "Дюна", authorId, status, Set.of(), "Анотація", "url", Instant.now());
+    }
+
     private Manuscript manuscript(UUID manuscriptId, ManuscriptStatus status) {
-        return new Manuscript(manuscriptId, "Дюна", UUID.randomUUID(), status, Set.of(), "Анотація", "url", Instant.now());
+        return manuscript(manuscriptId, UUID.randomUUID(), status);
     }
 
     @Test
@@ -84,7 +93,8 @@ public class ManuscriptFinalizationServiceImplTest {
     void finalizeText_Success() {
         UUID manuscriptId = UUID.randomUUID();
         UUID editorId = UUID.randomUUID();
-        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
+        UUID authorId = UUID.randomUUID();
+        Manuscript manuscript = manuscript(manuscriptId, authorId, ManuscriptStatus.IN_PROGRESS);
         TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
@@ -92,8 +102,12 @@ public class ManuscriptFinalizationServiceImplTest {
         when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of());
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
+        UserSummary authorSummary = new UserSummary(authorId, "Автор", "author@gmail.com", UserRole.AUTHOR, "avatar.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
+
         ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, asUser(editorId));
 
+        assertNotNull(response);
         assertEquals(ManuscriptStatus.TEXT_APPROVED, response.status());
         verify(manuscriptAuditLogService, times(1)).recordStatusChange(manuscriptId, editorId, ManuscriptStatus.IN_PROGRESS, ManuscriptStatus.TEXT_APPROVED);
         verify(publisher, times(1)).publishEvent(any(TextFinalizedEvent.class));
@@ -123,21 +137,6 @@ public class ManuscriptFinalizationServiceImplTest {
 
         AuthenticatedUser editorUser = asUser(editorId);
         assertThrows(UnresolvedThreadsException.class, () -> finalizationService.finalizeText(manuscriptId, editorUser));
-        verify(manuscriptRepository, never()).save(any());
-    }
-
-    @Test
-    @DisplayName("Заборонено публікацію без жодної версії обкладинки")
-    void publish_InvalidStateWhenNoCoverVersion() {
-        UUID manuscriptId = UUID.randomUUID();
-        UUID chiefEditorId = UUID.randomUUID();
-        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
-
-        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(coverVersionRepository.existsByManuscript_ManuscriptId(manuscriptId)).thenReturn(false);
-
-        AuthenticatedUser chiefEditorUser = asUser(chiefEditorId);
-        assertThrows(MissingCoverException.class, () -> finalizationService.publish(manuscriptId, chiefEditorUser));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -197,7 +196,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
 
         AuthenticatedUser editorUser = asUser(editorId);
-        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.finalizeText(manuscriptId, editorUser));
+        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.finalizeText(manuscriptId,editorUser));
         verify(manuscriptRepository, never()).save(any());
     }
 
@@ -234,7 +233,8 @@ public class ManuscriptFinalizationServiceImplTest {
         UUID manuscriptId = UUID.randomUUID();
         UUID chiefEditorId = UUID.randomUUID();
         UUID designerId = UUID.randomUUID();
-        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.TEXT_APPROVED);
+        UUID authorId = UUID.randomUUID();
+        Manuscript manuscript = manuscript(manuscriptId, authorId, ManuscriptStatus.TEXT_APPROVED);
         AssignDesignerRequest request = new AssignDesignerRequest(designerId);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
@@ -242,10 +242,15 @@ public class ManuscriptFinalizationServiceImplTest {
                 .thenReturn(new TeamAssignmentResponse(UUID.randomUUID(), manuscriptId, designerId, UserRole.DESIGNER, Instant.now()));
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
+        UserSummary authorSummary = new UserSummary(authorId, "Автор", "author@gmail.com", UserRole.AUTHOR, "avatar.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
+
         ManuscriptResponse response = finalizationService.assignDesigner(manuscriptId, asUser(chiefEditorId), request);
 
+        assertNotNull(response);
         assertEquals(ManuscriptStatus.IN_DESIGN, response.status());
         verify(teamAssignmentService, times(1)).assign(manuscriptId, designerId, UserRole.DESIGNER);
+        verify(manuscriptAuditLogService, times(1)).recordStatusChange(manuscriptId, chiefEditorId, ManuscriptStatus.TEXT_APPROVED, ManuscriptStatus.IN_DESIGN);
         verify(publisher, times(1)).publishEvent(any(WorkerAssignedEvent.class));
     }
 
@@ -284,16 +289,37 @@ public class ManuscriptFinalizationServiceImplTest {
     void publish_Success() {
         UUID manuscriptId = UUID.randomUUID();
         UUID chiefEditorId = UUID.randomUUID();
-        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
+        UUID authorId = UUID.randomUUID();
+        Manuscript manuscript = manuscript(manuscriptId, authorId, ManuscriptStatus.IN_DESIGN);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(coverVersionRepository.existsByManuscript_ManuscriptId(manuscriptId)).thenReturn(true);
+        when(coverVersionRepository.existsByManuscript_ManuscriptIdAndIsApprovedTrue(manuscriptId)).thenReturn(true);
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserSummary authorSummary = new UserSummary(authorId, "Автор", "author@gmail.com", UserRole.AUTHOR, "avatar.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
 
         ManuscriptResponse response = finalizationService.publish(manuscriptId, asUser(chiefEditorId));
 
+        assertNotNull(response);
         assertEquals(ManuscriptStatus.PUBLISHED, response.status());
+        verify(manuscriptAuditLogService, times(1)).recordStatusChange(manuscriptId, chiefEditorId, ManuscriptStatus.IN_DESIGN, ManuscriptStatus.PUBLISHED);
         verify(publisher, times(1)).publishEvent(any(ManuscriptPublishedEvent.class));
+    }
+
+    @Test
+    @DisplayName("Заборонено публікацію без жодної версії обкладинки")
+    void publish_MissingCoverException() {
+        UUID manuscriptId = UUID.randomUUID();
+        UUID chiefEditorId = UUID.randomUUID();
+        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
+
+        when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
+        when(coverVersionRepository.existsByManuscript_ManuscriptIdAndIsApprovedTrue(manuscriptId)).thenReturn(false);
+
+        AuthenticatedUser chiefEditorUser = asUser(chiefEditorId);
+        assertThrows(MissingCoverException.class, () -> finalizationService.publish(manuscriptId, chiefEditorUser));
+        verify(manuscriptRepository, never()).save(any());
     }
 
     @Test
@@ -356,7 +382,8 @@ public class ManuscriptFinalizationServiceImplTest {
     void finalizeText_SuccessWhenOnlyResolvedNonSuggestionThreadsExist() {
         UUID manuscriptId = UUID.randomUUID();
         UUID editorId = UUID.randomUUID();
-        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
+        UUID authorId = UUID.randomUUID();
+        Manuscript manuscript = manuscript(manuscriptId, authorId, ManuscriptStatus.IN_PROGRESS);
         TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
 
         FeedbackThread resolvedThread = new FeedbackThread(
@@ -374,6 +401,9 @@ public class ManuscriptFinalizationServiceImplTest {
         when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(resolvedThread));
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
+        UserSummary authorSummary = new UserSummary(authorId, "Автор", "author@gmail.com", UserRole.AUTHOR, "avatar.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
+
         ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, asUser(editorId));
 
         assertEquals(ManuscriptStatus.TEXT_APPROVED, response.status());
@@ -385,7 +415,8 @@ public class ManuscriptFinalizationServiceImplTest {
     void finalizeText_SuccessWhenOnlyProcessedSuggestionThreadsExist() {
         UUID manuscriptId = UUID.randomUUID();
         UUID editorId = UUID.randomUUID();
-        Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_PROGRESS);
+        UUID authorId = UUID.randomUUID();
+        Manuscript manuscript = manuscript(manuscriptId, authorId, ManuscriptStatus.IN_PROGRESS);
         TeamAssignment editorAssignment = new TeamAssignment(UUID.randomUUID(), manuscript, editorId, UserRole.EDITOR, Instant.now());
 
         FeedbackThread acceptedSuggestion = new FeedbackThread(
@@ -403,6 +434,9 @@ public class ManuscriptFinalizationServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
         when(threadRepository.findByChapter_Manuscript_ManuscriptId(manuscriptId)).thenReturn(List.of(acceptedSuggestion));
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserSummary authorSummary = new UserSummary(authorId, "Автор", "author@gmail.com", UserRole.AUTHOR, "avatar.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
 
         ManuscriptResponse response = finalizationService.finalizeText(manuscriptId, asUser(editorId));
 

@@ -147,6 +147,33 @@ public class CoverVersionServiceImpl implements CoverVersionService {
         }
     }
 
+    @Override
+    @Transactional
+    public CoverVersionResponse approveCoverVersion(UUID manuscriptId, int versionNumber, AuthenticatedUser currentUser) {
+        Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
+                .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
+
+        if (!manuscript.getAuthorId().equals(currentUser.id())) {
+            throw new ForbiddenActionException("Підтверджувати обкладинку може лише автор рукопису");
+        }
+
+        if (manuscript.getStatus() != ManuscriptStatus.IN_DESIGN) {
+            throw new InvalidStateTransitionException(
+                    "Manuscript",
+                    manuscriptId,
+                    manuscript.getStatus(),
+                    ManuscriptStatus.IN_DESIGN,
+                    manuscript.getStatus().allowedTransitions()
+            );
+        }
+
+        CoverVersion cover = coverVersionRepository.findByManuscript_ManuscriptIdAndVersionNumber(manuscriptId, versionNumber);
+        coverVersionRepository.unapproveAllByManuscript_ManuscriptId(manuscriptId);
+        cover.setApproved(true);
+        CoverVersion saved = coverVersionRepository.save(cover);
+        return CoverVersionResponse.from(saved);
+    }
+
     private void validateImageFile(String contentType, String originalFilename) {
         if (contentType == null || !ALLOWED_CONTENT_TYPES.contains(contentType.toLowerCase())) {
             throw new InvalidFileTypeException(
