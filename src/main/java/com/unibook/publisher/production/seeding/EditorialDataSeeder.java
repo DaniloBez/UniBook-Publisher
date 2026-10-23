@@ -131,9 +131,9 @@ public class EditorialDataSeeder implements ApplicationRunner {
     private void seedCovers() {
         Instant now = Instant.now();
         createCover(SeedConstants.COVER_IN_DESIGN_V1_ID, SeedConstants.MANUSCRIPT_IN_DESIGN_ID,
-                "https://localhost:8080/covers/in-design-v1.png", SeedConstants.DESIGNER_ID, 1, now.minus(2, ChronoUnit.DAYS));
+                "https://localhost:8080/covers/in-design-v1.png", SeedConstants.DESIGNER_ID, 1, false, now.minus(2, ChronoUnit.DAYS));
         createCover(SeedConstants.COVER_PUBLISHED_V1_ID, SeedConstants.MANUSCRIPT_PUBLISHED_ID,
-                "https://localhost:8080/covers/published-v1.png", SeedConstants.DESIGNER_ID, 1, now.minus(10, ChronoUnit.DAYS));
+                "https://localhost:8080/covers/published-v1.png", SeedConstants.DESIGNER_ID, 1, true, now.minus(10, ChronoUnit.DAYS));
     }
 
     private void createChapter(UUID id, UUID manuscriptId, String title, int index) {
@@ -143,7 +143,7 @@ public class EditorialDataSeeder implements ApplicationRunner {
         );
     }
 
-    private void createRevision(UUID id, UUID chapterId, int versionNumber, String fileUrl,UUID uploadedBy, Instant uploadedAt) {
+    private void createRevision(UUID id, UUID chapterId, int versionNumber, String fileUrl, UUID uploadedBy, Instant uploadedAt) {
         jdbcTemplate.update(
                 "INSERT INTO revisions (revision_id, chapter_id, version_number, file_url, uploaded_by_user_id, uploaded_at) VALUES (?, ?, ?, ?, ?, ?)",
                 id, chapterId, versionNumber, fileUrl, uploadedBy, Timestamp.from(uploadedAt)
@@ -168,10 +168,10 @@ public class EditorialDataSeeder implements ApplicationRunner {
         );
     }
 
-    private void createCover(UUID id, UUID manuscriptId, String fileUrl, UUID uploadedBy, int versionNumber, Instant uploadedAt) {
+    private void createCover(UUID id, UUID manuscriptId, String fileUrl, UUID uploadedBy, int versionNumber, boolean isApproved, Instant uploadedAt) {
         jdbcTemplate.update(
-                "INSERT INTO cover_versions (id, manuscript_id, file_url, uploaded_by_user_id, version_number, uploaded_at) VALUES (?, ?, ?, ?, ?, ?)",
-                id, manuscriptId, fileUrl, uploadedBy, versionNumber, Timestamp.from(uploadedAt)
+                "INSERT INTO cover_versions (id, manuscript_id, file_url, uploaded_by_user_id, version_number, is_approved, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                id, manuscriptId, fileUrl, uploadedBy, versionNumber, isApproved, Timestamp.from(uploadedAt)
         );
     }
 

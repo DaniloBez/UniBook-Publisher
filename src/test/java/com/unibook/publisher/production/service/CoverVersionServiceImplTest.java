@@ -323,7 +323,9 @@ public class CoverVersionServiceImplTest {
         UUID userId = UUID.randomUUID();
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
-        assertThrows(ManuscriptNotFoundException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, asUser(userId)));
+
+        AuthenticatedUser user = asUser(userId);
+        assertThrows(ManuscriptNotFoundException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, user));
         verify(coverVersionRepository, never()).unapproveAllByManuscript_ManuscriptId(any());
         verify(coverVersionRepository, never()).save(any());
     }
@@ -348,7 +350,10 @@ public class CoverVersionServiceImplTest {
         );
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(ForbiddenActionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, asUser(notAuthorId)));
+
+        AuthenticatedUser notAuthorUser = asUser(notAuthorId);
+        assertThrows(ForbiddenActionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, notAuthorUser));
+
         verify(coverVersionRepository, never()).unapproveAllByManuscript_ManuscriptId(any());
         verify(coverVersionRepository, never()).save(any());
     }
@@ -372,7 +377,10 @@ public class CoverVersionServiceImplTest {
         );
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        assertThrows(InvalidStateTransitionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, asUser(authorId)));
+
+        AuthenticatedUser authorUser = asUser(authorId);
+        assertThrows(InvalidStateTransitionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, authorUser));
+
         verify(coverVersionRepository, never()).unapproveAllByManuscript_ManuscriptId(any());
         verify(coverVersionRepository, never()).save(any());
     }

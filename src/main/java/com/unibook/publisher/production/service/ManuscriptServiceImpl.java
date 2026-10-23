@@ -52,13 +52,11 @@ public class ManuscriptServiceImpl implements ManuscriptService {
         UserRole role = currentUser.getUserRole();
 
         List<Manuscript> manuscripts;
-        if(role == UserRole.AUTHOR) {
-            manuscripts = manuscriptRepository.findByAuthorIdWithGenres(userId);
-        } else if (role == UserRole.EDITOR || role == UserRole.DESIGNER) {
-            manuscripts = manuscriptRepository.findByAssignedUserIdWithGenres(userId);
-        } else {
-            manuscripts = manuscriptRepository.findAllWithGenres(); //CHIEF_EDITOR
-        }
+        manuscripts = switch (role) {
+            case AUTHOR -> manuscriptRepository.findByAuthorIdWithGenres(userId);
+            case EDITOR, DESIGNER -> manuscriptRepository.findByAssignedUserIdWithGenres(userId);
+            default -> manuscriptRepository.findAllWithGenres();
+        };
 
         if(status != null) {
             manuscripts = manuscripts.stream()

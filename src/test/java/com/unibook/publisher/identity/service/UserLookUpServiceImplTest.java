@@ -97,8 +97,7 @@ public class UserLookUpServiceImplTest {
 
         Map<UUID, UserSummary> result = userLookupService.findAllByIds(ids);
 
-        assertThat(result).hasSize(2);
-        assertThat(result).containsKeys(id1, id2);
+        assertThat(result).hasSize(2).containsKeys(id1, id2);
         assertThat(result.get(id1).displayName()).isEqualTo("Author One");
         assertThat(result.get(id2).displayName()).isEqualTo("Editor Two");
 

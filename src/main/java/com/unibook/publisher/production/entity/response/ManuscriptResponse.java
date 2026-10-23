@@ -2,7 +2,6 @@ package com.unibook.publisher.production.entity.response;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.unibook.publisher.identity.api.UserSummary;
-import com.unibook.publisher.production.entity.Genre;
 import com.unibook.publisher.production.enums.ManuscriptStatus;
 import com.unibook.publisher.production.entity.Manuscript;
 
