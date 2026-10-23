@@ -197,7 +197,7 @@ public class ManuscriptServiceImplTest {
     }
 
     @Test
-    void getMyManuscripts_AsChiefEditor_Success() {
+    void getMyManuscripts_ChiefEditor_Success() {
         UUID chiefEditorId = UUID.randomUUID();
         UUID authorId = UUID.randomUUID();
         AuthenticatedUser chiefEditorUser = new AuthenticatedUser(
