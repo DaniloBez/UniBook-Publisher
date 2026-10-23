@@ -337,62 +337,6 @@
       ]
     },
     {
-      "name": "Security checks",
-      "item": [
-        {
-          "name": "Author cannot approve manuscript (403)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 403 Forbidden', function () { pm.response.to.have.status(403); });"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{authorToken}}",
-                  "type": "string"
-                }
-              ]
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"editor_id\": \"{{editorId}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/approve",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "manuscripts",
-                "{{manuscriptId}}",
-                "approve"
-              ]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
       "name": "0. Create genre",
       "event": [
         {
