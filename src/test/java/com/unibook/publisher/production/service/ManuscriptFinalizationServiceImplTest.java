@@ -309,7 +309,7 @@ public class ManuscriptFinalizationServiceImplTest {
 
     @Test
     @DisplayName("Заборонено публікацію без жодної версії обкладинки")
-    void publish_InvalidStateWhenNoCoverVersion() {
+    void publish_MissingCoverException() {
         UUID manuscriptId = UUID.randomUUID();
         UUID chiefEditorId = UUID.randomUUID();
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
@@ -318,7 +318,7 @@ public class ManuscriptFinalizationServiceImplTest {
         when(coverVersionRepository.existsByManuscript_ManuscriptIdAndApprovedTrue(manuscriptId)).thenReturn(false);
 
         AuthenticatedUser chiefEditorUser = asUser(chiefEditorId);
-        assertThrows(InvalidStateTransitionException.class, () -> finalizationService.publish(manuscriptId, chiefEditorUser));
+        assertThrows(MissingCoverException.class, () -> finalizationService.publish(manuscriptId, chiefEditorUser));
         verify(manuscriptRepository, never()).save(any());
     }
 
