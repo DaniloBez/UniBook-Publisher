@@ -743,12 +743,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status is 200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "pm.test('status is IN_DESIGN', function () {",
-              "    pm.expect(pm.response.json().status).to.eql('IN_DESIGN');",
-              "});"
+              "pm.test('Status is 200 OK', function () {\n    pm.response.to.have.status(200);\n});\npm.test('status is IN_DESIGN', function () {\n    pm.expect(pm.response.json().status).to.eql('IN_DESIGN');\n});"
             ]
           }
         }
@@ -773,7 +768,12 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"designer_id\": \"{{designerId}}\"\n}"
+          "raw": "{\n  \"designer_id\": \"{{designerId}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "text"
+            }
+          }
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/assign-designer",
@@ -799,16 +799,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status is 200 OK', function () {",
-              "    pm.response.to.have.status(200);",
-              "});",
-              "const body = pm.response.json();",
-              "pm.test('version_number is 1', function () {",
-              "    pm.expect(String(body.version_number)).to.eql('1');",
-              "});",
-              "pm.test('uploaded_by_user_id matches the designer', function () {",
-              "    pm.expect(body.uploaded_by_user_id).to.eql(pm.collectionVariables.get('designerId'));",
-              "});"
+              "pm.test('Status is 200 OK', function () {\n    pm.response.to.have.status(200);\n});\nconst body = pm.response.json();\npm.test('version_number is 1', function () {\n    pm.expect(String(body.version_number)).to.eql('1');\n});\npm.test('uploaded_by_user_id matches the designer', function () {\n    pm.expect(body.uploaded_by_user_id).to.eql(pm.collectionVariables.get('designerId'));\n});\npm.collectionVariables.set('versionNumber', body.version_number);"
             ]
           }
         }
@@ -855,11 +846,44 @@
     },
     {
       "name": "8. Author approves cover",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Status is 200 OK', function () {\r\n    pm.response.to.have.status(200);\r\n});\r\n"
+            ]
+          }
+        }
+      ],
       "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{authorToken}}",
+              "type": "string"
+            }
+          ]
+        },
         "method": "PATCH",
         "header": [],
         "url": {
-          "raw": ""
+          "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/cover-versions/{{versionNumber}}/approve",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "manuscripts",
+            "{{manuscriptId}}",
+            "cover-versions",
+            "{{versionNumber}}",
+            "approve"
+          ]
         }
       },
       "response": []
