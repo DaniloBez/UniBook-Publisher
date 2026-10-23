@@ -17,11 +17,11 @@ public interface CoverVersionRepository extends JpaRepository<CoverVersion, UUID
 
     Optional<CoverVersion> findTopByManuscript_ManuscriptIdOrderByVersionNumberDesc(UUID manuscriptId);
 
-    boolean existsByManuscript_ManuscriptIdAndApprovedTrue(UUID manuscriptId);
+    boolean existsByManuscript_ManuscriptIdAndIsApprovedTrue(UUID manuscriptId);
 
     @Modifying
     @Query("UPDATE CoverVersion c SET c.isApproved = false WHERE c.manuscript.manuscriptId = :manuscriptId AND c.isApproved = true")
     void unapproveAllByManuscript_ManuscriptId(@Param("manuscriptId") UUID manuscriptId);
 
-    CoverVersion findByIdAndManuscriptId(UUID id, UUID manuscriptId);
+    CoverVersion findByManuscript_ManuscriptIdAndVersionNumber(UUID manuscriptId, int versionNumber);
 }

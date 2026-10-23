@@ -19,7 +19,7 @@ public interface CoverVersionService {
 
     CoverVersionResponse approveCoverVersion(
             UUID manuscriptId,
-            UUID coverVersionId,
+            int versionNumber,
             AuthenticatedUser currentUser);
 
     List<CoverVersionResponse> getCoverVersions(UUID manuscriptId);

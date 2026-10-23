@@ -280,7 +280,7 @@ public class CoverVersionServiceImplTest {
     @DisplayName("Успішне підтвердження обкладинки автором")
     void approveCoverVersion_Success() {
         UUID manuscriptId = UUID.randomUUID();
-        UUID coverVersionId = UUID.randomUUID();
+        int versionNumber = 1;
         UUID authorId = UUID.randomUUID();
 
         Manuscript manuscript = new Manuscript(
@@ -298,16 +298,15 @@ public class CoverVersionServiceImplTest {
                 manuscript,
                 "https://cover.url/1.png",
                 authorId,
-                1,
+                versionNumber,
                 Instant.now()
         );
-        coverVersion.setId(coverVersionId);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(coverVersionRepository.findByIdAndManuscriptId(coverVersionId, manuscriptId)).thenReturn(coverVersion);
+        when(coverVersionRepository.findByManuscript_ManuscriptIdAndVersionNumber(manuscriptId, versionNumber)).thenReturn(coverVersion);
         when(coverVersionRepository.save(any(CoverVersion.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        CoverVersionResponse response = coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, asUser(authorId));
+        CoverVersionResponse response = coverVersionService.approveCoverVersion(manuscriptId, versionNumber, asUser(authorId));
 
         assertNotNull(response);
         assertTrue(coverVersion.isApproved());
@@ -319,13 +318,13 @@ public class CoverVersionServiceImplTest {
     @DisplayName("Рукопис не знайдено")
     void approveCoverVersion_ManuscriptNotFoundException() {
         UUID manuscriptId = UUID.randomUUID();
-        UUID coverVersionId = UUID.randomUUID();
+        int versionNumber = 1;
         UUID userId = UUID.randomUUID();
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.empty());
 
         AuthenticatedUser user = asUser(userId);
-        assertThrows(ManuscriptNotFoundException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, user));
+        assertThrows(ManuscriptNotFoundException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, versionNumber, user));
         verify(coverVersionRepository, never()).unapproveAllByManuscript_ManuscriptId(any());
         verify(coverVersionRepository, never()).save(any());
     }
@@ -334,7 +333,7 @@ public class CoverVersionServiceImplTest {
     @DisplayName("Спроба підтвердження не автором рукопису")
     void approveCoverVersion_ForbiddenActionException() {
         UUID manuscriptId = UUID.randomUUID();
-        UUID coverVersionId = UUID.randomUUID();
+        int versionNumber = 1;
         UUID authorId = UUID.randomUUID();
         UUID notAuthorId = UUID.randomUUID();
 
@@ -352,7 +351,7 @@ public class CoverVersionServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
 
         AuthenticatedUser notAuthorUser = asUser(notAuthorId);
-        assertThrows(ForbiddenActionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, notAuthorUser));
+        assertThrows(ForbiddenActionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, versionNumber, notAuthorUser));
 
         verify(coverVersionRepository, never()).unapproveAllByManuscript_ManuscriptId(any());
         verify(coverVersionRepository, never()).save(any());
@@ -362,7 +361,7 @@ public class CoverVersionServiceImplTest {
     @DisplayName("Невалідний статус рукопису")
     void approveCoverVersion_InvalidStateTransitionException() {
         UUID manuscriptId = UUID.randomUUID();
-        UUID coverVersionId = UUID.randomUUID();
+        int versionNumber = 1;
         UUID authorId = UUID.randomUUID();
 
         Manuscript manuscript = new Manuscript(
@@ -379,7 +378,7 @@ public class CoverVersionServiceImplTest {
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
 
         AuthenticatedUser authorUser = asUser(authorId);
-        assertThrows(InvalidStateTransitionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, coverVersionId, authorUser));
+        assertThrows(InvalidStateTransitionException.class, () -> coverVersionService.approveCoverVersion(manuscriptId, versionNumber, authorUser));
 
         verify(coverVersionRepository, never()).unapproveAllByManuscript_ManuscriptId(any());
         verify(coverVersionRepository, never()).save(any());

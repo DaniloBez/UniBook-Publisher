@@ -148,7 +148,8 @@ public class CoverVersionServiceImpl implements CoverVersionService {
     }
 
     @Override
-    public CoverVersionResponse approveCoverVersion(UUID manuscriptId, UUID coverVersionId, AuthenticatedUser currentUser) {
+    @Transactional
+    public CoverVersionResponse approveCoverVersion(UUID manuscriptId, int versionNumber, AuthenticatedUser currentUser) {
         Manuscript manuscript = manuscriptRepository.findById(manuscriptId)
                 .orElseThrow(() -> new ManuscriptNotFoundException(manuscriptId));
 
@@ -166,7 +167,7 @@ public class CoverVersionServiceImpl implements CoverVersionService {
             );
         }
 
-        CoverVersion cover = coverVersionRepository.findByIdAndManuscriptId(coverVersionId, manuscriptId);
+        CoverVersion cover = coverVersionRepository.findByManuscript_ManuscriptIdAndVersionNumber(manuscriptId, versionNumber);
         coverVersionRepository.unapproveAllByManuscript_ManuscriptId(manuscriptId);
         cover.setApproved(true);
         CoverVersion saved = coverVersionRepository.save(cover);

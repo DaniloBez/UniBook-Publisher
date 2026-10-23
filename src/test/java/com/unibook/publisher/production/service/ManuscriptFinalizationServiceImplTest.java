@@ -293,7 +293,7 @@ public class ManuscriptFinalizationServiceImplTest {
         Manuscript manuscript = manuscript(manuscriptId, authorId, ManuscriptStatus.IN_DESIGN);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(coverVersionRepository.existsByManuscript_ManuscriptIdAndApprovedTrue(manuscriptId)).thenReturn(true);
+        when(coverVersionRepository.existsByManuscript_ManuscriptIdAndIsApprovedTrue(manuscriptId)).thenReturn(true);
         when(manuscriptRepository.save(any(Manuscript.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         UserSummary authorSummary = new UserSummary(authorId, "Автор", "author@gmail.com", UserRole.AUTHOR, "avatar.png");
@@ -315,7 +315,7 @@ public class ManuscriptFinalizationServiceImplTest {
         Manuscript manuscript = manuscript(manuscriptId, ManuscriptStatus.IN_DESIGN);
 
         when(manuscriptRepository.findById(manuscriptId)).thenReturn(Optional.of(manuscript));
-        when(coverVersionRepository.existsByManuscript_ManuscriptIdAndApprovedTrue(manuscriptId)).thenReturn(false);
+        when(coverVersionRepository.existsByManuscript_ManuscriptIdAndIsApprovedTrue(manuscriptId)).thenReturn(false);
 
         AuthenticatedUser chiefEditorUser = asUser(chiefEditorId);
         assertThrows(MissingCoverException.class, () -> finalizationService.publish(manuscriptId, chiefEditorUser));

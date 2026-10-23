@@ -157,7 +157,7 @@ class NotificationServiceImplTest {
                     Instant.now()
             );
 
-            when(notificationRepository.findByRecipientIdAndReadFalseOrderByCreatedAtDesc(userId))
+            when(notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId))
                     .thenReturn(List.of(unread));
 
             List<NotificationResponse> result = notificationService.getUserNotifications(asUser(userId), true);
@@ -167,7 +167,7 @@ class NotificationServiceImplTest {
             assertThat(result.getFirst().isRead()).isFalse();
 
             verify(notificationRepository, times(1))
-                    .findByRecipientIdAndReadFalseOrderByCreatedAtDesc(userId);
+                    .findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(userId);
             verify(notificationRepository, never())
                     .findByRecipientIdOrderByCreatedAtDesc(any());
         }
@@ -314,13 +314,13 @@ class NotificationServiceImplTest {
         @DisplayName("Успішне отримання кількості непрочитаних сповіщень")
         void getUnreadCount_Success() {
             UUID userId = UUID.randomUUID();
-            when(notificationRepository.countByRecipientIdAndReadFalse(userId)).thenReturn(5L);
+            when(notificationRepository.countByRecipientIdAndIsReadFalse(userId)).thenReturn(5L);
 
             UnreadCountResponse response = notificationService.getUnreadCount(userId);
 
             assertThat(response).isNotNull();
             assertThat(response.unreadCount()).isEqualTo(5L);
-            verify(notificationRepository, times(1)).countByRecipientIdAndReadFalse(userId);
+            verify(notificationRepository, times(1)).countByRecipientIdAndIsReadFalse(userId);
         }
 
         @Test

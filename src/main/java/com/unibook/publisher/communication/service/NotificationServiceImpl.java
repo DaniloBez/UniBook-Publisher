@@ -63,7 +63,7 @@ public class NotificationServiceImpl implements NotificationService {
         UUID recipientId = currentUser.id();
 
         List<Notification> list = Boolean.TRUE.equals(unreadOnly)
-                ? notificationRepository.findByRecipientIdAndReadFalseOrderByCreatedAtDesc(recipientId)
+                ? notificationRepository.findByRecipientIdAndIsReadFalseOrderByCreatedAtDesc(recipientId)
                 : notificationRepository.findByRecipientIdOrderByCreatedAtDesc(recipientId);
 
         return list.stream()
@@ -96,7 +96,7 @@ public class NotificationServiceImpl implements NotificationService {
 
     @Override
     public UnreadCountResponse getUnreadCount(UUID userId) {
-        long count = notificationRepository.countByRecipientIdAndReadFalse(userId);
+        long count = notificationRepository.countByRecipientIdAndIsReadFalse(userId);
         return new UnreadCountResponse(count);
     }
 

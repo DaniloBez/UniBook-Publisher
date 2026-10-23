@@ -182,7 +182,8 @@ public class ManuscriptFinalizationServiceImpl implements ManuscriptFinalization
                     manuscript.getStatus().allowedTransitions()
             );
         }
-        if (!coverVersionRepository.existsByManuscript_ManuscriptIdAndApprovedTrue(manuscriptId)) throw new MissingCoverException();
+
+        if (!coverVersionRepository.existsByManuscript_ManuscriptIdAndIsApprovedTrue(manuscriptId)) throw new MissingCoverException();
 
         ManuscriptStatus oldStatus = manuscript.getStatus();
         manuscript.setStatus(ManuscriptStatus.PUBLISHED);
