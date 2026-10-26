@@ -76,6 +76,11 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-validation-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+	testImplementation 'org.testcontainers:testcontainers-postgresql'
+	testImplementation 'org.awaitility:awaitility'
+	testRuntimeOnly 'org.reactivestreams:reactive-streams'
+	testImplementation 'com.microsoft.playwright:playwright:1.52.0'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -92,10 +97,53 @@ dependencyManagement {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	useJUnitPlatform {
+		excludeTags 'integration', 'e2e' // Тільки швидкі юніт-тести
+	}
 	jvmArgs '-XX:+EnableDynamicAgentLoading'
 	// в jdk 21+ треба надавати підтвердження, щоб mockito міг мокати класи, інакше буде попередження
 	finalizedBy jacocoTestReport
+}
+
+tasks.register('integrationTest', Test) {
+	description = 'Запуск інтеграційних тестів із Testcontainers'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'integration'
+	}
+	// Інтеграційних тестів поки немає — не валимо збірку через порожній набір
+	failOnNoDiscoveredTests = false
+	shouldRunAfter test
+}
+
+tasks.register('e2eTest', Test) {
+	description = 'Запуск end-to-end REST та Playwright UI тестів'
+	group = 'verification'
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
+	useJUnitPlatform {
+		includeTags 'e2e'
+	}
+	shouldRunAfter integrationTest
+	systemProperty 'playwright.headless', System.getProperty('playwright.headless', 'true')
+	testLogging {
+		events 'passed', 'skipped', 'failed'
+		exceptionFormat = 'full'
+	}
+}
+
+tasks.register('playwrightInstall', JavaExec) {
+	description = 'Завантажує Chromium для Playwright UI тестів'
+	group = 'verification'
+	classpath = sourceSets.test.runtimeClasspath
+	mainClass = 'com.microsoft.playwright.CLI'
+	args 'install', 'chromium'
+}
+
+tasks.named('check') {
+	dependsOn test, integrationTest, e2eTest
 }
 
 jacocoTestReport {
