@@ -113,8 +113,6 @@ tasks.register('integrationTest', Test) {
 	useJUnitPlatform {
 		includeTags 'integration'
 	}
-	// Інтеграційних тестів поки немає — не валимо збірку через порожній набір
-	failOnNoDiscoveredTests = false
 	shouldRunAfter test
 }
 

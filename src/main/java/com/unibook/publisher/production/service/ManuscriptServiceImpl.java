@@ -315,6 +315,7 @@ public class ManuscriptServiceImpl implements ManuscriptService {
     }
 
     @Override
+    @Transactional
     public void deleteManuscript(UUID id) {
         Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
                 .orElseThrow(() -> new ManuscriptNotFoundException(id));

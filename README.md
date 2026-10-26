@@ -594,14 +594,18 @@ docker compose up -d
 # Інтеграційні тести з Testcontainers (тег "integration")
 ./gradlew integrationTest --no-daemon
 
-# Наскрізні тести: REST-сценарії та Playwright UI (тег "e2e", потрібен Docker)
+# Наскрізні тести: REST-сценарії та Playwright UI (docker required)
 ./gradlew e2eTest --no-daemon
 
 # Усі три рівні тестів
 ./gradlew check --no-daemon
 ```
 
-E2E-тести піднімають PostgreSQL 17 у Docker через Testcontainers і звертаються до застосунку за реальним HTTP-портом (`RANDOM_PORT`). Для UI-сценаріїв Playwright один раз завантажте Chromium:
+Інтеграційні та E2E тести піднімають PostgreSQL 17 у Docker через Testcontainers і звертаються до застосунку за реальним HTTP-портом (`RANDOM_PORT`) і використовують `MockMvc` для запитів через API ендпоінти
+
+Інтреграційні тести використовують `JdbcClient` для прямої перевірки змін у PostgreSQL.
+
+Для UI-сценаріїв Playwright один раз завантажте Chromium:
 ```bash
 ./gradlew playwrightInstall
 ```
@@ -614,11 +618,11 @@ E2E-тести піднімають PostgreSQL 17 у Docker через Testconta
 # Лише Playwright UI-сценарії
 ./gradlew e2eTest --tests '*ManuscriptUiE2ETest' --no-daemon
 
-# Playwright із видимим вікном браузера (за замовчуванням — headless)
+# Playwright із видимим вікном браузера (а за замовчуванням headless)
 ./gradlew e2eTest --tests '*ManuscriptUiE2ETest' -Dplaywright.headless=false --no-daemon
 ```
 
-Скріншоти падінь і trace-файли Playwright зберігаються у `build/reports/playwright/<клас>-<тест>/`.
+Скріншоти і trace-файли Playwright зберігаються у `build/reports/playwright/<клас>-<тест>/`.
 
 5. Запустити застосунок локально:
 ```bash
