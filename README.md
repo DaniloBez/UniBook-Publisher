@@ -570,7 +570,7 @@ docker compose down
 
 1. Клонувати репозиторій:
 ```bash
-git clone https://github.com/DaniloBez/UniBook-Publisher.git
+git clone https://github.com/UniBook-Publisher/backend.git
 cd publisher
 ```
 
