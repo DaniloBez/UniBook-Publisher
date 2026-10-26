@@ -17,10 +17,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 
 @Component
-public class ProblemDetailAuthentificationEntryPoint implements AuthenticationEntryPoint {
+public class ProblemDetailAuthenticationEntryPoint implements AuthenticationEntryPoint {
     private final ObjectMapper mapper;
 
-    public ProblemDetailAuthentificationEntryPoint(ObjectMapper mapper) {
+    public ProblemDetailAuthenticationEntryPoint(ObjectMapper mapper) {
         this.mapper = mapper;
     }
 

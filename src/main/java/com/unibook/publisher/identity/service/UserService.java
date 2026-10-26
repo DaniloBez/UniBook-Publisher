@@ -4,6 +4,7 @@ import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.identity.entity.request.*;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
+import com.unibook.publisher.identity.entity.response.CurrentUserResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 
 import java.util.List;
@@ -18,6 +19,8 @@ public interface UserService {
     AuthResponse refreshToken(RefreshTokenRequest request);
 
     UserResponse getUserProfile(UUID userId);
+
+    CurrentUserResponse getCurrentUser(UUID userId);
 
     UserResponse updateUserProfile(UUID profileUserId, AuthenticatedUser currentUser, UserProfileUpdateRequest request);
 

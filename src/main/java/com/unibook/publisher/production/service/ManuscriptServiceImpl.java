@@ -7,6 +7,8 @@ import com.unibook.publisher.common.exception.notfound.ManuscriptNotFoundExcepti
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.logging.AppLogger;
 import com.unibook.publisher.common.security.AuthenticatedUser;
+import com.unibook.publisher.identity.api.UserLookupService;
+import com.unibook.publisher.identity.api.UserSummary;
 import com.unibook.publisher.production.entity.Genre;
 import com.unibook.publisher.production.entity.Manuscript;
 import com.unibook.publisher.production.entity.request.*;
@@ -20,11 +22,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @Transactional(readOnly = true)
@@ -33,15 +33,46 @@ public class ManuscriptServiceImpl implements ManuscriptService {
     private final ManuscriptRepository manuscriptRepository;
     private final GenreRepository genreRepository;
     private final TeamAssignmentService teamAssignmentService;
+    private final UserLookupService userLookupService;
     private final ApplicationEventPublisher publisher;
     private final AppLogger logger;
 
-    public ManuscriptServiceImpl(ManuscriptRepository manuscriptRepository, GenreRepository genreRepository, TeamAssignmentService teamAssignmentService, ApplicationEventPublisher publisher, AppLogger logger) {
+    public ManuscriptServiceImpl(ManuscriptRepository manuscriptRepository, GenreRepository genreRepository, TeamAssignmentService teamAssignmentService, UserLookupService userLookupService, ApplicationEventPublisher publisher, AppLogger logger) {
         this.manuscriptRepository = manuscriptRepository;
         this.genreRepository = genreRepository;
         this.teamAssignmentService = teamAssignmentService;
+        this.userLookupService = userLookupService;
         this.publisher = publisher;
         this.logger = logger;
+    }
+
+    @Override
+    public List<ManuscriptResponse> getMyManuscripts(AuthenticatedUser currentUser, ManuscriptStatus status) {
+        UUID userId = currentUser.id();
+        UserRole role = currentUser.getUserRole();
+
+        List<Manuscript> manuscripts;
+        manuscripts = switch (Objects.requireNonNull(role)) {
+            case AUTHOR -> manuscriptRepository.findByAuthorIdWithGenres(userId);
+            case EDITOR, DESIGNER -> manuscriptRepository.findByAssignedUserIdWithGenres(userId);
+            default -> manuscriptRepository.findAllWithGenres();
+        };
+
+        if(status != null) {
+            manuscripts = manuscripts.stream()
+                    .filter(m -> m.getStatus() == status)
+                    .toList();
+        }
+
+        Set<UUID> authorIds = manuscripts.stream()
+                .map(Manuscript::getAuthorId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, UserSummary> userMap = userLookupService.findAllByIds(authorIds);
+        return manuscripts.stream()
+                .map(m -> ManuscriptResponse.from(m, userMap))
+                .toList();
     }
 
     @Override
@@ -49,14 +80,23 @@ public class ManuscriptServiceImpl implements ManuscriptService {
     public ManuscriptResponse getManuscriptById(UUID id) {
         Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
                 .orElseThrow(() -> new ManuscriptNotFoundException(id));
-        return ManuscriptResponse.from(manuscript);
+        return toManuscriptResponse(manuscript);
     }
 
     @Override
     @PreAuthorize("hasAnyRole('CHIEF_EDITOR', 'ACCOUNTANT', 'ADMIN')")
     public List<ManuscriptResponse> getManuscripts(ManuscriptStatus status) {
         List<Manuscript> manuscripts = (status == null) ? manuscriptRepository.findAllWithGenres() : manuscriptRepository.findByStatusWithGenres(status);
-        return manuscripts.stream().map(ManuscriptResponse::from).toList();
+        Set<UUID> userIds = manuscripts.stream()
+                .flatMap(m -> Stream.of(m.getAuthorId()))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<UUID, UserSummary> userMap = userLookupService.findAllByIds(userIds);
+
+        return manuscripts.stream()
+                .map(m -> ManuscriptResponse.from(m, userMap))
+                .toList();
     }
 
     @Override
@@ -72,7 +112,15 @@ public class ManuscriptServiceImpl implements ManuscriptService {
             }
             manuscripts = manuscriptRepository.findAllByIdWithGenres(manuscriptIds);
         }
-        return manuscripts.stream().map(ManuscriptResponse::from).toList();
+
+        Set<UUID> authorIds = manuscripts.stream()
+                .map(Manuscript::getAuthorId)
+                .collect(Collectors.toSet());
+        Map<UUID, UserSummary> userMap = userLookupService.findAllByIds(authorIds);
+
+        return manuscripts.stream()
+                .map(m -> ManuscriptResponse.from(m, userMap))
+                .toList();
     }
 
     @Override
@@ -81,8 +129,7 @@ public class ManuscriptServiceImpl implements ManuscriptService {
     public ManuscriptResponse approveManuscript(UUID id, AuthenticatedUser currentUser, ManuscriptApprovalRequest request) {
         UUID chiefEditorId = currentUser.id();
 
-        Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id)
-                .orElseThrow(() -> new ManuscriptNotFoundException(id));
+        Manuscript manuscript = manuscriptRepository.findByIdWithGenres(id).orElseThrow(() -> new ManuscriptNotFoundException(id));
         if (!manuscript.getStatus().canTransitionTo(ManuscriptStatus.IN_PROGRESS)) {
             throw new InvalidStateTransitionException(
                     "Manuscript",
@@ -118,7 +165,7 @@ public class ManuscriptServiceImpl implements ManuscriptService {
                 request.editorId(),
                 UserRole.EDITOR,
                 updated.getAuthorId()));
-        return ManuscriptResponse.from(updated);
+        return toManuscriptResponse(updated);
     }
 
     @Override
@@ -157,7 +204,7 @@ public class ManuscriptServiceImpl implements ManuscriptService {
                 updated.getAuthorId(),
                 request.reason()
         ));
-        return ManuscriptResponse.from(updated);
+        return toManuscriptResponse(updated);
     }
 
     @Override
@@ -196,7 +243,7 @@ public class ManuscriptServiceImpl implements ManuscriptService {
                 updated.getAuthorId(),
                 request.comment()
         ));
-        return ManuscriptResponse.from(updated);
+        return toManuscriptResponse(updated);
     }
 
     @Override
@@ -233,7 +280,7 @@ public class ManuscriptServiceImpl implements ManuscriptService {
                 saved.getTitle(),
                 saved.getAuthorId()
         ));
-        return ManuscriptResponse.from(saved);
+        return toManuscriptResponse(saved);
     }
 
     @Override
@@ -264,7 +311,7 @@ public class ManuscriptServiceImpl implements ManuscriptService {
         logger.info("Updated manuscript {}: title='{}', genres={}",
                 id, updated.getTitle(), updated.getGenres().size());
 
-        return ManuscriptResponse.from(updated);
+        return toManuscriptResponse(updated);
     }
 
     @Override
@@ -275,5 +322,13 @@ public class ManuscriptServiceImpl implements ManuscriptService {
         manuscriptRepository.save(manuscript);
         manuscriptRepository.delete(manuscript);
         logger.info("Deleted manuscript {} '{}'", id, manuscript.getTitle());
+    }
+
+    private ManuscriptResponse toManuscriptResponse(Manuscript manuscript) {
+        Map<UUID, UserSummary> userMap = userLookupService.findById(manuscript.getAuthorId())
+                .map(summary -> Map.of(manuscript.getAuthorId(), summary))
+                .orElse(Collections.emptyMap());
+
+        return ManuscriptResponse.from(manuscript, userMap);
     }
 }

@@ -3,6 +3,7 @@ package com.unibook.publisher.identity.controller;
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.identity.entity.request.UserProfileUpdateRequest;
+import com.unibook.publisher.identity.entity.response.CurrentUserResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 import com.unibook.publisher.identity.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -65,5 +66,13 @@ public class UserController {
             @RequestParam(required = false) UserRole role
     ) {
         return ResponseEntity.ok(userService.getUsers(role));
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Get current user profile", description = "Returns the profile of the authenticated user")
+    @ApiResponse(responseCode = "200", description = "Current user profile found")
+    @ApiResponse(responseCode = "404", description = "User not found", content = @Content(schema = @Schema(implementation = ProblemDetail.class)))
+    public ResponseEntity<CurrentUserResponse> getCurrentUser(@AuthenticationPrincipal AuthenticatedUser user) {
+        return ResponseEntity.ok(userService.getCurrentUser(user.id()));
     }
 }

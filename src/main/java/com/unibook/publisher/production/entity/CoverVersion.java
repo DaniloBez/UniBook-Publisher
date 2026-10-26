@@ -37,6 +37,9 @@ public class CoverVersion {
     @Column(name = "version_number", nullable = false)
     private int versionNumber;
 
+    @Column(name = "is_approved", nullable = false)
+    private boolean isApproved = false;
+
     @Column(name = "uploaded_at", nullable = false)
     private Instant uploadedAt;
 

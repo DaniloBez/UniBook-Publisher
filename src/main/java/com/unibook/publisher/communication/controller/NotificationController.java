@@ -1,6 +1,7 @@
 package com.unibook.publisher.communication.controller;
 
 import com.unibook.publisher.communication.entity.response.NotificationResponse;
+import com.unibook.publisher.communication.entity.response.UnreadCountResponse;
 import com.unibook.publisher.communication.service.NotificationService;
 import com.unibook.publisher.common.security.AuthenticatedUser;
 import io.swagger.v3.oas.annotations.Operation;
@@ -49,5 +50,24 @@ public class NotificationController {
             @PathVariable UUID id
     ) {
         return ResponseEntity.ok(notificationService.markAsRead(id, currentUser));
+    }
+
+    @GetMapping("/unread-count")
+    @Operation(summary = "Get unread notifications count", description = "Returns the number of unread notifications for the current user")
+    @ApiResponse(responseCode = "200", description = "Unread count successfully retrieved")
+    public ResponseEntity<UnreadCountResponse> getUnreadCount(
+            @AuthenticationPrincipal AuthenticatedUser currentUser
+    ) {
+        return ResponseEntity.ok(notificationService.getUnreadCount(currentUser.id()));
+    }
+
+    @PatchMapping("/read-all")
+    @Operation(summary = "Mark all notifications as read", description = "Marks every notification belonging to the current user as read")
+    @ApiResponse(responseCode = "204", description = "All notifications successfully marked as read")
+    public ResponseEntity<Void> markAllAsRead(
+            @AuthenticationPrincipal AuthenticatedUser currentUser
+    ) {
+        notificationService.markAllAsRead(currentUser.id());
+        return ResponseEntity.noContent().build();
     }
 }

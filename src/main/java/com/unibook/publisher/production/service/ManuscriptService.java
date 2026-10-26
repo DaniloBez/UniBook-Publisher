@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface ManuscriptService {
+    List<ManuscriptResponse> getMyManuscripts(AuthenticatedUser currentUser, ManuscriptStatus status);
     ManuscriptResponse getManuscriptById(UUID id);
     List<ManuscriptResponse> getManuscripts(ManuscriptStatus status);
     List<ManuscriptResponse> getManuscriptsForUser(UUID userId, UserRole role);

@@ -1,8 +1,7 @@
 package com.unibook.publisher.production.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import com.unibook.publisher.common.security.AuthenticatedUser;
-import static com.unibook.publisher.testutil.TestUsers.asUser;
+import com.unibook.publisher.common.event.ThreadMessageAddedEvent;
 import com.unibook.publisher.common.event.ThreadOpenedEvent;
 import com.unibook.publisher.common.exception.business.EmptyRevisionTextException;
 import com.unibook.publisher.common.exception.business.InvalidQuoteException;
@@ -15,6 +14,9 @@ import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.state.InvalidStateTransitionException;
 import com.unibook.publisher.common.exception.storage.FileReadException;
 import com.unibook.publisher.common.logging.AppLogger;
+import com.unibook.publisher.common.security.AuthenticatedUser;
+import com.unibook.publisher.identity.api.UserLookupService;
+import com.unibook.publisher.identity.api.UserSummary;
 import com.unibook.publisher.production.entity.*;
 import com.unibook.publisher.production.entity.request.OpenThreadRequest;
 import com.unibook.publisher.production.entity.request.ThreadMessageRequest;
@@ -38,11 +40,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
@@ -60,9 +60,6 @@ public class FeedbackThreadServiceImplTest {
     private ChapterRepository chapterRepository;
 
     @Mock
-    private ManuscriptRepository manuscriptRepository;
-
-    @Mock
     private TeamAssignmentRepository teamAssignmentRepository;
 
     @Mock
@@ -70,6 +67,9 @@ public class FeedbackThreadServiceImplTest {
 
     @Mock
     private FileStorageService fileStorageService;
+
+    @Mock
+    private UserLookupService userLookupService;
 
     @Mock
     private ApplicationEventPublisher publisher;
@@ -122,6 +122,9 @@ public class FeedbackThreadServiceImplTest {
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserSummary authorSummary = new UserSummary(authorId, "author@gmail.com", "Автор", UserRole.AUTHOR, "https://avatar.url/1.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
 
         ThreadResponse response = threadService.openThread(chapterId, asUser(authorId), new OpenThreadRequest("Погляньте на цей абзац", null, null, null, null, null));
 
@@ -197,6 +200,9 @@ public class FeedbackThreadServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
+        UserSummary authorSummary = new UserSummary(authorId, "author@gmail.com", "Автор", UserRole.AUTHOR, "https://avatar.url/1.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
+
         ThreadResponse response = threadService.openThread(chapterId, asUser(authorId),
                 new OpenThreadRequest("Погляньте на цей абзац", "новий текст", null, null, null, null));
 
@@ -216,6 +222,7 @@ public class FeedbackThreadServiceImplTest {
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(threadRepository.findByChapterIdWithMessages(chapterId)).thenReturn(List.of(thread));
+        when(userLookupService.findAllByIds(any())).thenReturn(Collections.emptyMap());
 
         List<ThreadResponse> responses = threadService.getThreads(chapterId, null);
 
@@ -242,6 +249,7 @@ public class FeedbackThreadServiceImplTest {
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(threadRepository.findByChapterIdWithMessages(chapterId)).thenReturn(List.of());
+        when(userLookupService.findAllByIds(any())).thenReturn(Collections.emptyMap());
 
         threadService.getThreads(chapterId, null);
 
@@ -258,6 +266,7 @@ public class FeedbackThreadServiceImplTest {
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(threadRepository.findByChapterIdAndStatusWithMessages(chapterId, ThreadStatus.RESOLVED)).thenReturn(List.of());
+        when(userLookupService.findAllByIds(any())).thenReturn(Collections.emptyMap());
 
         threadService.getThreads(chapterId, ThreadStatus.RESOLVED);
 
@@ -281,10 +290,14 @@ public class FeedbackThreadServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
         when(messageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
+        UserSummary authorSummary = new UserSummary(authorId, "author@gmail.com", "Автор", UserRole.AUTHOR, "https://avatar.url/1.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
+
         ThreadMessageResponse response = threadService.addMessage(threadId, asUser(authorId), new ThreadMessageRequest("Дякую за фідбек"));
 
         assertEquals("Дякую за фідбек", response.content());
         verify(messageRepository, times(1)).save(any());
+        verify(publisher, times(1)).publishEvent(any(ThreadMessageAddedEvent.class));
     }
 
     @Test
@@ -305,10 +318,14 @@ public class FeedbackThreadServiceImplTest {
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.of(editorAssignment));
         when(messageRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
+        UserSummary editorSummary = new UserSummary(editorId, "editor@gmail.com", "Редактор", UserRole.EDITOR, "https://avatar.url/1.png");
+        when(userLookupService.findById(editorId)).thenReturn(Optional.of(editorSummary));
+
         ThreadMessageResponse response = threadService.addMessage(threadId, asUser(editorId), new ThreadMessageRequest("Виправлено"));
 
         assertEquals("Виправлено", response.content());
         verify(messageRepository, times(1)).save(any());
+        verify(publisher, times(1)).publishEvent(any(ThreadMessageAddedEvent.class));
     }
 
     @Test
@@ -363,6 +380,7 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.findAllByIds(any())).thenReturn(Collections.emptyMap());
 
         ThreadResponse response = threadService.acceptSuggestion(threadId, asUser(authorId));
 
@@ -434,6 +452,7 @@ public class FeedbackThreadServiceImplTest {
 
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.findAllByIds(any())).thenReturn(Collections.emptyMap());
 
         ThreadResponse response = threadService.rejectSuggestion(threadId, asUser(authorId));
 
@@ -525,6 +544,7 @@ public class FeedbackThreadServiceImplTest {
         when(threadRepository.findById(threadId)).thenReturn(Optional.of(thread));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(any(), any())).thenReturn(Optional.empty());
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(userLookupService.findAllByIds(any())).thenReturn(Collections.emptyMap());
 
         ThreadResponse response = threadService.resolveThread(threadId, asUser(authorId));
 
@@ -604,6 +624,9 @@ public class FeedbackThreadServiceImplTest {
 
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserSummary authorSummary = new UserSummary(authorId, "author@gmail.com", "Автор", UserRole.AUTHOR, "https://avatar.url/1.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
 
         OpenThreadRequest request1 = new OpenThreadRequest(
                 "Початкове повідомлення",
@@ -769,6 +792,9 @@ public class FeedbackThreadServiceImplTest {
                 .thenReturn(new ByteArrayInputStream("Текст для перевірки".getBytes(StandardCharsets.UTF_8)));
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
+        UserSummary authorSummary = new UserSummary(authorId, "author@gmail.com", "Автор", UserRole.AUTHOR, "https://avatar.url/1.png");
+        when(userLookupService.findById(authorId)).thenReturn(Optional.of(authorSummary));
+
         OpenThreadRequest request = new OpenThreadRequest(
                 "Початкове повідомлення",
                 null,
@@ -904,6 +930,9 @@ public class FeedbackThreadServiceImplTest {
         when(chapterRepository.findById(chapterId)).thenReturn(Optional.of(chapter));
         when(teamAssignmentRepository.findByManuscript_ManuscriptIdAndRole(manuscriptId, UserRole.EDITOR)).thenReturn(Optional.of(editorAssignment));
         when(threadRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+
+        UserSummary editorSummary = new UserSummary(editorId, "editor@gmail.com", "Редактор", UserRole.EDITOR, "https://avatar.url/1.png");
+        when(userLookupService.findById(editorId)).thenReturn(Optional.of(editorSummary));
 
         ThreadResponse response = threadService.openThread(chapterId, asUser(editorId), new OpenThreadRequest("Зауваження від редактора", null, null, null, null, null));
 
