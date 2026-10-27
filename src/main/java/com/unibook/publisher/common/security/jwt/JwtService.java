@@ -48,7 +48,7 @@ public class JwtService {
                 .compact();
     }
 
-    public String generateRefreshToken(UserDetails details) {
+    public String generateRefreshToken(UserDetails details, String jti) {
         Instant now = Instant.now();
         Instant expiration = now.plusMillis(refreshExpirationMillis);
         List<String> authorities = details.getAuthorities().stream()
@@ -56,6 +56,7 @@ public class JwtService {
                 .toList();
 
         return Jwts.builder()
+                .id(jti)
                 .subject(details.getUsername())
                 .claim("role", authorities)
                 .claim("type", "refresh")
@@ -77,6 +78,10 @@ public class JwtService {
         return parseClaims(token).getSubject();
     }
 
+    public String extractJti(String token) {
+        return parseClaims(token).getId();
+    }
+
     public long getAccessExpirationInSeconds() {
         return accessExpirationMillis / 1000;
     }
@@ -87,5 +92,9 @@ public class JwtService {
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
+    }
+
+    public long getRefreshExpirationInSeconds() {
+        return refreshExpirationMillis / 1000;
     }
 }

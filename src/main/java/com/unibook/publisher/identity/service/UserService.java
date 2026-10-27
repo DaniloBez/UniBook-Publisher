@@ -3,7 +3,7 @@ package com.unibook.publisher.identity.service;
 import com.unibook.publisher.common.enums.UserRole;
 import com.unibook.publisher.common.security.AuthenticatedUser;
 import com.unibook.publisher.identity.entity.request.*;
-import com.unibook.publisher.identity.entity.response.AuthResponse;
+import com.unibook.publisher.identity.entity.response.AuthResult;
 import com.unibook.publisher.identity.entity.response.CurrentUserResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
 
@@ -12,11 +12,13 @@ import java.util.UUID;
 
 public interface UserService {
 
-    AuthResponse register(RegisterRequest request);
+    AuthResult register(RegisterRequest request);
 
-    AuthResponse login(LoginRequest request);
+    AuthResult login(LoginRequest request);
 
-    AuthResponse refreshToken(RefreshTokenRequest request);
+    AuthResult refreshToken(String request);
+
+    void logout(String refreshToken);
 
     UserResponse getUserProfile(UUID userId);
 

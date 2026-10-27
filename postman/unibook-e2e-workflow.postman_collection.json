@@ -2,10 +2,8 @@
   "info": {
     "_postman_id": "ef0d969c-5f95-49a6-b751-13c73401c0fe",
     "name": "UniBook Publisher - E2E Workflow",
-    "description": "End-to-end workflow: author submits -> chief editor approves + assigns editor -> author adds and updates chapter -> editor finalizes text -> chief editor assigns designer -> designer uploads cover -> chief editor publishes -> author gets contract (polling) -> author verifies contract.\n\nRun with Newman from the folder that contains cover.png (a 1x1 PNG):\n  newman run unibook-e2e-workflow.postman_collection.json --working-dir .\n\nCreate cover.png with:\n  echo 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==' | base64 -d > cover.png\n\nOverride the base URL with: --env-var baseUrl=http://host:port",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "58686239",
-    "_collection_link": "https://go.postman.co/collection/58686239-ef0d969c-5f95-49a6-b751-13c73401c0fe?source=collection_link"
+    "description": "End-to-end workflow: author submits -> chief editor approves + assigns editor -> author adds and updates chapter -> editor finalizes text -> chief editor assigns designer -> designer uploads cover -> chief editor publishes -> author gets contract (polling) -> author verifies contract.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
@@ -21,9 +19,8 @@
                 "exec": [
                   "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
                   "const body = pm.response.json();",
-                  "pm.test('access_token and refresh_token are returned', function () {",
+                  "pm.test('access_token is returned', function () {",
                   "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
-                  "    pm.expect(body.refresh_token).to.be.a('string').and.not.empty;",
                   "    pm.expect(body.expires_in).to.be.a('number');",
                   "});",
                   "pm.collectionVariables.set('chiefEditorToken', body.access_token);",
@@ -46,15 +43,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
             }
           },
           "response": []
@@ -69,9 +59,8 @@
                 "exec": [
                   "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
                   "const body = pm.response.json();",
-                  "pm.test('access_token and refresh_token are returned', function () {",
+                  "pm.test('access_token is returned', function () {",
                   "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
-                  "    pm.expect(body.refresh_token).to.be.a('string').and.not.empty;",
                   "    pm.expect(body.expires_in).to.be.a('number');",
                   "});",
                   "pm.collectionVariables.set('editorToken', body.access_token);",
@@ -94,15 +83,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
             }
           },
           "response": []
@@ -117,9 +99,8 @@
                 "exec": [
                   "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
                   "const body = pm.response.json();",
-                  "pm.test('access_token and refresh_token are returned', function () {",
+                  "pm.test('access_token is returned', function () {",
                   "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
-                  "    pm.expect(body.refresh_token).to.be.a('string').and.not.empty;",
                   "    pm.expect(body.expires_in).to.be.a('number');",
                   "});",
                   "pm.collectionVariables.set('designerToken', body.access_token);",
@@ -142,15 +123,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
             }
           },
           "response": []
@@ -165,14 +139,11 @@
                 "exec": [
                   "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
                   "const body = pm.response.json();",
-                  "pm.test('access_token and refresh_token are returned', function () {",
+                  "pm.test('access_token is returned', function () {",
                   "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
-                  "    pm.expect(body.refresh_token).to.be.a('string').and.not.empty;",
                   "    pm.expect(body.expires_in).to.be.a('number');",
                   "});",
                   "pm.collectionVariables.set('authorToken', body.access_token);",
-                  "pm.collectionVariables.set('authorId', body.user_id);",
-                  "pm.collectionVariables.set('authorRefreshToken', body.refresh_token);",
                   "pm.collectionVariables.set('authorId', body.user_id);"
                 ]
               }
@@ -192,15 +163,37 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh author tokens",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('new access_token is returned', function () {",
+                  "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set('authorToken', body.access_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "refresh"]
             }
           },
           "response": []
@@ -215,9 +208,8 @@
                 "exec": [
                   "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
                   "const body = pm.response.json();",
-                  "pm.test('access_token and refresh_token are returned', function () {",
+                  "pm.test('access_token is returned', function () {",
                   "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
-                  "    pm.expect(body.refresh_token).to.be.a('string').and.not.empty;",
                   "    pm.expect(body.expires_in).to.be.a('number');",
                   "});",
                   "pm.collectionVariables.set('accountantToken', body.access_token);",
@@ -240,62 +232,8 @@
             },
             "url": {
               "raw": "{{baseUrl}}/api/v1/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "login"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Refresh author tokens",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('Status is 200 OK', function () { pm.response.to.have.status(200); });",
-                  "const body = pm.response.json();",
-                  "pm.test('new token pair is returned', function () {",
-                  "    pm.expect(body.access_token).to.be.a('string').and.not.empty;",
-                  "    pm.expect(body.refresh_token).to.be.a('string').and.not.empty;",
-                  "});",
-                  "pm.collectionVariables.set('authorToken', body.access_token);",
-                  "pm.collectionVariables.set('authorRefreshToken', body.refresh_token);"
-                ]
-              }
-            }
-          ],
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"{{authorRefreshToken}}\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/v1/auth/refresh",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "auth",
-                "refresh"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "auth", "login"]
             }
           },
           "response": []
@@ -322,14 +260,8 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/v1/genres",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "api",
-                "v1",
-                "genres"
-              ]
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "genres"]
             }
           },
           "response": []
@@ -351,7 +283,6 @@
               "pm.test('genre_id is not empty', function () {",
               "    pm.expect(body.genre_id).to.be.a('string').and.not.empty;",
               "});",
-              "// Save genre id for the next step",
               "pm.collectionVariables.set('genreId', body.genre_id);"
             ]
           }
@@ -381,14 +312,8 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/genres",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "genres"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "genres"]
         }
       },
       "response": []
@@ -414,7 +339,6 @@
               "pm.test('author_id matches the author', function () {",
               "    pm.expect(body.author_id).to.eql(pm.collectionVariables.get('authorId'));",
               "});",
-              "// Save manuscript id for all following steps",
               "pm.collectionVariables.set('manuscriptId', body.manuscript_id);"
             ]
           }
@@ -444,14 +368,8 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/manuscripts",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "manuscripts"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts"]
         }
       },
       "response": []
@@ -498,16 +416,8 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/approve",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "manuscripts",
-            "{{manuscriptId}}",
-            "approve"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "approve"]
         }
       },
       "response": []
@@ -533,7 +443,6 @@
               "pm.test('chapter_index is 1', function () {",
               "    pm.expect(String(body.chapter_index)).to.eql('1');",
               "});",
-              "// Save chapter id for the update step",
               "pm.collectionVariables.set('chapterId', body.chapter_id);"
             ]
           }
@@ -563,16 +472,8 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/chapters",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "manuscripts",
-            "{{manuscriptId}}",
-            "chapters"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "chapters"]
         }
       },
       "response": []
@@ -619,15 +520,8 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/chapters/{{chapterId}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "chapters",
-            "{{chapterId}}"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "chapters", "{{chapterId}}"]
         }
       },
       "response": []
@@ -665,16 +559,8 @@
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/finalize-text",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "manuscripts",
-            "{{manuscriptId}}",
-            "finalize-text"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "finalize-text"]
         }
       },
       "response": []
@@ -721,16 +607,8 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/assign-designer",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "manuscripts",
-            "{{manuscriptId}}",
-            "assign-designer"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "assign-designer"]
         }
       },
       "response": []
@@ -774,16 +652,8 @@
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/cover-versions",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "manuscripts",
-            "{{manuscriptId}}",
-            "cover-versions"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "cover-versions"]
         }
       },
       "response": []
@@ -816,9 +686,7 @@
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/cover-versions/{{versionNumber}}/approve",
-          "host": [
-            "{{baseUrl}}"
-          ],
+          "host": ["{{baseUrl}}"],
           "path": [
             "api",
             "v1",
@@ -840,7 +708,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status is 200 OK', function () {\n    pm.response.to.have.status(200);\n});\npm.test('status is PUBLISHED', function () {\n    pm.expect(pm.response.json().status).to.eql('PUBLISHED');\n});\n// Reset the polling state before the contract lookup step\npm.collectionVariables.set('contractAttempt', '0');\npm.collectionVariables.set('contractId', '');"
+              "pm.test('Status is 200 OK', function () {\n    pm.response.to.have.status(200);\n});\npm.test('status is PUBLISHED', function () {\n    pm.expect(pm.response.json().status).to.eql('PUBLISHED');\n});\npm.collectionVariables.set('contractAttempt', '0');\npm.collectionVariables.set('contractId', '');"
             ]
           }
         }
@@ -860,16 +728,8 @@
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/manuscripts/{{manuscriptId}}/publish",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "manuscripts",
-            "{{manuscriptId}}",
-            "publish"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "manuscripts", "{{manuscriptId}}", "publish"]
         }
       },
       "response": []
@@ -891,7 +751,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "const MAX_ATTEMPTS = 15;\nconst attempt = parseInt(pm.collectionVariables.get('contractAttempt') || '0', 10) + 1;\npm.collectionVariables.set('contractAttempt', String(attempt));\n\npm.test('Status is 200 OK (attempt ' + attempt + ')', function () {\n    pm.response.to.have.status(200);\n});\n\nlet contractId = '';\ntry {\n    const body = pm.response.json();\n    const contract = Array.isArray(body) ? body[0] : body;\n    contractId = (contract && contract.contract_id) || '';\n} catch (e) {\n    contractId = '';\n}\n\nif (contractId) {\n    // Contract found: store it and continue with the next request\n    pm.collectionVariables.set('contractId', contractId);\n    pm.test('contract_id is not empty', function () {\n        pm.expect(contractId).to.be.a('string').and.not.empty;\n    });\n} else if (attempt < MAX_ATTEMPTS) {\n    // Contract not created yet: run this same request again\n    postman.setNextRequest('9. Author gets contract (polling)');\n} else {\n    // Out of attempts: fail the run explicitly\n    pm.test('contract_id found within ' + MAX_ATTEMPTS + ' attempts', function () {\n        pm.expect.fail('Contract was not created in time');\n    });\n}"
+              "const MAX_ATTEMPTS = 15;\nconst attempt = parseInt(pm.collectionVariables.get('contractAttempt') || '0', 10) + 1;\npm.collectionVariables.set('contractAttempt', String(attempt));\n\npm.test('Status is 200 OK (attempt ' + attempt + ')', function () {\n    pm.response.to.have.status(200);\n});\n\nlet contractId = '';\ntry {\n    const body = pm.response.json();\n    const contract = Array.isArray(body) ? body[0] : body;\n    contractId = (contract && contract.contract_id) || '';\n} catch (e) {\n    contractId = '';\n}\n\nif (contractId) {\n    pm.collectionVariables.set('contractId', contractId);\n    pm.test('contract_id is not empty', function () {\n        pm.expect(contractId).to.be.a('string').and.not.empty;\n    });\n} else if (attempt < MAX_ATTEMPTS) {\n    postman.setNextRequest('10. Author gets contract (polling)');\n} else {\n    pm.test('contract_id found within ' + MAX_ATTEMPTS + ' attempts', function () {\n        pm.expect.fail('Contract was not created in time');\n    });\n}"
             ]
           }
         }
@@ -911,14 +771,8 @@
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/contracts?manuscriptId={{manuscriptId}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "contracts"
-          ],
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "contracts"],
           "query": [
             {
               "key": "manuscriptId",
@@ -937,7 +791,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "pm.test('Status is 200 OK', function () {\n    pm.response.to.have.status(200);\n});\nconst body = pm.response.json();\n// Verify the contract belongs to this manuscript and author\npm.test('contract.manuscript_id matches the manuscript', function () {\n    pm.expect(body.manuscript_id).to.eql(pm.collectionVariables.get('manuscriptId'));\n});\npm.test('contract.author_id matches the author', function () {\n    pm.expect(body.author_id).to.eql(pm.collectionVariables.get('authorId'));\n});"
+              "pm.test('Status is 200 OK', function () {\n    pm.response.to.have.status(200);\n});\nconst body = pm.response.json();\npm.test('contract.manuscript_id matches the manuscript', function () {\n    pm.expect(body.manuscript_id).to.eql(pm.collectionVariables.get('manuscriptId'));\n});\npm.test('contract.author_id matches the author', function () {\n    pm.expect(body.author_id).to.eql(pm.collectionVariables.get('authorId'));\n});"
             ]
           }
         }
@@ -957,15 +811,8 @@
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/contracts/{{contractId}}",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "contracts",
-            "{{contractId}}"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "contracts", "{{contractId}}"]
         }
       },
       "response": []
@@ -998,15 +845,8 @@
         "header": [],
         "url": {
           "raw": "{{baseUrl}}/api/v1/auth/logout",
-          "host": [
-            "{{baseUrl}}"
-          ],
-          "path": [
-            "api",
-            "v1",
-            "auth",
-            "logout"
-          ]
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "logout"]
         }
       },
       "response": []
@@ -1018,7 +858,6 @@
       "script": {
         "type": "text/javascript",
         "exec": [
-          "// Generate a unique timestamp once per run so the collection can be re-run safely",
           "if (!pm.collectionVariables.get('ts')) {",
           "    pm.collectionVariables.set('ts', String(Date.now()));",
           "}"
@@ -1027,109 +866,29 @@
     }
   ],
   "variable": [
-    {
-      "key": "baseUrl",
-      "value": "http://localhost:8080"
-    },
-    {
-      "key": "genreId",
-      "value": ""
-    },
-    {
-      "key": "manuscriptId",
-      "value": ""
-    },
-    {
-      "key": "chapterId",
-      "value": ""
-    },
-    {
-      "key": "contractId",
-      "value": ""
-    },
-    {
-      "key": "contractAttempt",
-      "value": "0"
-    },
-    {
-      "key": "password",
-      "value": "SuperSecretPassword123!"
-    },
-    {
-      "key": "chiefEditorEmail",
-      "value": "chief.editor@unibook-demo.local"
-    },
-    {
-      "key": "chiefEditorToken",
-      "value": ""
-    },
-    {
-      "key": "chiefEditorId",
-      "value": ""
-    },
-    {
-      "key": "editorEmail",
-      "value": "editor@unibook-demo.local"
-    },
-    {
-      "key": "editorToken",
-      "value": ""
-    },
-    {
-      "key": "editorId",
-      "value": ""
-    },
-    {
-      "key": "designerEmail",
-      "value": "designer@unibook-demo.local"
-    },
-    {
-      "key": "designerToken",
-      "value": ""
-    },
-    {
-      "key": "designerId",
-      "value": ""
-    },
-    {
-      "key": "authorEmail",
-      "value": "author1@unibook-demo.local"
-    },
-    {
-      "key": "authorToken",
-      "value": ""
-    },
-    {
-      "key": "authorId",
-      "value": ""
-    },
-    {
-      "key": "accountantEmail",
-      "value": "accountant@unibook-demo.local"
-    },
-    {
-      "key": "accountantToken",
-      "value": ""
-    },
-    {
-      "key": "accountantId",
-      "value": ""
-    },
-    {
-      "key": "refreshToken",
-      "value": ""
-    },
-    {
-      "key": "authorRefreshToken",
-      "value": ""
-    },
-    {
-      "key": "ts",
-      "value": ""
-    },
-    {
-      "key": "versionNumber",
-      "value": ""
-    }
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "genreId", "value": "" },
+    { "key": "manuscriptId", "value": "" },
+    { "key": "chapterId", "value": "" },
+    { "key": "contractId", "value": "" },
+    { "key": "contractAttempt", "value": "0" },
+    { "key": "password", "value": "SuperSecretPassword123!" },
+    { "key": "chiefEditorEmail", "value": "chief.editor@unibook-demo.local" },
+    { "key": "chiefEditorToken", "value": "" },
+    { "key": "chiefEditorId", "value": "" },
+    { "key": "editorEmail", "value": "editor@unibook-demo.local" },
+    { "key": "editorToken", "value": "" },
+    { "key": "editorId", "value": "" },
+    { "key": "designerEmail", "value": "designer@unibook-demo.local" },
+    { "key": "designerToken", "value": "" },
+    { "key": "designerId", "value": "" },
+    { "key": "authorEmail", "value": "author1@unibook-demo.local" },
+    { "key": "authorToken", "value": "" },
+    { "key": "authorId", "value": "" },
+    { "key": "accountantEmail", "value": "accountant@unibook-demo.local" },
+    { "key": "accountantToken", "value": "" },
+    { "key": "accountantId", "value": "" },
+    { "key": "ts", "value": "" },
+    { "key": "versionNumber", "value": "" }
   ]
 }
