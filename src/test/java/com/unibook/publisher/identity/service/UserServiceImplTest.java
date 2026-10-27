@@ -1,18 +1,19 @@
 package com.unibook.publisher.identity.service;
 
 import com.unibook.publisher.common.enums.UserRole;
-import static com.unibook.publisher.testutil.TestUsers.asUser;
 import com.unibook.publisher.common.exception.conflict.EmailAlreadyExistsException;
 import com.unibook.publisher.common.exception.notfound.UserNotFoundException;
 import com.unibook.publisher.common.exception.security.ForbiddenActionException;
 import com.unibook.publisher.common.exception.security.InvalidCredentialsException;
 import com.unibook.publisher.common.security.jwt.JwtService;
+import com.unibook.publisher.identity.entity.RefreshToken;
 import com.unibook.publisher.identity.entity.User;
 import com.unibook.publisher.identity.entity.UserProfile;
 import com.unibook.publisher.identity.entity.request.*;
-import com.unibook.publisher.identity.entity.response.AuthResponse;
+import com.unibook.publisher.identity.entity.response.AuthResult;
 import com.unibook.publisher.identity.entity.response.CurrentUserResponse;
 import com.unibook.publisher.identity.entity.response.UserResponse;
+import com.unibook.publisher.identity.repository.RefreshTokenRepository;
 import com.unibook.publisher.identity.repository.UserRepository;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -27,13 +28,16 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static com.unibook.publisher.testutil.TestUsers.asUser;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,6 +51,9 @@ public class UserServiceImplTest {
 
     @Mock
     private JwtService jwtService;
+
+    @Mock
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Spy
     private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
@@ -100,19 +107,21 @@ public class UserServiceImplTest {
                     .build();
             when(userDetailsService.loadUserByUsername(request.email())).thenReturn(userDetails);
             when(jwtService.generateAccessToken(any(UserDetails.class))).thenReturn("access-token");
-            when(jwtService.generateRefreshToken(any(UserDetails.class))).thenReturn("refresh-token");
+            when(jwtService.generateRefreshToken(any(UserDetails.class), anyString())).thenReturn("refresh-token");
             when(jwtService.getAccessExpirationInSeconds()).thenReturn(1800L);
+            when(jwtService.getRefreshExpirationInSeconds()).thenReturn(604800L);
 
-            AuthResponse response = userService.register(request);
+            AuthResult result = userService.register(request);
 
-            assertThat(response).isNotNull();
-            assertThat(response.userId()).isEqualTo(generatedId);
-            assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
-            assertThat(response.accessToken()).isNotNull();
-            assertThat(response.refreshToken()).isNotNull();
-            assertThat(response.expiresIn()).isNotNull();
+            assertThat(result).isNotNull();
+            assertThat(result.response().userId()).isEqualTo(generatedId);
+            assertThat(result.response().role()).isEqualTo(UserRole.AUTHOR);
+            assertThat(result.response().accessToken()).isNotNull();
+            assertThat(result.response().expiresIn()).isNotNull();
+            assertThat(result.refreshToken()).isEqualTo("refresh-token");
 
             verify(userRepository, times(1)).save(any(User.class));
+            verify(refreshTokenRepository, times(1)).save(any(RefreshToken.class));
         }
 
         @Test
@@ -128,6 +137,7 @@ public class UserServiceImplTest {
                     .hasMessageContaining("вже існує");
 
             verify(userRepository, never()).save(any());
+            verify(refreshTokenRepository, never()).save(any());
         }
     }
 
@@ -152,17 +162,20 @@ public class UserServiceImplTest {
                     .build();
             when(userDetailsService.loadUserByUsername(request.email())).thenReturn(userDetails);
             when(jwtService.generateAccessToken(any(UserDetails.class))).thenReturn("access-token");
-            when(jwtService.generateRefreshToken(any(UserDetails.class))).thenReturn("refresh-token");
+            when(jwtService.generateRefreshToken(any(UserDetails.class), anyString())).thenReturn("refresh-token");
             when(jwtService.getAccessExpirationInSeconds()).thenReturn(1800L);
+            when(jwtService.getRefreshExpirationInSeconds()).thenReturn(604800L);
 
-            AuthResponse response = userService.login(request);
+            AuthResult result = userService.login(request);
 
-            assertThat(response).isNotNull();
-            assertThat(response.userId()).isEqualTo(userId);
-            assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
-            assertThat(response.accessToken()).isNotNull();
-            assertThat(response.refreshToken()).isNotNull();
-            assertThat(response.expiresIn()).isNotNull();
+            assertThat(result).isNotNull();
+            assertThat(result.response().userId()).isEqualTo(userId);
+            assertThat(result.response().role()).isEqualTo(UserRole.AUTHOR);
+            assertThat(result.response().accessToken()).isNotNull();
+            assertThat(result.response().expiresIn()).isNotNull();
+            assertThat(result.refreshToken()).isEqualTo("refresh-token");
+
+            verify(refreshTokenRepository, times(1)).save(any(RefreshToken.class));
         }
 
         @Test
@@ -192,20 +205,23 @@ public class UserServiceImplTest {
     }
 
     @Nested
-    @DisplayName("Оновлення токенів")
+    @DisplayName("Оновлення токенів та Stateful перевірка")
     class RefreshTokenTests {
 
         @Test
-        @DisplayName("Успішне оновлення токенів")
+        @DisplayName("Успішна ротація токенів")
         void refreshToken_Success() {
             UUID userId = UUID.randomUUID();
             String refreshToken = "valid-refresh-token";
+            String jti = "valid-jti";
             String email = "author@gmail.com";
             User user = buildUser(userId, email, "password123", UserRole.AUTHOR, "Artur");
 
-            RefreshTokenRequest request = new RefreshTokenRequest(refreshToken);
+            RefreshToken tokenEntity = new RefreshToken(jti, userId, Instant.now().plusSeconds(3600));
 
             when(jwtService.isRefreshToken(refreshToken)).thenReturn(true);
+            when(jwtService.extractJti(refreshToken)).thenReturn(jti);
+            when(refreshTokenRepository.findByJti(jti)).thenReturn(Optional.of(tokenEntity));
             when(jwtService.extractUsername(refreshToken)).thenReturn(email);
             when(userRepository.getByEmail(email)).thenReturn(Optional.of(user));
 
@@ -217,32 +233,180 @@ public class UserServiceImplTest {
 
             when(userDetailsService.loadUserByUsername(email)).thenReturn(userDetails);
             when(jwtService.generateAccessToken(any(UserDetails.class))).thenReturn("new-access-token");
-            when(jwtService.generateRefreshToken(any(UserDetails.class))).thenReturn("new-refresh-token");
+            when(jwtService.generateRefreshToken(any(UserDetails.class), anyString())).thenReturn("new-refresh-token");
             when(jwtService.getAccessExpirationInSeconds()).thenReturn(1800L);
+            when(jwtService.getRefreshExpirationInSeconds()).thenReturn(604800L);
 
-            AuthResponse response = userService.refreshToken(request);
+            AuthResult result = userService.refreshToken(refreshToken);
 
-            assertThat(response).isNotNull();
-            assertThat(response.userId()).isEqualTo(userId);
-            assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
-            assertThat(response.accessToken()).isEqualTo("new-access-token");
-            assertThat(response.refreshToken()).isEqualTo("new-refresh-token");
-            assertThat(response.expiresIn()).isEqualTo(1800L);
+            assertThat(result).isNotNull();
+            assertThat(result.response().userId()).isEqualTo(userId);
+            assertThat(result.response().role()).isEqualTo(UserRole.AUTHOR);
+            assertThat(result.response().accessToken()).isEqualTo("new-access-token");
+            assertThat(result.response().expiresIn()).isEqualTo(1800L);
+            assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
+
+            assertThat(tokenEntity.isRevoked()).isTrue();
+            verify(refreshTokenRepository, times(1)).save(any(RefreshToken.class));
         }
 
         @Test
-        @DisplayName("")
-        void refreshToken_InvalidOrExpiredToken_ThrowsException() {
+        @DisplayName("Виявлення повторного використання (Reuse Detection): відкликаються всі сесії при спробі використати анульований токен")
+        void refreshToken_AlreadyRevoked_RevokesAllUserTokensAndThrowsException() {
+            UUID userId = UUID.randomUUID();
+            String refreshToken = "revoked-refresh-token";
+            String jti = "revoked-jti";
+
+            RefreshToken tokenEntity = new RefreshToken(jti, userId, Instant.now().plusSeconds(3600));
+            tokenEntity.setRevoked(true);
+
+            when(jwtService.isRefreshToken(refreshToken)).thenReturn(true);
+            when(jwtService.extractJti(refreshToken)).thenReturn(jti);
+            when(refreshTokenRepository.findByJti(jti)).thenReturn(Optional.of(tokenEntity));
+
+            assertThatThrownBy(() -> userService.refreshToken(refreshToken))
+                    .isInstanceOf(InvalidCredentialsException.class);
+
+            verify(refreshTokenRepository, times(1)).revokeAllByUserId(userId);
+            verify(userRepository, never()).getByEmail(any());
+        }
+
+        @Test
+        @DisplayName("Помилка, якщо токен протерміновано в БД")
+        void refreshToken_ExpiredToken_MarksRevokedAndThrowsException() {
+            UUID userId = UUID.randomUUID();
+            String refreshToken = "expired-refresh-token";
+            String jti = "expired-jti";
+
+            RefreshToken tokenEntity = new RefreshToken(jti, userId, Instant.now().minusSeconds(10));
+
+            when(jwtService.isRefreshToken(refreshToken)).thenReturn(true);
+            when(jwtService.extractJti(refreshToken)).thenReturn(jti);
+            when(refreshTokenRepository.findByJti(jti)).thenReturn(Optional.of(tokenEntity));
+
+            assertThatThrownBy(() -> userService.refreshToken(refreshToken))
+                    .isInstanceOf(InvalidCredentialsException.class);
+
+            assertThat(tokenEntity.isRevoked()).isTrue();
+            verify(userRepository, never()).getByEmail(any());
+        }
+
+        @Test
+        @DisplayName("Помилка, якщо refresh token недійсний за структурою JWT")
+        void refreshToken_InvalidJwtStructure_ThrowsException() {
             String refreshToken = "invalid-refresh-token";
 
-            RefreshTokenRequest request = new RefreshTokenRequest(refreshToken);
             when(jwtService.isRefreshToken(refreshToken)).thenReturn(false);
 
-            assertThatThrownBy(() -> userService.refreshToken(request))
-                    .isInstanceOf(InvalidCredentialsException.class)
-                    .hasMessageContaining("Недійсний або протермінований refresh token");
+            assertThatThrownBy(() -> userService.refreshToken(refreshToken))
+                    .isInstanceOf(InvalidCredentialsException.class);
 
+            verify(refreshTokenRepository, never()).findByJti(any());
             verify(userRepository, never()).getByEmail(any());
+        }
+
+        @Test
+        @DisplayName("Помилка, якщо refresh token дорівнює null")
+        void refreshToken_NullToken_ThrowsException() {
+            assertThatThrownBy(() -> userService.refreshToken(null))
+                    .isInstanceOf(InvalidCredentialsException.class);
+        }
+
+        @Test
+        @DisplayName("Помилка, якщо під час витягування JTI виникає виняток (покриття catch блоку)")
+        void refreshToken_ExtractJtiThrowsException_ThrowsInvalidCredentialsException() {
+            String refreshToken = "valid-format-token";
+
+            when(jwtService.isRefreshToken(refreshToken)).thenReturn(true);
+            when(jwtService.extractJti(refreshToken)).thenThrow(new RuntimeException("Corrupted JTI claim"));
+
+            assertThatThrownBy(() -> userService.refreshToken(refreshToken))
+                    .isInstanceOf(InvalidCredentialsException.class);
+
+            verify(refreshTokenRepository, never()).findByJti(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("Вихід із системи (Logout)")
+    class LogoutTests {
+
+        @Test
+        @DisplayName("Успішний logout: токен позначається як відкликаний")
+        void logout_Success() {
+            UUID userId = UUID.randomUUID();
+            String refreshToken = "valid-refresh-token";
+            String jti = "valid-jti";
+
+            RefreshToken tokenEntity = new RefreshToken(jti, userId, Instant.now().plusSeconds(3600));
+
+            when(jwtService.isRefreshToken(refreshToken)).thenReturn(true);
+            when(jwtService.extractJti(refreshToken)).thenReturn(jti);
+            when(refreshTokenRepository.findByJti(jti)).thenReturn(Optional.of(tokenEntity));
+
+            userService.logout(refreshToken);
+
+            assertThat(tokenEntity.isRevoked()).isTrue();
+        }
+
+        @Test
+        @DisplayName("Logout з порожнім токеном не робить дій в БД")
+        void logout_NullOrBlankToken_DoesNothing() {
+            userService.logout(null);
+            userService.logout("  ");
+
+            verifyNoInteractions(refreshTokenRepository);
+        }
+
+        @Test
+        @DisplayName("Logout з недійсним токеном обробляється мовчки без винятку")
+        void logout_InvalidToken_HandlesGracefully() {
+            String refreshToken = "malformed-token";
+            when(jwtService.isRefreshToken(refreshToken)).thenThrow(new RuntimeException("Parsing failed"));
+
+            userService.logout(refreshToken);
+
+            verify(refreshTokenRepository, never()).findByJti(any());
+        }
+
+        @Test
+        @DisplayName("Logout, якщо токен не є refresh-токеном, не виконує дій у БД")
+        void logout_NotRefreshToken_DoesNothing() {
+            String token = "access-token";
+
+            when(jwtService.isRefreshToken(token)).thenReturn(false);
+
+            userService.logout(token);
+
+            verify(jwtService, never()).extractJti(any());
+            verify(refreshTokenRepository, never()).findByJti(any());
+        }
+
+        @Test
+        @DisplayName("Logout, якщо токен відсутній у БД, завершується без помилок (порожній Optional)")
+        void logout_TokenNotFoundInDb_DoesNotThrow() {
+            String refreshToken = "valid-refresh-token";
+            String jti = "non-existent-jti";
+
+            when(jwtService.isRefreshToken(refreshToken)).thenReturn(true);
+            when(jwtService.extractJti(refreshToken)).thenReturn(jti);
+            when(refreshTokenRepository.findByJti(jti)).thenReturn(Optional.empty());
+
+            userService.logout(refreshToken);
+
+            verify(refreshTokenRepository, times(1)).findByJti(jti);
+        }
+
+        @Test
+        @DisplayName("Logout, якщо виникає виняток під час перевірки токена (покриття catch блоку)")
+        void logout_ExceptionInJwtService_EntersCatchBlock() {
+            String refreshToken = "malformed-token";
+
+            when(jwtService.isRefreshToken(refreshToken)).thenThrow(new RuntimeException("Parsing error"));
+
+            userService.logout(refreshToken);
+
+            verify(refreshTokenRepository, never()).findByJti(any());
         }
     }
 
@@ -439,13 +603,14 @@ public class UserServiceImplTest {
         }
 
         @Test
-        @DisplayName("Успішне видалення користувача за ID")
+        @DisplayName("Успішне видалення користувача за ID (також видаляються всі його токени)")
         void deleteUser_Success() {
             UUID userId = UUID.randomUUID();
             when(userRepository.existsById(userId)).thenReturn(true);
 
             userService.deleteUser(userId);
 
+            verify(refreshTokenRepository, times(1)).deleteAllByUserId(userId);
             verify(userRepository, times(1)).deleteById(userId);
         }
 
@@ -458,6 +623,7 @@ public class UserServiceImplTest {
             assertThatThrownBy(() -> userService.deleteUser(userId))
                     .isInstanceOf(UserNotFoundException.class);
 
+            verify(refreshTokenRepository, never()).deleteAllByUserId(any());
             verify(userRepository, never()).deleteById(any());
         }
     }

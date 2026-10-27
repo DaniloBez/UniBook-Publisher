@@ -1,6 +1,5 @@
 package com.unibook.publisher.common.exception;
 
-import com.unibook.publisher.common.exception.badrequest.BadRequestException;
 import com.unibook.publisher.common.exception.business.BusinessRuleViolationException;
 import com.unibook.publisher.common.exception.business.FileUploadException;
 import com.unibook.publisher.common.exception.conflict.DuplicateResourceException;
@@ -189,7 +188,7 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
-    @ExceptionHandler(BadRequestException.class)
+    @ExceptionHandler(FileNotFoundException.class)
     public ProblemDetail handleFileNotFound(FileNotFoundException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
         problem.setTitle("Поганий запит на завантаження файлу");
@@ -209,7 +208,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(FileUploadException.class)
     public ProblemDetail handleCoverVersionUpload(FileUploadException exception) {
         logger.warn("Помилка завантаження файлу: {}", exception.getMessage(), exception);
-        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getCause().getMessage());
+        String detail = exception.getCause() != null ? exception.getCause().getMessage() : exception.getMessage();
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, detail);
         problem.setTitle(exception.getMessage());
         problem.setProperty(TIMESTAMP_FIELD, Instant.now());
         return problem;

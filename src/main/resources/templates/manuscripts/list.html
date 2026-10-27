@@ -47,14 +47,11 @@
                 </td>
 
                 <td>
-                    <th:block th:each="genreId : ${manuscript.genreIds}">
-                        <span th:each="genre : ${genres}"
-                              th:if="${genre.genreId == genreId}"
-                              class="badge bg-secondary me-1"
-                              th:text="${genre.genreName}">
-                            Жанр
-                        </span>
-                    </th:block>
+                     <span th:each="genre : ${manuscript.genres}"
+                           class="badge bg-secondary me-1"
+                           th:text="${genre.genreName}">
+                        Жанр
+                    </span>
                 </td>
 
                 <td>
