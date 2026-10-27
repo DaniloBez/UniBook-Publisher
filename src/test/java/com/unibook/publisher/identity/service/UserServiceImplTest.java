@@ -304,6 +304,27 @@ public class UserServiceImplTest {
             verify(refreshTokenRepository, never()).findByJti(any());
             verify(userRepository, never()).getByEmail(any());
         }
+
+        @Test
+        @DisplayName("Помилка, якщо refresh token дорівнює null")
+        void refreshToken_NullToken_ThrowsException() {
+            assertThatThrownBy(() -> userService.refreshToken(null))
+                    .isInstanceOf(InvalidCredentialsException.class);
+        }
+
+        @Test
+        @DisplayName("Помилка, якщо під час витягування JTI виникає виняток (покриття catch блоку)")
+        void refreshToken_ExtractJtiThrowsException_ThrowsInvalidCredentialsException() {
+            String refreshToken = "valid-format-token";
+
+            when(jwtService.isRefreshToken(refreshToken)).thenReturn(true);
+            when(jwtService.extractJti(refreshToken)).thenThrow(new RuntimeException("Corrupted JTI claim"));
+
+            assertThatThrownBy(() -> userService.refreshToken(refreshToken))
+                    .isInstanceOf(InvalidCredentialsException.class);
+
+            verify(refreshTokenRepository, never()).findByJti(any());
+        }
     }
 
     @Nested
@@ -342,6 +363,46 @@ public class UserServiceImplTest {
         void logout_InvalidToken_HandlesGracefully() {
             String refreshToken = "malformed-token";
             when(jwtService.isRefreshToken(refreshToken)).thenThrow(new RuntimeException("Parsing failed"));
+
+            userService.logout(refreshToken);
+
+            verify(refreshTokenRepository, never()).findByJti(any());
+        }
+
+        @Test
+        @DisplayName("Logout, якщо токен не є refresh-токеном, не виконує дій у БД")
+        void logout_NotRefreshToken_DoesNothing() {
+            String token = "access-token";
+
+            when(jwtService.isRefreshToken(token)).thenReturn(false);
+
+            userService.logout(token);
+
+            verify(jwtService, never()).extractJti(any());
+            verify(refreshTokenRepository, never()).findByJti(any());
+        }
+
+        @Test
+        @DisplayName("Logout, якщо токен відсутній у БД, завершується без помилок (порожній Optional)")
+        void logout_TokenNotFoundInDb_DoesNotThrow() {
+            String refreshToken = "valid-refresh-token";
+            String jti = "non-existent-jti";
+
+            when(jwtService.isRefreshToken(refreshToken)).thenReturn(true);
+            when(jwtService.extractJti(refreshToken)).thenReturn(jti);
+            when(refreshTokenRepository.findByJti(jti)).thenReturn(Optional.empty());
+
+            userService.logout(refreshToken);
+
+            verify(refreshTokenRepository, times(1)).findByJti(jti);
+        }
+
+        @Test
+        @DisplayName("Logout, якщо виникає виняток під час перевірки токена (покриття catch блоку)")
+        void logout_ExceptionInJwtService_EntersCatchBlock() {
+            String refreshToken = "malformed-token";
+
+            when(jwtService.isRefreshToken(refreshToken)).thenThrow(new RuntimeException("Parsing error"));
 
             userService.logout(refreshToken);
 
