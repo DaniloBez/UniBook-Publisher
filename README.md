@@ -566,7 +566,7 @@ docker compose down
 #### Передумови
 - Встановлений комплект розробника JDK 25 (або вище)
 - Встановлений Git
-- Встановлений Docker та Docker Compose (для локального MinIO)
+- Встановлений Docker та Docker Compose (для локального MinIO та PostgreSQL у Testcontainers під час e2e-тестів)
 
 #### Кроки для запуску
 
@@ -586,10 +586,43 @@ cp .env.example .env
 docker compose up -d
 ```
 
-4. Запустити повний комплекс автоматизованих тестів (включаючи перевірку архітектурних модульних кордонів Spring Modulith):
+4. Запустити автоматизовані тести (включаючи перевірку архітектурних модульних кордонів Spring Modulith):
 ```bash
+# Швидкі unit-тести (без Docker)
 ./gradlew test --no-daemon
+
+# Інтеграційні тести з Testcontainers (тег "integration")
+./gradlew integrationTest --no-daemon
+
+# Наскрізні тести: REST-сценарії та Playwright UI (docker required)
+./gradlew e2eTest --no-daemon
+
+# Усі три рівні тестів
+./gradlew check --no-daemon
 ```
+
+Інтеграційні та E2E тести піднімають PostgreSQL 17 у Docker через Testcontainers і звертаються до застосунку за реальним HTTP-портом (`RANDOM_PORT`) і використовують `MockMvc` для запитів через API ендпоінти
+
+Інтреграційні тести використовують `JdbcClient` для прямої перевірки змін у PostgreSQL.
+
+Для UI-сценаріїв Playwright один раз завантажте Chromium:
+```bash
+./gradlew playwrightInstall
+```
+
+Окремі варіанти запуску:
+```bash
+# Лише REST-сценарій життєвого циклу рукопису
+./gradlew e2eTest --tests '*PublishingLifecycleE2eTest' --no-daemon
+
+# Лише Playwright UI-сценарії
+./gradlew e2eTest --tests '*ManuscriptUiE2ETest' --no-daemon
+
+# Playwright із видимим вікном браузера (а за замовчуванням headless)
+./gradlew e2eTest --tests '*ManuscriptUiE2ETest' -Dplaywright.headless=false --no-daemon
+```
+
+Скріншоти і trace-файли Playwright зберігаються у `build/reports/playwright/<клас>-<тест>/`.
 
 5. Запустити застосунок локально:
 ```bash
