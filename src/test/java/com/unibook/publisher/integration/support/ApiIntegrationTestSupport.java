@@ -7,8 +7,8 @@ import com.unibook.publisher.communication.entity.response.UnreadCountResponse;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
 import com.unibook.publisher.finance.entity.response.ContractResponse;
 import com.unibook.publisher.identity.entity.request.LoginRequest;
-import com.unibook.publisher.identity.entity.request.RefreshTokenRequest;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
+import jakarta.servlet.http.Cookie;
 import com.unibook.publisher.production.entity.request.AssignDesignerRequest;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
 import com.unibook.publisher.production.entity.request.ChapterUpdateRequest;
@@ -94,19 +94,33 @@ public abstract class ApiIntegrationTestSupport {
 
         AuthResponse response = read(result, AuthResponse.class);
         assertThat(response.accessToken()).isNotBlank();
-        assertThat(response.refreshToken()).isNotBlank();
         assertThat(response.expiresIn()).isPositive();
         return response;
     }
 
     protected AuthResponse refresh(String refreshToken) throws Exception {
+        Cookie cookie = new Cookie("refreshToken", refreshToken);
         MvcResult result = mockMvc.perform(post("/api/v1/auth/refresh")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(new RefreshTokenRequest(refreshToken))))
+                        .cookie(cookie))
                 .andExpect(status().isOk())
                 .andReturn();
 
         return read(result, AuthResponse.class);
+    }
+
+    protected AuthResponse refreshWithCookie(MvcResult loginResult) throws Exception {
+        Cookie cookie = loginResult.getResponse().getCookie("refreshToken");
+        assertThat(cookie).isNotNull();
+        MvcResult result = mockMvc.perform(post("/api/v1/auth/refresh")
+                        .cookie(cookie))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        return read(result, AuthResponse.class);
+    }
+
+    protected Cookie getRefreshCookie(MvcResult result) {
+        return result.getResponse().getCookie("refreshToken");
     }
 
     protected <T extends AbstractMockHttpServletRequestBuilder<T>> T authorized(T request, AuthResponse auth) {

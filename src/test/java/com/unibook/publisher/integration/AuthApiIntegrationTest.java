@@ -25,7 +25,6 @@ class AuthApiIntegrationTest extends ApiIntegrationTestSupport {
         assertThat(response.userId()).isEqualTo(AUTHOR_ID);
         assertThat(response.role()).isEqualTo(UserRole.AUTHOR);
         assertThat(response.accessToken()).isNotBlank();
-        assertThat(response.refreshToken()).isNotBlank();
         assertThat(response.expiresIn()).isPositive();
 
         assertThat(dbString("select email from users where id = ?", AUTHOR_ID))
@@ -36,13 +35,19 @@ class AuthApiIntegrationTest extends ApiIntegrationTestSupport {
 
     @Test
     void refresh_ShouldProduceAccessTokenAcceptedByProtectedEndpoint() throws Exception {
-        AuthResponse original = login(AUTHOR_EMAIL);
+        org.springframework.test.web.servlet.MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new com.unibook.publisher.identity.entity.request.LoginRequest(AUTHOR_EMAIL, PASSWORD))))
+                .andExpect(status().isOk())
+                .andReturn();
 
-        AuthResponse refreshed = refresh(original.refreshToken());
+        AuthResponse original = read(loginResult, AuthResponse.class);
+
+        AuthResponse refreshed = refreshWithCookie(loginResult);
 
         assertThat(refreshed.userId()).isEqualTo(AUTHOR_ID);
         assertThat(refreshed.accessToken()).isNotBlank();
-        assertThat(refreshed.refreshToken()).isNotBlank();
 
         mockMvc.perform(authorized(get("/api/v1/manuscripts/my"), refreshed))
                 .andExpect(status().isOk());

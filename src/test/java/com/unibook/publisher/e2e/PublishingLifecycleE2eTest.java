@@ -8,7 +8,6 @@ import com.unibook.publisher.communication.entity.response.UnreadCountResponse;
 import com.unibook.publisher.finance.entity.request.RoyaltyUpdateRequest;
 import com.unibook.publisher.finance.entity.response.ContractResponse;
 import com.unibook.publisher.identity.entity.request.LoginRequest;
-import com.unibook.publisher.identity.entity.request.RefreshTokenRequest;
 import com.unibook.publisher.identity.entity.response.AuthResponse;
 import com.unibook.publisher.production.entity.request.AssignDesignerRequest;
 import com.unibook.publisher.production.entity.request.ChapterCreationRequest;
@@ -64,27 +63,26 @@ class PublishingLifecycleE2eTest {
     @Test
     void manuscriptShouldTravelFromSubmissionToPublicationWithNotifications() {
         //auth
-        AuthResponse chiefEditor = login(CHIEF_EDITOR_EMAIL);
-        AuthResponse editor = login(EDITOR_EMAIL);
-        AuthResponse designer = login(DESIGNER_EMAIL);
-        AuthResponse author = login(AUTHOR_EMAIL);
-        AuthResponse accountant = login(ACCOUNTANT_EMAIL);
+        LoginResult chiefEditor = loginWithCookie(CHIEF_EDITOR_EMAIL);
+        LoginResult editor = loginWithCookie(EDITOR_EMAIL);
+        LoginResult designer = loginWithCookie(DESIGNER_EMAIL);
+        LoginResult author = loginWithCookie(AUTHOR_EMAIL);
+        LoginResult accountant = loginWithCookie(ACCOUNTANT_EMAIL);
 
-        assertThat(chiefEditor.role()).isEqualTo(UserRole.CHIEF_EDITOR);
-        assertThat(editor.role()).isEqualTo(UserRole.EDITOR);
-        assertThat(designer.role()).isEqualTo(UserRole.DESIGNER);
-        assertThat(author.role()).isEqualTo(UserRole.AUTHOR);
-        assertThat(accountant.role()).isEqualTo(UserRole.ACCOUNTANT);
+        assertThat(chiefEditor.response.role()).isEqualTo(UserRole.CHIEF_EDITOR);
+        assertThat(editor.response.role()).isEqualTo(UserRole.EDITOR);
+        assertThat(designer.response.role()).isEqualTo(UserRole.DESIGNER);
+        assertThat(author.response.role()).isEqualTo(UserRole.AUTHOR);
+        assertThat(accountant.response.role()).isEqualTo(UserRole.ACCOUNTANT);
 
-        AuthResponse refreshedAuthor = refresh(author.refreshToken());
+        AuthResponse refreshedAuthor = refresh(author.refreshTokenCookie);
         assertThat(refreshedAuthor.accessToken()).isNotBlank();
-        assertThat(refreshedAuthor.refreshToken()).isNotBlank();
 
-        RestTestClient chiefApi = authorized(chiefEditor);
-        RestTestClient editorApi = authorized(editor);
-        RestTestClient designerApi = authorized(designer);
+        RestTestClient chiefApi = authorized(chiefEditor.response);
+        RestTestClient editorApi = authorized(editor.response);
+        RestTestClient designerApi = authorized(designer.response);
         RestTestClient authorApi = authorized(refreshedAuthor);
-        RestTestClient accountantApi = authorized(accountant);
+        RestTestClient accountantApi = authorized(accountant.response);
 
         client.get().uri("/api/v1/genres")
                 .exchange()
@@ -103,7 +101,7 @@ class PublishingLifecycleE2eTest {
         ManuscriptResponse submitted = submitManuscript(authorApi, title, genreId);
         assertThat(submitted.manuscriptId()).isNotNull();
         assertThat(submitted.status()).isEqualTo(ManuscriptStatus.SUBMITTED);
-        assertThat(submitted.authorId()).isEqualTo(author.userId());
+        assertThat(submitted.authorId()).isEqualTo(author.response.userId());
         assertThat(submitted.genres()).extracting(GenreResponse::genreId).containsExactly(genreId);
 
         UUID manuscriptId = submitted.manuscriptId();
@@ -125,7 +123,7 @@ class PublishingLifecycleE2eTest {
                 .contains(manuscriptId);
 
         //approving
-        ManuscriptResponse approved = approveManuscript(chiefApi, manuscriptId, editor.userId());
+        ManuscriptResponse approved = approveManuscript(chiefApi, manuscriptId, editor.response.userId());
         assertThat(approved.status()).isEqualTo(ManuscriptStatus.IN_PROGRESS);
 
         awaitNotification(authorApi, manuscriptId, "Рукопис схвалено");
@@ -149,7 +147,7 @@ class PublishingLifecycleE2eTest {
         awaitNotification(authorApi, manuscriptId, "Редагування тексту завершено");
 
         //assigning designer
-        ManuscriptResponse inDesign = assignDesigner(chiefApi, manuscriptId, designer.userId());
+        ManuscriptResponse inDesign = assignDesigner(chiefApi, manuscriptId, designer.response.userId());
         assertThat(inDesign.status()).isEqualTo(ManuscriptStatus.IN_DESIGN);
 
         awaitNotification(designerApi, manuscriptId, "Нове призначення");
@@ -159,7 +157,7 @@ class PublishingLifecycleE2eTest {
         //uploading cover
         CoverVersionResponse cover = uploadCover(designerApi, manuscriptId);
         assertThat(cover.versionNumber()).isEqualTo(1);
-        assertThat(cover.uploadedByUserId()).isEqualTo(designer.userId());
+        assertThat(cover.uploadedByUserId()).isEqualTo(designer.response.userId());
         assertThat(cover.isApproved()).isFalse();
 
         awaitNotification(authorApi, manuscriptId, "Нова версія обкладинки");
@@ -168,7 +166,7 @@ class PublishingLifecycleE2eTest {
         //check contract
         ContractResponse contract = awaitContract(authorApi, manuscriptId);
         assertThat(contract.status()).isEqualTo(ContractStatus.DRAFT);
-        assertThat(contract.authorId()).isEqualTo(author.userId());
+        assertThat(contract.authorId()).isEqualTo(author.response.userId());
         assertThat(contract.title()).isEqualTo(title);
 
         //ensuring of receicing message
@@ -220,27 +218,42 @@ class PublishingLifecycleE2eTest {
 
     }
 
-    private AuthResponse login(String email) {
-        AuthResponse response = client.post().uri("/api/v1/auth/login")
+    private static class LoginResult {
+        AuthResponse response;
+        String refreshTokenCookie;
+
+        LoginResult(AuthResponse response, String refreshTokenCookie) {
+            this.response = response;
+            this.refreshTokenCookie = refreshTokenCookie;
+        }
+    }
+
+    private LoginResult loginWithCookie(String email) {
+        var result = client.post().uri("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(new LoginRequest(email, PASSWORD))
                 .exchange()
-                .expectStatus().isOk()
-                .expectBody(AuthResponse.class)
+                .expectStatus().isOk();
+
+        AuthResponse response = result.expectBody(AuthResponse.class)
                 .returnResult()
                 .getResponseBody();
 
+        String cookie = result.returnResult().getResponseHeaders().getFirst("Set-Cookie");
+        String refreshTokenCookie = null;
+        if (cookie != null && cookie.contains("refreshToken=")) {
+            refreshTokenCookie = cookie.split("refreshToken=")[1].split(";")[0];
+        }
+
         assertThat(response).isNotNull();
         assertThat(response.accessToken()).isNotBlank();
-        assertThat(response.refreshToken()).isNotBlank();
         assertThat(response.expiresIn()).isPositive();
-        return response;
+        return new LoginResult(response, refreshTokenCookie);
     }
 
     private AuthResponse refresh(String refreshToken) {
         AuthResponse response = client.post().uri("/api/v1/auth/refresh")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(new RefreshTokenRequest(refreshToken))
+                .cookie("refreshToken", refreshToken)
                 .exchange()
                 .expectStatus().isOk()
                 .expectBody(AuthResponse.class)
